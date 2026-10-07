@@ -1,0 +1,7 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": ["III", "ISI", " S "],
+  "key": {"I": {"item": "minecraft:iron_ingot"}, "S": {"item": "minecraft:stick"}},
+  "result": {"item": "proficiency:smithing_hammer", "count": 1}
+}

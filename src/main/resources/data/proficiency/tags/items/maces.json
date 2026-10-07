@@ -1,0 +1,8 @@
+{
+  "replace": false,
+  "values": [
+    "proficiency:mace",
+    { "id": "#forge:tools/maces", "required": false },
+    { "id": "#c:maces", "required": false }
+  ]
+}

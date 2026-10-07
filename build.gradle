@@ -1,0 +1,121 @@
+plugins {
+    id 'java-library'
+    id 'net.neoforged.moddev.legacyforge' version '2.0.147'
+}
+
+version = mod_version
+group = mod_group_id
+
+base {
+    archivesName = mod_id
+}
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+
+legacyForge {
+    version = "${minecraft_version}-${forge_version}"
+
+    runs {
+        client {
+            client()
+        }
+        server {
+            server()
+            programArgument '--nogui'
+        }
+        gameTestServer {
+            type = 'gameTestServer'
+            systemProperty 'forge.enabledGameTestNamespaces', mod_id
+        }
+    }
+
+    mods {
+        "${mod_id}" {
+            sourceSet(sourceSets.main)
+        }
+    }
+}
+
+mixin {
+    add sourceSets.main, 'proficiency.refmap.json'
+    config 'proficiency.mixins.json'
+    config 'proficiency.client.mixins.json'
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+}
+
+dependencies {
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+    compileOnly(annotationProcessor('io.github.llamalad7:mixinextras-common:0.4.1'))
+    implementation('io.github.llamalad7:mixinextras-forge:0.4.1')
+    jarJar('io.github.llamalad7:mixinextras-forge:0.4.1')
+
+    testImplementation platform('org.junit:junit-bom:5.11.3')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+// ModDevGradle only puts Minecraft on the main source set. These are plain JUnit tests over the
+// pure-Java half of the mod, so they just need the same classpath without booting the loader.
+sourceSets.test.compileClasspath += sourceSets.main.compileClasspath
+sourceSets.test.runtimeClasspath += sourceSets.main.runtimeClasspath
+
+tasks.named('test') {
+    useJUnitPlatform()
+    // ReclamationMaterialsTest reads the pack override and the pack's item id list from here.
+    inputs.dir('packs')
+    testLogging {
+        events 'failed', 'skipped'
+    }
+}
+
+tasks.withType(ProcessResources).configureEach {
+    var replaceProperties = [
+            minecraft_version      : minecraft_version,
+            minecraft_version_range: minecraft_version_range,
+            forge_version          : forge_version,
+            forge_version_range    : forge_version_range,
+            loader_version_range   : loader_version_range,
+            mod_id                 : mod_id,
+            mod_name               : mod_name,
+            mod_license            : mod_license,
+            mod_version            : mod_version,
+            mod_authors            : mod_authors,
+            mod_description        : mod_description
+    ]
+    inputs.properties replaceProperties
+
+    filesMatching(['META-INF/mods.toml', 'pack.mcmeta']) {
+        expand replaceProperties
+    }
+}
+
+// The in-world tests are for runGameTestServer, not for anyone's server.
+tasks.named('jar') {
+    exclude 'dev/amman/proficiency/gametest/**'
+    // Forge 1.20.1 finds a mod's mixins through this manifest entry, not through mods.toml.
+    manifest.attributes('MixinConfigs': 'proficiency.mixins.json,proficiency.client.mixins.json')
+}
+
+// The shipped jar: reobfuscated to SRG names (what Forge 1.20.1 runs in production), with
+// MixinExtras nested, named for the loader and version.
+tasks.named('reobfJar') {
+    archiveClassifier = 'forge-1.20.1'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = 17
+    options.compilerArgs += ['-Xmaxerrs', '3000']
+}
+
+// Every GameTest run starts from a fresh world: planted structure starts from a previous run stay
+// in the chunks and make the discovery tests see a structure "before it was planted".
+tasks.matching { it.name == 'runGameTestServer' }.configureEach {
+    doFirst {
+        delete file('run/world')
+    }
+}

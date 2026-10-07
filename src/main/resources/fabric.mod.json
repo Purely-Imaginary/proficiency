@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "id": "${mod_id}",
+  "version": "${mod_version}",
+  "name": "${mod_name}",
+  "description": "${mod_description}",
+  "authors": ["${mod_authors}"],
+  "license": "${mod_license}",
+  "icon": "assets/proficiency/textures/item/foresters_compass.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["dev.amman.proficiency.Proficiency"],
+    "client": ["dev.amman.proficiency.client.ProficiencyClientSetup"],
+    "fabric-gametest": [
+      "dev.amman.proficiency.gametest.ProficiencyGameTests",
+      "dev.amman.proficiency.gametest.CourageGameTests",
+      "dev.amman.proficiency.gametest.GuardianGameTests",
+      "dev.amman.proficiency.gametest.ChargerGameTests",
+      "dev.amman.proficiency.gametest.TacticianGameTests"
+    ]
+  },
+  "mixins": [
+    "proficiency.mixins.json",
+    {"config": "proficiency.client.mixins.json", "environment": "client"}
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "minecraft": "~${minecraft_version}",
+    "java": ">=21",
+    "fabric-api": "*",
+    "forgeconfigapiport": "*"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "replace": false,
+  "values": [
+    { "id": "cataclysm:ender_guardian", "required": false },
+    { "id": "cataclysm:netherite_monstrosity", "required": false },
+    { "id": "cataclysm:ignis", "required": false },
+    { "id": "cataclysm:the_leviathan", "required": false },
+    { "id": "cataclysm:ancient_remnant", "required": false },
+    { "id": "twilightforest:naga", "required": false },
+    { "id": "twilightforest:lich", "required": false },
+    { "id": "twilightforest:hydra", "required": false },
+    { "id": "twilightforest:ur_ghast", "required": false },
+    { "id": "twilightforest:snow_queen", "required": false },
+    { "id": "twilightforest:minoshroom", "required": false },
+    { "id": "twilightforest:knight_phantom", "required": false },
+    { "id": "twilightforest:alpha_yeti", "required": false },
+    { "id": "aether:slider", "required": false },
+    { "id": "aether:valkyrie_queen", "required": false },
+    { "id": "aether:sun_spirit", "required": false },
+    { "id": "deep_aether:eldritch_golem", "required": false },
+    { "id": "mowziesmobs:ferrous_wroughtnaut", "required": false },
+    { "id": "mowziesmobs:frostmaw", "required": false },
+    { "id": "mowziesmobs:umvuthi", "required": false },
+    { "id": "illagerinvasion:king_of_scots", "required": false },
+    { "id": "minecraft:ender_dragon", "required": false },
+    { "id": "minecraft:wither", "required": false },
+    { "id": "minecraft:warden", "required": false }
+  ]
+}

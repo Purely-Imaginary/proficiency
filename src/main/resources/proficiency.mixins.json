@@ -1,0 +1,36 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "dev.amman.proficiency.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "AnimalMixin",
+    "AnvilMenuAccessor",
+    "AnvilMenuMixin",
+    "BlockMixin",
+    "BoneMealItemMixin",
+    "EntityMixin",
+    "ExplosionMixin",
+    "FallingBlockEntityMixin",
+    "FishingHookMixin",
+    "FurnaceResultSlotMixin",
+    "GrindstoneResultSlotMixin",
+    "ItemCombinerMenuAccessor",
+    "ItemEntityMixin",
+    "ItemStackMixin",
+    "LevelMixin",
+    "LivingEntityAccessor",
+    "LivingEntityMixin",
+    "MobMixin",
+    "NaturalSpawnerMixin",
+    "PersistentEntitySectionManagerMixin",
+    "PistonBaseBlockMixin",
+    "PlayerMixin",
+    "ProjectileMixin",
+    "ResultSlotMixin",
+    "ServerPlayerMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

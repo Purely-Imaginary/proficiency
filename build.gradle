@@ -1,0 +1,88 @@
+plugins {
+    id 'fabric-loom' version '1.11.8'
+}
+
+version = "${mod_version}-fabric"
+group = mod_group_id
+
+base {
+    archivesName = mod_id
+}
+
+repositories {
+    maven { name = 'Modrinth'; url = 'https://api.modrinth.com/maven'; content { includeGroup 'maven.modrinth' } }
+    mavenCentral()
+}
+
+loom {
+    runs {
+        // Fabric's in-world tests: `gradle runGametest` boots a headless server, runs every
+        // @GameTest and exits non-zero if a required one fails.
+        gametest {
+            server()
+            name 'Game Test'
+            vmArg '-Dfabric-api.gametest'
+            vmArg "-Dfabric-api.gametest.report-file=${project.layout.buildDirectory.get()}/gametest-junit.xml"
+            runDir 'build/gametest'
+        }
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${minecraft_version}"
+    // Official Mojang names: the NeoForge source was written against them, so every vanilla
+    // call in the handlers compiles unchanged.
+    mappings loom.officialMojangMappings()
+    modImplementation "net.fabricmc:fabric-loader:${loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${fabric_version}"
+    // NeoForge's ModConfigSpec on Fabric, so ProficiencyConfig stays exactly as written.
+    modImplementation "maven.modrinth:forge-config-api-port:${fcap_version}"
+
+    // Forge Config API Port nests night-config as jar-in-jar, which the plain JUnit classpath does
+    // not unpack (dev runs and tests); ProficiencyConfig's static init needs it. The shipped jar
+    // needs neither: in a real instance Fabric Loader loads FCAP's nested copies.
+    runtimeOnly 'com.electronwill.night-config:core:3.8.0'
+    runtimeOnly 'com.electronwill.night-config:toml:3.8.0'
+
+    testImplementation platform('org.junit:junit-bom:5.11.3')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+    testLogging {
+        events 'passed', 'failed', 'skipped'
+    }
+}
+
+processResources {
+    var props = [
+            mod_id         : mod_id,
+            mod_name       : mod_name,
+            mod_version    : project.version,
+            mod_description: mod_description,
+            mod_authors    : mod_authors,
+            mod_license    : mod_license,
+            loader_version : loader_version,
+            minecraft_version: minecraft_version
+    ]
+    inputs.properties props
+    filesMatching('fabric.mod.json') {
+        expand props
+    }
+}
+
+// The in-world tests are for runGametest, not for anyone's server.
+tasks.named('jar') {
+    exclude 'dev/amman/proficiency/gametest/**'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = 21
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(21)
+}

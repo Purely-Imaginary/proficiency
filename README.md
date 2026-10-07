@@ -14,14 +14,14 @@ This branch is the **Fabric 1.21.1** build. The same mod exists for
 
 - **34 skills** in six categories, each from 0 to 100. Gathering, crafting, combat, movement,
   construction and survival.
-- **A passive per skill** that grows with the level, and a **signature proc** from level 25: Mining
+- **A passive per skill** that grows with the level, and a **signature proc** from level 25. Mining
   hits a Motherlode, Woodcutting fells the whole tree, Swords land a Perfect Strike.
 - **A talent tree per skill.** One point per level, and every tree can be filled completely by
   level 100. Branch choices set priority, never a lockout. A respec costs 1 XP level per 10 points.
 - **17 synergies** between trees. Each pays off when you invest in two related skills.
 - **An active ability per skill** from level 50. Tap the ability key for the held item's ability,
   hold it for a wheel with every ability you have unlocked.
-- **Survival streak:** +1% skill XP per active hour alive, up to +50%. A death wipes the streak and
+- **Survival streak.** +1% skill XP per active hour alive, up to +50%. A death wipes the streak and
   the XP bars, never your levels or talents.
 - **Discovery.** Banners for new biomes, dimensions and structures, a one-time bonus for every new
   kind of block, mob and item, and a discovery journal.

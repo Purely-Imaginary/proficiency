@@ -1,7 +1,7 @@
 # Proficiency
 
-A Valheim-style skill system for Minecraft. You get better at what you do: mining raises Mining,
-swinging an axe raises Axes, sneaking past mobs raises Sneaking. There is no class to pick and no
+A Valheim-style skill system for Minecraft. You get better at what you do. Mining raises Mining,
+swinging an axe raises Axes, and sneaking past mobs raises Sneaking. There is no class to pick and no
 character sheet to fill in.
 
 This branch is the **Fabric 1.21.1** build. The same mod exists for
@@ -18,19 +18,19 @@ This branch is the **Fabric 1.21.1** build. The same mod exists for
   hits a Motherlode, Woodcutting fells the whole tree, Swords land a Perfect Strike.
 - **A talent tree per skill.** One point per level, and every tree can be filled completely by
   level 100. Branch choices set priority, never a lockout. A respec costs 1 XP level per 10 points.
-- **17 synergies** between trees, for players who invest in two related skills.
+- **17 synergies** between trees. Each pays off when you invest in two related skills.
 - **An active ability per skill** from level 50. Tap the ability key for the held item's ability,
   hold it for a wheel with every ability you have unlocked.
 - **Survival streak:** +1% skill XP per active hour alive, up to +50%. A death wipes the streak and
   the XP bars, never your levels or talents.
-- **Discovery:** banners for new biomes, dimensions and structures, a one-time bonus for every new
+- **Discovery.** Banners for new biomes, dimensions and structures, a one-time bonus for every new
   kind of block, mob and item, and a discovery journal.
-- **Items:** the Forester's Compass (finds unvisited biomes and structures), the Friend Compass, and
+- **Items.** The Forester's Compass (finds unvisited biomes and structures), the Friend Compass, and
   station recipes made with a tool on a station (a ladle on a water cauldron, a smithing hammer on
   an anvil).
-- **HUD:** the current skill's bar above the hotbar, XP dots that fly into it, and a small streak
+- **HUD.** The current skill's bar above the hotbar, XP dots that fly into it, and a small streak
   badge. Every tenth level is announced in chat.
-- **Fair XP:** blocks you placed pay no gathering XP when you break them. Mobs from spawn eggs,
+- **Fair XP.** Blocks you placed pay no gathering XP when you break them. Mobs from spawn eggs,
   dispensers, commands and buckets pay no combat XP, and spawner mobs pay 25%. Unripe crops pay
   nothing.
 

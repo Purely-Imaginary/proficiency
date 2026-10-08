@@ -26,6 +26,8 @@ public final class ProficiencyNetwork {
         PayloadTypeRegistry.playS2C().register(DiscoveryPayload.TYPE, DiscoveryPayload.STREAM_CODEC);
         PayloadTypeRegistry.playS2C().register(VisitedPayload.TYPE, VisitedPayload.STREAM_CODEC);
         PayloadTypeRegistry.playS2C().register(CalledShotPayload.TYPE, CalledShotPayload.STREAM_CODEC);
+        PayloadTypeRegistry.playS2C().register(DeathRecapPayload.TYPE, DeathRecapPayload.STREAM_CODEC);
+        PayloadTypeRegistry.playS2C().register(ProcFxPayload.TYPE, ProcFxPayload.STREAM_CODEC);
         PayloadTypeRegistry.playC2S().register(ActivateAbilityPayload.TYPE, ActivateAbilityPayload.STREAM_CODEC);
         PayloadTypeRegistry.playC2S().register(UnlockPerkPayload.TYPE, UnlockPerkPayload.STREAM_CODEC);
         // Fabric runs play-phase receivers on the server thread already.
@@ -38,6 +40,20 @@ public final class ProficiencyNetwork {
     /** Client side, on the client thread: the server's numbers replace ours. */
     public static void onSync(SyncSkillsPayload payload, Player player) {
         ProficiencyAttachments.of(player).copyFrom(payload.skills());
+        dev.amman.proficiency.client.ClientSync.markSynced();
+    }
+
+    /** To every client within 48 blocks of the player or of the effect, the player included. */
+    public static void sendProcFx(net.minecraft.server.level.ServerLevel level, ServerPlayer player,
+            ProcFxPayload payload) {
+        double range = 48.0 * 48.0;
+        for (ServerPlayer near : level.players()) {
+            boolean close = near.distanceToSqr(player) <= range
+                    || payload.hasFocus() && near.distanceToSqr(payload.fx(), payload.fy(), payload.fz()) <= range;
+            if (close && canReceive(near, ProcFxPayload.TYPE)) {
+                PacketDistributor.sendToPlayer(near, payload);
+            }
+        }
     }
 
     private static void onActivate(ActivateAbilityPayload payload, ServerPlayer player) {
@@ -118,6 +134,14 @@ public final class ProficiencyNetwork {
             return;
         }
         PacketDistributor.sendToPlayer(player, new CalledShotPayload(entityId, ticks, marker));
+    }
+
+    /** What the death just wiped, for the recap panel. Skipped when there was nothing to show. */
+    public static void sendDeathRecap(ServerPlayer player, DeathRecapPayload payload) {
+        if (payload.isEmpty() || !canReceive(player, DeathRecapPayload.TYPE)) {
+            return;
+        }
+        PacketDistributor.sendToPlayer(player, payload);
     }
 
     /** The recent-XP lines of the skills that changed since the last push. Called from the sync tick. */

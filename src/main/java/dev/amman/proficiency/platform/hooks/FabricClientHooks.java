@@ -12,6 +12,7 @@ public final class FabricClientHooks {
     }
 
     public static void init() {
+        dev.amman.proficiency.client.SkillTooltip.register();
         ClientTickEvents.END_CLIENT_TICK.register(client -> NeoForge.EVENT_BUS.post(new ClientTickEvent.Post()));
         HudRenderCallback.EVENT.register((graphics, delta) ->
                 NeoForge.EVENT_BUS.post(new RenderGuiEvent.Post(graphics, delta)));

@@ -26,5 +26,11 @@ class ProficiencyClientConfigTest {
         assertTrue(ProficiencyClientConfig.feedShowFactors());
         assertEquals(8000L, ProficiencyClientConfig.feedVisibleMs());
         assertTrue(ProficiencyClientConfig.hudXpDots());
+        assertTrue(ProficiencyClientConfig.hudLevelUpFx());
+        assertTrue(ProficiencyClientConfig.hudAbilityFx());
+        assertTrue(ProficiencyClientConfig.hudStreakFx());
+        assertTrue(ProficiencyClientConfig.hudDeathRecap());
+        assertTrue(ProficiencyClientConfig.procFxEnabled());
+        assertTrue(ProficiencyClientConfig.uiSkillIcons());
     }
 }

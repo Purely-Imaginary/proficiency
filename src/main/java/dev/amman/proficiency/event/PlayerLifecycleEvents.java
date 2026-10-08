@@ -2,6 +2,7 @@ package dev.amman.proficiency.event;
 
 import dev.amman.proficiency.Proficiency;
 import dev.amman.proficiency.ProficiencyAttachments;
+import dev.amman.proficiency.net.DeathRecapPayload;
 import dev.amman.proficiency.net.ProficiencyNetwork;
 import dev.amman.proficiency.skill.PlayerSkills;
 import dev.amman.proficiency.skill.RankBadges;
@@ -121,7 +122,13 @@ public final class PlayerLifecycleEvents {
         if (!event.isWasDeath()) {
             return;
         }
+        // Progress before the wipe, so the recap can drain each bar from where it stood.
+        float[] before = new float[Skill.VALUES.length];
+        for (Skill skill : Skill.VALUES) {
+            before[skill.ordinal()] = fresh.progress(skill);
+        }
         Map<Skill, Float> lost = fresh.applyDeathPenalty();
+        fresh.clearFrenzy();
         int streakLost = SurvivalStreak.onDeath(fresh);
         // Unpaid Social XP is part of the bars a death wipes.
         dev.amman.proficiency.skill.SocialService.onDeath(event.getOriginal().getUUID());
@@ -146,6 +153,9 @@ public final class PlayerLifecycleEvents {
                         worst.size() - DEATH_LINES_SHOWN).withStyle(ChatFormatting.DARK_RED));
             }
         }
+        ProficiencyNetwork.sendDeathRecap(player,
+                DeathRecapPayload.of(lost, before, fresh, streakLost,
+                        SurvivalStreak.percent(streakLost)));
         if (streakLost > 0) {
             player.sendSystemMessage(Component.translatable("proficiency.streak.lost",
                     streakLost, SurvivalStreak.percent(streakLost)).withStyle(ChatFormatting.RED));

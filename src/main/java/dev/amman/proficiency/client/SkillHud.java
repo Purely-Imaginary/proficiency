@@ -8,8 +8,8 @@ import dev.amman.proficiency.skill.PlayerSkills;
 import dev.amman.proficiency.skill.Skill;
 import dev.amman.proficiency.skill.SkillMath;
 import dev.amman.proficiency.skill.SurvivalStreak;
-import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import dev.amman.proficiency.platform.bus.Dist;
@@ -52,6 +52,30 @@ public final class SkillHud {
     private static int lastLevel = -1;
     private static float lastProgress = -1f;
     private static long shownAt;
+    /** The skill and displayed level seen last frame, to catch the number turning over. */
+    private static final int[] SEEN = newSeen();
+
+    private static final int GOLD_FLASH = 0xFFD24A;
+    /** Gap between the level and the badge. */
+    private static final int GAP_WIDTH = 6;
+
+    // The label's pieces, rebuilt only when the skill, the level, the percent or the language moves.
+    private static Skill cSkill;
+    private static String cLanguage;
+    private static String cPrefix = "";
+    private static String cSuffix = "";
+    private static int cPrefixW;
+    private static int cSuffixW;
+    private static int cLevel = -1;
+    private static String cNum = "";
+    private static int cNumW;
+    private static int cPercent = -1;
+    private static String cPct = "";
+    private static int cPctW;
+    private static String cPctLanguage;
+    private static int cOldLevel = -1;
+    private static String cOld = "";
+    private static int cOldW;
 
     /** The XP-gain dots and the animated fill; see {@link XpGainDots}. */
     private static final XpGainDots DOTS = new XpGainDots();
@@ -59,25 +83,93 @@ public final class SkillHud {
     private SkillHud() {
     }
 
+    private static int[] newSeen() {
+        int[] seen = new int[Skill.VALUES.length];
+        java.util.Arrays.fill(seen, -1);
+        return seen;
+    }
+
+    /** Forgets everything the HUD remembers. Called from the loader's logout hook. */
+    static void reset() {
+        lastSkill = null;
+        lastProgress = -1f;
+        lastLevel = -1;
+        java.util.Arrays.fill(SEEN, -1);
+        cSkill = null;
+        cLevel = -1;
+        cPercent = -1;
+        cOldLevel = -1;
+        DOTS.snap(0, 0);
+    }
+
     @SubscribeEvent
     public static void onRenderGui(RenderGuiEvent.Post event) {
         Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.player == null || minecraft.options.hideGui) {
+        if (minecraft.player == null) {
+            // Left the world: nothing seen there may leak into the next one. The loader's logout
+            // hook does this too; this catches a frame that slips in between.
+            HudState.reset();
+            return;
+        }
+        // The skills panel's activity glow and sparklines, fed whether or not the HUD is shown.
+        long now = System.currentTimeMillis();
+        SkillActivity.observe(ProficiencyAttachments.of(minecraft.player), net.minecraft.Util.getMillis());
+        if (minecraft.options.hideGui) {
+            // Nothing is drawn, so nothing may be queued up to play when the GUI comes back: a
+            // level gained now would otherwise replay as a borrowed line long after it happened.
+            LevelUpFx.takeQueuedSkill();
+            lastSkill = null;
+            PlayerSkills hidden = ProficiencyAttachments.of(minecraft.player);
+            for (Skill skill : Skill.VALUES) {
+                SEEN[skill.ordinal()] = hidden.level(skill);
+            }
             return;
         }
 
-        Skill skill = AbilityContext.current(minecraft.player);
+        GuiGraphics graphics = event.getGuiGraphics();
+        PlayerSkills skills = ProficiencyAttachments.of(minecraft.player);
+        Skill held = AbilityContext.current(minecraft.player);
+
+        // Every skill but the one the line shows keeps its last-seen level equal to the real one,
+        // so a level gained while it was not on show (a borrowed line, another world) is never
+        // replayed when it is picked up again. The shown one is compared against the number on
+        // screen below, which is what makes the roll land with the bar.
+        for (Skill other : Skill.VALUES) {
+            if (other != lastSkill || SEEN[other.ordinal()] < 0) {
+                SEEN[other.ordinal()] = skills.level(other);
+            }
+        }
+        StreakBadge.observe(SurvivalStreak.percent(SurvivalStreak.stacks(skills)), now);
+        AbilityFx.render(graphics, minecraft.player, skills, held, event.getPartialTick().getGameTimeDeltaPartialTick(false), now);
+        DeathRecapHud.render(graphics, minecraft, now);
+
+        // A level gained on a skill the HUD is not showing borrows the line for a moment.
+        Skill queued = LevelUpFx.takeQueuedSkill();
+        if (queued != null && ProficiencyClientConfig.hudLevelUpFx() && queued != held) {
+            int level = LevelUpFx.queuedLevel();
+            LevelUpFx.start(queued, level - 1, level, now, true);
+        }
+        if (ProficiencyClientConfig.hudLevelUpFx() && LevelUpFx.lineUp(now)) {
+            Skill skill = LevelUpFx.skill();
+            int level = Math.max(skills.level(skill), LevelUpFx.newLevel());
+            long elapsed = now - LevelUpFx.startedAt();
+            long remaining = LevelUpFx.lineMs() - elapsed;
+            int alpha = (int) (255 * Math.min(1.0, remaining / (double) FADE_MS));
+            drawLine(graphics, minecraft, skills, skill, level, value(level, skills.progress(skill)),
+                    alpha, now, false);
+            return;
+        }
+
+        Skill skill = held;
         if (skill == null) {
             // Forget it, so gains made while nothing showed are not flown in later.
             lastSkill = null;
             return;
         }
-        PlayerSkills skills = ProficiencyAttachments.of(minecraft.player);
 
         // Show it when something changed, then let it fade rather than sitting there forever.
         float progress = skills.progress(skill);
         int level = skills.level(skill);
-        long now = System.currentTimeMillis();
         double real = value(level, progress);
         // Level is part of the key as well as progress: dying at level 0 leaves progress at exactly
         // 0.0 both sides of the respawn, and without this the line would never come back.
@@ -102,53 +194,252 @@ public final class SkillHud {
             shownAt = now;
         }
 
+        // The number turns over when the bar does, not when the packet arrives.
+        int shownLevel = Math.min(level, (int) Math.floor(shown + 1e-6));
+        int seen = SEEN[skill.ordinal()];
+        if (shownLevel > seen && ProficiencyClientConfig.hudLevelUpFx()) {
+            LevelUpFx.start(skill, seen, shownLevel, now, false);
+        }
+        SEEN[skill.ordinal()] = shownLevel;
+        // The effect and the line it lives on outlast the bar's own timer.
+        if (ProficiencyClientConfig.hudLevelUpFx() && LevelUpFx.skill() == skill && LevelUpFx.active(now)) {
+            shownAt = Math.max(shownAt, now);
+        }
+        // So does a streak that just broke, so the badge is seen going.
+        if (ProficiencyClientConfig.hudStreakFx() && StreakBadge.holding(now)) {
+            shownAt = now;
+        }
+
         long elapsed = now - shownAt;
         if (elapsed > VISIBLE_MS) {
             return;
         }
-
-        GuiGraphics graphics = event.getGuiGraphics();
-        int centreX = graphics.guiWidth() / 2;
-        int y = graphics.guiHeight() - LINE_FROM_BOTTOM;
-        int accent = SkillPalette.accent(skill.category());
         long remaining = VISIBLE_MS - elapsed;
-        int alpha = (int) (255 * Math.min(1.0, remaining / (double) FADE_MS)) << 24;
-
-        // The number turns over when the bar does, not when the packet arrives.
-        int shownLevel = Math.min(level, (int) Math.floor(shown + 1e-6));
-        Component label = Component.translatable("proficiency.hud.line",
-                Component.translatable(skill.translationKey()), shownLevel);
-        // The streak rides on the same line: it multiplies exactly the XP this line shows.
-        int stacks = SurvivalStreak.stacks(skills);
-        if (stacks > 0) {
-            label = label.copy()
-                    .append(Component.literal("  "))
-                    // U+E000 is the two-chevron glyph this mod adds to the default font.
-                    .append(Component.literal("\uE000").withStyle(ChatFormatting.GOLD))
-                    .append(Component.translatable("proficiency.hud.streak", SurvivalStreak.percent(stacks))
-                            .withStyle(ChatFormatting.GOLD));
-        }
-        int labelWidth = minecraft.font.width(label);
-        graphics.drawString(minecraft.font, label,
-                centreX - labelWidth / 2, y, (accent & 0x00FFFFFF) | alpha, true);
-
-        int barLeft = centreX - BAR_WIDTH / 2;
-        int barTop = y + 11;
-        graphics.fill(barLeft, barTop, barLeft + BAR_WIDTH, barTop + 2,
-                (SkillPalette.TRACK & 0x00FFFFFF) | alpha);
-        int filled = (int) Math.round(BAR_WIDTH * fill(shown));
-        if (filled > 0) {
-            graphics.fill(barLeft, barTop, barLeft + filled, barTop + 2,
-                    (accent & 0x00FFFFFF) | alpha);
-        }
-        drawDots(graphics, barLeft + filled, barTop + 1, accent, alpha, now);
+        int alpha = (int) (255 * Math.min(1.0, remaining / (double) FADE_MS));
+        drawLine(graphics, minecraft, skills, skill, shownLevel, shown, alpha, now, true);
 
         // Above the label, not below the bar: below is the item-name and action-bar zone.
         if (ActiveService.isFrenzied(minecraft.player, skill)) {
             Component frenzy = Component.translatable(skill.activeKey());
             int width = minecraft.font.width(frenzy);
             graphics.drawString(minecraft.font, frenzy,
-                    centreX - width / 2, y - 11, 0xFFF2D98A, true);
+                    graphics.guiWidth() / 2 - width / 2, graphics.guiHeight() - LINE_FROM_BOTTOM - 11,
+                    0xFFF2D98A, true);
+        }
+    }
+
+    /**
+     * The line itself: the skill name and level, the streak badge and its percent, the bar. The
+     * level-up effect (flash, rolling number, ring) and the streak effects hang off it, each behind
+     * its own switch. {@code alpha} is 0 to 255; {@code dots} says whether the XP dots belong to
+     * this skill (they do not on a borrowed line).
+     */
+    private static void drawLine(GuiGraphics graphics, Minecraft minecraft, PlayerSkills skills, Skill skill,
+            int shownLevel, double shown, int alpha, long now, boolean dots) {
+        Font font = minecraft.font;
+        int centreX = graphics.guiWidth() / 2;
+        int y = graphics.guiHeight() - LINE_FROM_BOTTOM;
+        int accent = SkillPalette.accent(skill.category());
+        int rgb = accent & 0x00FFFFFF;
+        int a24 = alpha << 24;
+
+        boolean levelFx = ProficiencyClientConfig.hudLevelUpFx() && LevelUpFx.skill() == skill
+                && LevelUpFx.active(now);
+        boolean gold = levelFx && LevelUpFx.gold();
+        float flash = levelFx ? LevelUpFx.flash(now) : 0f;
+        boolean rolling = levelFx && LevelUpFx.roll(now) < 1f;
+        boolean streakFx = ProficiencyClientConfig.hudStreakFx();
+
+        labelCache(minecraft, skill, shownLevel);
+        int stacks = SurvivalStreak.stacks(skills);
+        boolean dead = streakFx && StreakBadge.holding(now);
+        int percent = dead ? StreakBadge.breakPercent() : (stacks > 0 ? SurvivalStreak.percent(stacks) : 0);
+        boolean badge = dead || stacks > 0;
+        if (badge) {
+            pctCache(font, percent);
+        }
+        int total = cPrefixW + cNumW + cSuffixW;
+        if (badge) {
+            total += GAP_WIDTH + StreakBadge.WIDTH + cPctW;
+        }
+        int x = centreX - total / 2;
+        // The skill's icon hangs left of the text, so the text stays centred over the bar. It goes
+        // rather than run off a narrow screen.
+        int icon = SkillIcons.enabled()
+                ? SkillIcons.fit(graphics.guiWidth() - 8 - SkillIcons.advance(SkillIcons.SMALL), total,
+                        SkillIcons.SMALL) : 0;
+        if (icon > 0) {
+            SkillIcons.draw(graphics, skill, x - SkillIcons.advance(icon), SkillIcons.smallTop(y), icon, alpha);
+        }
+
+        int base = rgb;
+        if (flash > 0f) {
+            base = StreakBadge.lerp(rgb, gold ? GOLD_FLASH : 0xFFFFFF, Math.min(1f, flash * 0.85f));
+        }
+        int colour = a24 | base;
+        graphics.drawString(font, cPrefix, x, y, colour, true);
+        int numX = x + cPrefixW;
+        if (rolling && alpha > 8) {
+            float roll = LevelUpFx.roll(now);
+            int slide = Math.round(roll * 9);
+            int oldAlpha = Math.round(alpha * (1f - roll));
+            int newAlpha = Math.round(alpha * roll);
+            if (LevelUpFx.oldLevel() != cOldLevel) {
+                cOld = Integer.toString(LevelUpFx.oldLevel());
+                cOldW = font.width(cOld);
+                cOldLevel = LevelUpFx.oldLevel();
+            }
+            graphics.enableScissor(numX - 1, y - 1, numX + Math.max(cNumW, cOldW) + 1, y + 9);
+            if (oldAlpha > 8) {
+                graphics.drawString(font, cOld, numX, y - slide, (oldAlpha << 24) | base, true);
+            }
+            if (newAlpha > 8) {
+                graphics.drawString(font, cNum, numX, y + 9 - slide, (newAlpha << 24) | base, true);
+            }
+            graphics.disableScissor();
+        } else {
+            graphics.drawString(font, cNum, numX, y, colour, true);
+        }
+        int cursor = numX + cNumW;
+        if (!cSuffix.isEmpty()) {
+            graphics.drawString(font, cSuffix, cursor, y, colour, true);
+            cursor += cSuffixW;
+        }
+        if (badge) {
+            int badgeX = cursor + GAP_WIDTH;
+            int pctColour = StreakBadge.GOLD;
+            // The percent fades with the breaking badge; the bar and the burst below keep their own.
+            int badgeAlpha = alpha;
+            if (!streakFx) {
+                graphics.drawString(font, StreakBadge.GLYPH, badgeX, y, a24 | StreakBadge.GOLD, true);
+            } else if (dead) {
+                StreakBadge.drawDead(graphics, font, badgeX, y, alpha, now);
+                float t = StreakBadge.breakT(now);
+                if (t > 0f) {
+                    badgeAlpha = Math.round(alpha * (1f - t));
+                }
+            } else {
+                StreakBadge.draw(graphics, font, badgeX, y, SurvivalStreak.stepProgress(skills), alpha, now);
+                pctColour = StreakBadge.lerp(StreakBadge.GOLD, 0xFFFFFF, StreakBadge.flare(now));
+            }
+            if (badgeAlpha > 8) {
+                graphics.drawString(font, cPct, badgeX + StreakBadge.WIDTH, y, (badgeAlpha << 24) | pctColour,
+                        true);
+            }
+        }
+
+        int barLeft = centreX - BAR_WIDTH / 2;
+        int barTop = y + 11;
+        graphics.fill(barLeft, barTop, barLeft + BAR_WIDTH, barTop + 2,
+                (SkillPalette.TRACK & 0x00FFFFFF) | a24);
+        int filled = (int) Math.round(BAR_WIDTH * fill(shown));
+        if (filled > 0) {
+            graphics.fill(barLeft, barTop, barLeft + filled, barTop + 2, a24 | rgb);
+        }
+        if (flash > 0f) {
+            int glow = Math.round(alpha * flash * 0.85f);
+            if (glow > 8) {
+                graphics.fill(barLeft - 1, barTop - 1, barLeft + BAR_WIDTH + 1, barTop + 3,
+                        (glow << 24) | (gold ? GOLD_FLASH : 0xFFFFFF));
+            }
+        }
+        if (levelFx) {
+            levelUpBurst(graphics, centreX, barTop + 1, accent, gold, alpha, now);
+        }
+        if (dots) {
+            drawDots(graphics, barLeft + filled, barTop + 1, accent, a24, now);
+        }
+    }
+
+    /**
+     * The ring that leaves the bar: an ellipse of 64 pixels growing out from the bar and fading in
+     * about 0.6 s. The tenth-level version is bigger, runs 1.4 s, has a second ring a beat behind
+     * and ten gold sparkles drifting up and twinkling. Pixels only, a table for the angles.
+     */
+    private static void levelUpBurst(GuiGraphics graphics, int cx, int cy, int accent, boolean gold,
+            int alpha, long now) {
+        float t = LevelUpFx.t(now);
+        if (t < 0f || t >= 1f) {
+            return;
+        }
+        int ringRgb = gold ? GOLD_FLASH : brighten(accent) & 0x00FFFFFF;
+        float e = 1f - (1f - t) * (1f - t) * (1f - t);
+        float reach = gold ? 64f : 44f;
+        float lift = gold ? 26f : 15f;
+        ringFx(graphics, cx, cy, 8f + e * reach, 2f + e * lift, (1f - t), alpha, ringRgb, 1);
+        if (gold) {
+            float t2 = t - 0.18f;
+            if (t2 > 0f) {
+                float e2 = 1f - (1f - t2) * (1f - t2) * (1f - t2);
+                ringFx(graphics, cx, cy, 6f + e2 * 48f, 2f + e2 * 19f, (1f - t2), alpha, 0xFFFFFF, 2);
+            }
+            for (int k = 0; k < 10; k++) {
+                if (((now / 70) + k) % 3 == 0) {
+                    continue;
+                }
+                int index = (k * 23) % 64;
+                float spread = 0.5f + 0.5f * ((k % 5) / 4f);
+                int px = cx + Math.round(HudMath.X64[index] * (8f + e * reach) * spread);
+                int py = cy + Math.round(HudMath.Y64[index] * (4f + e * lift) * 1.5f * spread - e * 7f);
+                int a = Math.round(alpha * (1f - t) * 0.95f);
+                if (a <= 8) {
+                    continue;
+                }
+                int c = (a << 24) | (k % 2 == 0 ? GOLD_FLASH : 0xFFFFFF);
+                graphics.fill(px, py, px + 2, py + 2, c);
+                if (k % 3 == 1) {
+                    graphics.fill(px - 1, py, px, py + 1, (a / 2 << 24) | GOLD_FLASH);
+                    graphics.fill(px + 2, py, px + 3, py + 1, (a / 2 << 24) | GOLD_FLASH);
+                    graphics.fill(px, py - 1, px + 1, py, (a / 2 << 24) | GOLD_FLASH);
+                    graphics.fill(px, py + 2, px + 1, py + 3, (a / 2 << 24) | GOLD_FLASH);
+                }
+            }
+        }
+    }
+
+    /**
+     * The level-up ring: {@link HudMath#ring} faded by {@code fade}, two pixels square while young
+     * and bright, one as it thins. {@code step} 2 draws every second pixel, a lighter trailing ring.
+     */
+    private static void ringFx(GuiGraphics graphics, int cx, int cy, float rx, float ry, float fade, int alpha,
+            int rgb, int step) {
+        int a = Math.round(alpha * fade * 0.9f);
+        if (a > 8) {
+            HudMath.ring(graphics, cx, cy, rx, ry, (a << 24) | rgb, fade > 0.5f ? 2 : 1, step, 64);
+        }
+    }
+
+    /** Rebuilds the cached pieces of the label when the skill, the level or the language changed. */
+    private static void labelCache(Minecraft minecraft, Skill skill, int level) {
+        Font font = minecraft.font;
+        String language = minecraft.getLanguageManager().getSelected();
+        if (skill != cSkill || !language.equals(cLanguage)) {
+            // The line is "%s %s" or something else in another language; find where the number goes
+            // by formatting it with a marker, so the number can move on its own.
+            String full = Component.translatable("proficiency.hud.line",
+                    Component.translatable(skill.translationKey()), "\u0001").getString();
+            int at = full.indexOf('\u0001');
+            cPrefix = at < 0 ? full : full.substring(0, at);
+            cSuffix = at < 0 ? "" : full.substring(at + 1);
+            cPrefixW = font.width(cPrefix);
+            cSuffixW = font.width(cSuffix);
+            cSkill = skill;
+            cLanguage = language;
+        }
+        if (level != cLevel) {
+            cNum = Integer.toString(level);
+            cNumW = font.width(cNum);
+            cLevel = level;
+        }
+    }
+
+    private static void pctCache(Font font, int percent) {
+        String language = Minecraft.getInstance().getLanguageManager().getSelected();
+        if (percent != cPercent || !language.equals(cPctLanguage)) {
+            cPctLanguage = language;
+            cPct = Component.translatable("proficiency.hud.streak", percent).getString();
+            cPctW = font.width(cPct);
+            cPercent = percent;
         }
     }
 

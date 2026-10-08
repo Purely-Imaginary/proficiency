@@ -48,5 +48,6 @@ public final class Subscribers {
         NeoForge.EVENT_BUS.register(dev.amman.proficiency.client.XpFeedHud.class);
         NeoForge.EVENT_BUS.register(dev.amman.proficiency.client.DarkSight.class);
         NeoForge.EVENT_BUS.register(dev.amman.proficiency.client.CalledShotMarks.class);
+        NeoForge.EVENT_BUS.register(dev.amman.proficiency.client.ProcFxPlayer.class);
     }
 }

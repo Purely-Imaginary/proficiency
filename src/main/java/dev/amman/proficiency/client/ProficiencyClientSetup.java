@@ -50,6 +50,10 @@ public final class ProficiencyClientSetup implements ClientModInitializer {
                 (payload, context) -> ClientVisited.accept(payload));
         ClientPlayNetworking.registerGlobalReceiver(dev.amman.proficiency.net.CalledShotPayload.TYPE,
                 (payload, context) -> CalledShotMarks.accept(payload));
+        ClientPlayNetworking.registerGlobalReceiver(dev.amman.proficiency.net.ProcFxPayload.TYPE,
+                (payload, context) -> ProcFxPlayer.accept(payload));
+        ClientPlayNetworking.registerGlobalReceiver(dev.amman.proficiency.net.DeathRecapPayload.TYPE,
+                (payload, context) -> DeathRecapHud.accept(payload));
         // The recent-XP list is per session on the server; leaving a world ends it here too, or
         // the next server would open on the last one's lines.
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
@@ -58,6 +62,8 @@ public final class ProficiencyClientSetup implements ClientModInitializer {
             DiscoveryBanner.clear();
             ClientVisited.clear();
             CalledShotMarks.clear();
+            ProcFxPlayer.clear();
+            HudState.reset();
         });
 
         // Vanilla's needle maths, fed from the stack's lodestone tracker instead of a lodestone.

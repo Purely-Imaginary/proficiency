@@ -30,23 +30,58 @@ public final class SkillNumbers {
     /** One line for the header: "Passive +12% · Proc 8%, power ×1.25 · Ability 20 s, cooldown 180 s". */
     public static Component line(PlayerSkills skills, Skill skill) {
         int level = skills.level(skill);
-        MutableComponent line = Component.translatable("proficiency.stats.passive", pct(skills.bonus(skill)));
+        MutableComponent line = passivePart(skills, skill);
         line.append(" · ");
-        if (skills.procChance(skill) > 0) {
-            line.append(Component.translatable("proficiency.stats.proc",
-                    pct(skills.procChance(skill)), times(skills.procPower(skill))));
-        } else {
-            line.append(Component.translatable("proficiency.stats.proc_locked", procUnlock()));
-        }
+        line.append(procPart(skills, skill));
         line.append(" · ");
         if (level >= ActiveService.unlockLevel()) {
             line.append(Component.translatable("proficiency.stats.ability",
                     seconds(ActiveService.durationTicks(skills, skill)),
                     seconds(ActiveService.cooldownTicks(skills, skill))));
         } else {
-            line.append(Component.translatable("proficiency.stats.ability_locked", ActiveService.unlockLevel()));
+            line.append(abilityLockedPart());
         }
         return line;
+    }
+
+    /** "Passive +12%". Shared by the header line and the item tooltip. */
+    static MutableComponent passivePart(PlayerSkills skills, Skill skill) {
+        return Component.translatable("proficiency.stats.passive", pct(skills.bonus(skill)));
+    }
+
+    /** "Proc 8%, power ×1.25", or "Proc at level 25" before it unlocks. Reads the chance once. */
+    static MutableComponent procPart(PlayerSkills skills, Skill skill) {
+        double chance = skills.procChance(skill);
+        if (chance > 0) {
+            return Component.translatable("proficiency.stats.proc", pct(chance), times(skills.procPower(skill)));
+        }
+        return Component.translatable("proficiency.stats.proc_locked", procUnlock());
+    }
+
+    static MutableComponent abilityLockedPart() {
+        return Component.translatable("proficiency.stats.ability_locked", ActiveService.unlockLevel());
+    }
+
+    /**
+     * The compact block for an item's tooltip: passive, proc and the ability's ready or cooldown
+     * state. The passive and proc are the header line's own parts; only the ability line differs,
+     * because an item shows what you can do now. {@code gameTime} is the client level's tick.
+     */
+    public static List<Component> itemLines(PlayerSkills skills, Skill skill, long gameTime) {
+        List<Component> lines = new ArrayList<>(3);
+        lines.add(passivePart(skills, skill));
+        lines.add(procPart(skills, skill));
+        if (skills.level(skill) < ActiveService.unlockLevel()) {
+            lines.add(abilityLockedPart());
+        } else {
+            Component abilityName = Component.translatable(skill.activeKey());
+            long cooling = skills.cooldownRemaining(skill, gameTime);
+            lines.add(cooling > 0
+                    ? Component.translatable("proficiency.tooltip.ability.cooldown", abilityName,
+                            seconds((cooling + 19) / 20 * 20))
+                    : Component.translatable("proficiency.tooltip.ability.ready", abilityName));
+        }
+        return lines;
     }
 
     /** The hover: where each number comes from, and what the next level gives. */

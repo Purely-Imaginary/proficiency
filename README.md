@@ -28,8 +28,16 @@ This branch is the **NeoForge 1.21.1** build. The same mod exists for
 - **Items.** The Forester's Compass (finds unvisited biomes and structures), the Friend Compass, and
   station recipes made with a tool on a station (a ladle on a water cauldron, a smithing hammer on
   an anvil).
-- **HUD.** The current skill's bar above the hotbar, XP dots that fly into it, and a small streak
-  badge. Every tenth level is announced in chat.
+- **HUD.** The current skill's bar sits above the hotbar with the skill's icon, and XP dots fly into
+  it. A level-up rolls the number over with a small burst, gold on every tenth level. A badge
+  fills as your survival streak grows. While an ability runs, the screen edge glows in the skill's
+  colour and a ring around the crosshair drains. On cooldown, the item shows a sweep. After a
+  death, a short recap shows the bars you lost. Every tenth level is announced in chat.
+- **Screens and effects.** Spending a talent point animates the node and lights the path to the
+  nodes it opens. The skills panel marks skills you used recently and graphs today's XP. Every
+  skill's proc has its own particle effect, discovery banners reveal their title letter by
+  letter, and tool tooltips show the skill's level, proc chance and ability. Each effect has a
+  switch in `config/proficiency-client.toml`.
 - **Fair XP.** Blocks you placed pay no gathering XP when you break them. Mobs from spawn eggs,
   dispensers, commands and buckets pay no combat XP, and spawner mobs pay 25%. Unripe crops pay
   nothing.

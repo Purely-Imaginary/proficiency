@@ -1,6 +1,7 @@
 package dev.amman.proficiency.client;
 
 import dev.amman.proficiency.ProficiencyAttachments;
+import dev.amman.proficiency.config.ProficiencyClientConfig;
 import dev.amman.proficiency.net.UnlockPerkPayload;
 import dev.amman.proficiency.perk.PerkEffect;
 import dev.amman.proficiency.perk.Requirement;
@@ -63,6 +64,9 @@ public final class TalentTreeScreen extends Screen {
     private final Screen parent;
     private final List<Synergy> synergies;
 
+    /** Unlock animation timing; fed the real ranks each frame. See {@link UnlockFx}. */
+    private final UnlockFx fx;
+
     private int panelX;
     private int panelY;
     /** Where the synergy list ended on the last frame; the recent-XP list starts below it. */
@@ -74,6 +78,11 @@ public final class TalentTreeScreen extends Screen {
         this.skill = skill;
         this.parent = parent;
         this.synergies = Synergies.involving(skill);
+        this.fx = new UnlockFx(COLUMNS * ROWS, synergies.size());
+    }
+
+    private static int idx(Talent talent) {
+        return Math.max(0, Math.min(COLUMNS * ROWS - 1, talent.row() * COLUMNS + talent.col()));
     }
 
     @Override
@@ -105,13 +114,31 @@ public final class TalentTreeScreen extends Screen {
             return;
         }
 
-        graphics.drawString(this.font, this.title, panelX + PADDING, panelY + PADDING, accent(), false);
         Component summary = Component.translatable("proficiency.tree.summary",
                 skills.level(skill), skills.pointsAvailable(skill),
                 skills.pointsSpent(skill), Talents.fullTreeCost(skill));
+        String titleText = this.title.getString();
+        String summaryText = summary.getString();
         // The header lines share the top rows with the synergy column, so they stop at the grid.
         int headerLimit = panelX + PADDING + GRID_WIDTH;
-        drawClipped(graphics, summary.getString(), panelX + PADDING, panelY + PADDING + 10,
+        // The icon: full size beside the title and the summary when both still fit whole, else
+        // small beside the title only (the summary keeps the full width), else none.
+        int icon = 0;
+        if (SkillIcons.enabled()) {
+            int both = Math.max(this.font.width(titleText), this.font.width(summaryText));
+            icon = SkillIcons.fit(GRID_WIDTH, both, SkillIcons.LARGE) == SkillIcons.LARGE
+                    ? SkillIcons.LARGE : SkillIcons.fit(GRID_WIDTH, this.font.width(titleText), SkillIcons.SMALL);
+        }
+        int titleY = panelY + PADDING;
+        int titleX = panelX + PADDING + SkillIcons.advance(icon);
+        int summaryX = icon == SkillIcons.LARGE ? titleX : panelX + PADDING;
+        if (icon == SkillIcons.LARGE) {
+            SkillIcons.draw(graphics, skill, panelX + PADDING, titleY - 1, icon);
+        } else if (icon > 0) {
+            SkillIcons.draw(graphics, skill, panelX + PADDING, SkillIcons.smallTop(titleY), icon);
+        }
+        drawClipped(graphics, titleText, titleX, titleY, headerLimit, accent());
+        drawClipped(graphics, summaryText, summaryX, panelY + PADDING + 10,
                 headerLimit, SkillPalette.TEXT_DIM);
         // The signature move, named and explained. Cut to the grid; hover for the whole line.
         int procY = panelY + PADDING + 19;
@@ -128,18 +155,35 @@ public final class TalentTreeScreen extends Screen {
         boolean statsHovered = inside(mouseX, mouseY, panelX + PADDING, statsY, procWidth, 9);
 
         List<Talent> tree = Talents.of(skill);
+        long now = System.currentTimeMillis();
+        boolean fxOn = ProficiencyClientConfig.screensUnlockFx();
+        for (Talent talent : tree) {
+            if (fxOn) {
+                fx.observe(idx(talent), skills.rank(talent), talent.maxRank(), now);
+            } else {
+                fx.snap(idx(talent), skills.rank(talent));
+            }
+        }
         for (Talent talent : tree) {
             for (String parentId : talent.parents()) {
                 Talent from = Talents.get(skill, parentId);
-                if (from != null) {
-                    connector(graphics, from, talent, skills.isFull(from) ? accent() : SkillPalette.TRACK);
+                if (from == null) {
+                    continue;
+                }
+                if (fxOn && fx.linesPending(idx(from), now)) {
+                    // The line lights as the sweep ends and the light runs towards this node.
+                    connector(graphics, from, talent, SkillPalette.TRACK, accent(),
+                            fx.travel(idx(from), now));
+                } else {
+                    connector(graphics, from, talent,
+                            skills.isFull(from) ? accent() : SkillPalette.TRACK, 0, -1f);
                 }
             }
         }
 
         Talent hovered = null;
         for (Talent talent : tree) {
-            drawNode(graphics, talent, skills);
+            drawNode(graphics, talent, skills, now, fxOn);
             if (inside(mouseX, mouseY, nodeX(talent), nodeY(talent), NODE, NODE)) {
                 hovered = talent;
             }
@@ -161,7 +205,8 @@ public final class TalentTreeScreen extends Screen {
         } else if (procHovered && hovered == null) {
             graphics.renderTooltip(this.font, this.font.split(procLine, 220), mouseX, mouseY);
         } else if (hovered != null) {
-            graphics.renderComponentTooltip(this.font, nodeTooltip(hovered, skills), mouseX, mouseY);
+            graphics.renderComponentTooltip(this.font, nodeTooltip(hovered, skills, fxOn ? fx.shownRank(idx(hovered), now) : skills.rank(hovered)),
+                    mouseX, mouseY);
         } else if (hoveredSynergy != null) {
             graphics.renderComponentTooltip(this.font, synergyTooltip(hoveredSynergy, skills), mouseX, mouseY);
         } else if (hoveredLog != null) {
@@ -170,7 +215,7 @@ public final class TalentTreeScreen extends Screen {
     }
 
     /** Elbow from the bottom of one node to the top of the next: down, across, down. */
-    private void connector(GuiGraphics graphics, Talent from, Talent to, int colour) {
+    private void connector(GuiGraphics graphics, Talent from, Talent to, int colour, int lit, float travel) {
         int x1 = nodeX(from) + NODE / 2;
         int y1 = nodeY(from) + NODE;
         int x2 = nodeX(to) + NODE / 2;
@@ -179,13 +224,43 @@ public final class TalentTreeScreen extends Screen {
         graphics.fill(x1, y1, x1 + 1, mid + 1, colour);
         graphics.fill(Math.min(x1, x2), mid, Math.max(x1, x2) + 1, mid + 1, colour);
         graphics.fill(x2, mid, x2 + 1, y2, colour);
+        if (travel < 0f) {
+            return;
+        }
+        // The lit part: the same three legs, filled in order up to travel * total length, with a
+        // bright head so the eye can follow it.
+        int down1 = mid + 1 - y1;
+        int across = Math.abs(x2 - x1);
+        int down2 = y2 - mid;
+        int left = Math.round((float) XpGainDots.ease(travel) * (down1 + across + down2));
+        int len = Math.min(left, down1);
+        graphics.fill(x1, y1, x1 + 1, y1 + len, lit);
+        int hx = x1;
+        int hy = y1 + len;
+        left -= len;
+        if (left > 0) {
+            len = Math.min(left, across);
+            int dir = x2 >= x1 ? 1 : -1;
+            graphics.fill(Math.min(x1, x1 + dir * len), mid, Math.max(x1, x1 + dir * len) + 1, mid + 1, lit);
+            hx = x1 + dir * len;
+            hy = mid;
+            left -= len;
+            if (left > 0) {
+                len = Math.min(left, down2);
+                graphics.fill(x2, mid, x2 + 1, mid + len, lit);
+                hx = x2;
+                hy = mid + len;
+            }
+        }
+        graphics.fill(hx - 1, hy - 1, hx + 2, hy + 2, 0xFFFFFFFF);
     }
 
-    private void drawNode(GuiGraphics graphics, Talent talent, PlayerSkills skills) {
+    private void drawNode(GuiGraphics graphics, Talent talent, PlayerSkills skills, long now, boolean fxOn) {
         int x = nodeX(talent);
         int y = nodeY(talent);
-        int rank = skills.rank(talent);
-        boolean full = skills.isFull(talent);
+        // While a rank is still sweeping in, the node shows the rank it had before it.
+        int rank = fxOn ? fx.shownRank(idx(talent), now) : skills.rank(talent);
+        boolean full = fxOn ? rank >= talent.maxRank() : skills.isFull(talent);
         boolean open = skills.check(talent) == TalentService.Outcome.OK;
         boolean big = talent.kind() == Talent.Kind.KEYSTONE || talent.kind() == Talent.Kind.CAPSTONE;
 
@@ -211,9 +286,43 @@ public final class TalentTreeScreen extends Screen {
             graphics.fill(x + NODE - 4, y + 1, x + NODE - 1, y + 4, 0xFFD2A249);
         }
 
+        if (fxOn) {
+            float sweep = fx.sweep(idx(talent), now);
+            if (sweep >= 0f) {
+                // The new rank fills the node from the bottom, with a bright front edge.
+                int height = Math.round((float) XpGainDots.ease(sweep) * NODE);
+                boolean nowFull = rank + 1 >= talent.maxRank();
+                int body = (accent() & 0x00FFFFFF) | (nowFull ? 0xB0000000 : 0x90000000);
+                graphics.fill(x + 1, y + NODE - height, x + NODE - 1, y + NODE - 1, body);
+                if (height > 0 && height < NODE) {
+                    graphics.fill(x + 1, y + NODE - height, x + NODE - 1, y + NODE - height + 1, 0xFFFFFFFF);
+                }
+            } else if (full && talent.kind() == Talent.Kind.CAPSTONE) {
+                shimmer(graphics, talent, x, y, now);
+            }
+        }
+
         String text = talent.maxRank() == 1 ? (full ? "✔" : "◆") : rank + "/" + talent.maxRank();
         int colour = full ? SkillPalette.MAXED : open || rank > 0 ? SkillPalette.TEXT : SkillPalette.TEXT_DIM;
         graphics.drawCenteredString(this.font, text, x + NODE / 2 + 1, y + (NODE - 8) / 2, colour);
+    }
+
+    /** A slow diagonal glint across a finished capstone, with a soft halo while it passes. */
+    private void shimmer(GuiGraphics graphics, Talent talent, int x, int y, long now) {
+        float t = UnlockFx.shimmer(now, talent.col() * 401L);
+        if (t < 0f) {
+            return;
+        }
+        int centre = Math.round(t * (NODE * 2 + 6)) - 3;
+        for (int row = 1; row < NODE - 1; row++) {
+            int from = Math.max(1, centre - row - 1);
+            int to = Math.min(NODE - 1, centre - row + 2);
+            if (to > from) {
+                graphics.fill(x + from, y + row, x + to, y + row + 1, 0x66FFFFFF);
+            }
+        }
+        int halo = (int) (Math.sin(t * Math.PI) * 0x58);
+        border(graphics, x - 3, y - 3, NODE + 6, NODE + 6, (SkillPalette.MAXED & 0x00FFFFFF) | (halo << 24));
     }
 
     @Nullable
@@ -232,8 +341,19 @@ public final class TalentTreeScreen extends Screen {
         y += SYNERGY_ROW + 4;
 
         Synergy hovered = null;
+        long now = System.currentTimeMillis();
+        boolean fxOn = ProficiencyClientConfig.screensUnlockFx();
+        int index = -1;
         for (Synergy synergy : synergies) {
+            index++;
             boolean active = Synergies.isActive(skills, synergy);
+            fx.observeSynergy(index, active, now);
+            float pulse = fxOn ? fx.pulse(index, now) : -1f;
+            if (pulse >= 0f) {
+                // Once, in the synergy colour, as the line switches on.
+                int alpha = (int) (Math.sin(pulse * Math.PI) * 0x70);
+                graphics.fill(x - 3, y - 2, x + SIDE_WIDTH, y + SYNERGY_ROW - 2, 0xB98BE0 | (alpha << 24));
+            }
             int met = 0;
             for (Synergy.Need need : synergy.requires()) {
                 if (skills.rank(need.talent()) >= need.minRank()) {
@@ -429,9 +549,9 @@ public final class TalentTreeScreen extends Screen {
         return (colour & 0x00FFFFFF) | (alpha << 24);
     }
 
-    private List<Component> nodeTooltip(Talent talent, PlayerSkills skills) {
+    /** {@code rank} is the one the node shows, so a filling node and its tooltip agree. */
+    private List<Component> nodeTooltip(Talent talent, PlayerSkills skills, int rank) {
         List<Component> lines = new ArrayList<>();
-        int rank = skills.rank(talent);
         lines.add(talent.displayName().copy().withStyle(style -> style.withColor(accent())));
         lines.add(Component.translatable("proficiency.talent.kind." + talent.kind().name().toLowerCase())
                 .withStyle(ChatFormatting.DARK_GRAY));

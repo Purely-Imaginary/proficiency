@@ -18,14 +18,15 @@ public final class ProficiencyNetwork {
     }
 
     public static void register(RegisterPayloadHandlersEvent event) {
-        // Version 2: DiscoveryPayload gained a trailing string. A mismatched pair must fail at
-        // negotiation, not in readUtf.
+        // Version 2: DiscoveryPayload gained a trailing string. Version 3: the sync packet carries the
+        // running frenzies and the death recap packet exists. A mismatched pair must fail at
+        // negotiation, not in readUtf. Version 4: the proc effect packet.
         // Optional channels, but do not read this as "the mod is optional on the client". It is
         // not: the mod registers items, and vanilla registry sync rejects a client that cannot
         // resolve proficiency:foresters_compass, long before any of these channels matter. Tested,
         // not assumed. What the optional flag still buys is that a send during a window where the
         // channel is not negotiated returns false instead of throwing out of an event handler.
-        PayloadRegistrar registrar = event.registrar("2").optional();
+        PayloadRegistrar registrar = event.registrar("4").optional();
         registrar.playToClient(
                 SyncSkillsPayload.TYPE, SyncSkillsPayload.STREAM_CODEC, ProficiencyNetwork::onSync);
         registrar.playToClient(
@@ -40,6 +41,10 @@ public final class ProficiencyNetwork {
                 VisitedPayload.TYPE, VisitedPayload.STREAM_CODEC, ProficiencyNetwork::onVisited);
         registrar.playToClient(
                 CalledShotPayload.TYPE, CalledShotPayload.STREAM_CODEC, ProficiencyNetwork::onCalledShot);
+        registrar.playToClient(
+                DeathRecapPayload.TYPE, DeathRecapPayload.STREAM_CODEC, ProficiencyNetwork::onDeathRecap);
+        registrar.playToClient(
+                ProcFxPayload.TYPE, ProcFxPayload.STREAM_CODEC, ProficiencyNetwork::onProcFx);
         registrar.playToServer(ActivateAbilityPayload.TYPE, ActivateAbilityPayload.STREAM_CODEC,
                 ProficiencyNetwork::onActivate);
         registrar.playToServer(UnlockPerkPayload.TYPE, UnlockPerkPayload.STREAM_CODEC,
@@ -50,6 +55,8 @@ public final class ProficiencyNetwork {
         context.enqueueWork(() -> {
             Player player = context.player();
             player.getData(ProficiencyAttachments.SKILLS.get()).copyFrom(payload.skills());
+            // Resolved only here, which only ever runs on a client.
+            dev.amman.proficiency.client.ClientSync.markSynced();
         });
     }
 
@@ -83,6 +90,27 @@ public final class ProficiencyNetwork {
     private static void onCalledShot(CalledShotPayload payload, IPayloadContext context) {
         // Client-only class, touched only inside the lambda, like the toast above.
         context.enqueueWork(() -> dev.amman.proficiency.client.CalledShotMarks.accept(payload));
+    }
+
+    private static void onDeathRecap(DeathRecapPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> dev.amman.proficiency.client.DeathRecapHud.accept(payload));
+    }
+
+    private static void onProcFx(ProcFxPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> dev.amman.proficiency.client.ProcFxPlayer.accept(payload));
+    }
+
+    /** To every client within 48 blocks of the player or of the effect, the player included. */
+    public static void sendProcFx(net.minecraft.server.level.ServerLevel level, ServerPlayer player,
+            ProcFxPayload payload) {
+        double range = 48.0 * 48.0;
+        for (ServerPlayer near : level.players()) {
+            boolean close = near.distanceToSqr(player) <= range
+                    || payload.hasFocus() && near.distanceToSqr(payload.fx(), payload.fy(), payload.fz()) <= range;
+            if (close && canReceive(near, ProcFxPayload.TYPE)) {
+                PacketDistributor.sendToPlayer(near, payload);
+            }
+        }
     }
 
     private static void onActivate(ActivateAbilityPayload payload, IPayloadContext context) {
@@ -173,6 +201,14 @@ public final class ProficiencyNetwork {
             return;
         }
         PacketDistributor.sendToPlayer(player, new CalledShotPayload(entityId, ticks, marker));
+    }
+
+    /** What the death just wiped, for the recap panel. Skipped when there was nothing to show. */
+    public static void sendDeathRecap(ServerPlayer player, DeathRecapPayload payload) {
+        if (payload.isEmpty() || !canReceive(player, DeathRecapPayload.TYPE)) {
+            return;
+        }
+        PacketDistributor.sendToPlayer(player, payload);
     }
 
     /** The recent-XP lines of the skills that changed since the last push. Called from the sync tick. */

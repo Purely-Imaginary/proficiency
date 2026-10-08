@@ -32,6 +32,7 @@ public final class ClientInputEvents {
 
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
+        SkillTooltip.tick();
         Minecraft minecraft = Minecraft.getInstance();
         if (OPEN_TREE != null && !openedFromEnvironment && minecraft.player != null
                 && (minecraft.screen == null

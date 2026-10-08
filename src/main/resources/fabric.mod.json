@@ -16,7 +16,8 @@
       "dev.amman.proficiency.gametest.CourageGameTests",
       "dev.amman.proficiency.gametest.GuardianGameTests",
       "dev.amman.proficiency.gametest.ChargerGameTests",
-      "dev.amman.proficiency.gametest.TacticianGameTests"
+      "dev.amman.proficiency.gametest.TacticianGameTests",
+      "dev.amman.proficiency.gametest.KillBonusGameTests"
     ]
   },
   "mixins": [

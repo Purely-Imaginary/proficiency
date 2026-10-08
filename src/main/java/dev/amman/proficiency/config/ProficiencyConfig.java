@@ -31,6 +31,10 @@ public final class ProficiencyConfig {
     public static final ModConfigSpec.BooleanValue PLACED_BLOCKS_PAY_XP;
     public static final ModConfigSpec.DoubleValue SPAWNER_MOB_XP;
     public static final ModConfigSpec.DoubleValue ARTIFICIAL_MOB_XP;
+    public static final ModConfigSpec.DoubleValue KILL_BONUS_BASE;
+    public static final ModConfigSpec.DoubleValue KILL_BONUS_HEALTH_DIVISOR;
+    public static final ModConfigSpec.DoubleValue KILL_BONUS_CAP;
+    public static final ModConfigSpec.DoubleValue KILL_BONUS_BOSS_MULTIPLIER;
     public static final ModConfigSpec.IntValue STRUCTURE_XP;
     public static final ModConfigSpec.IntValue GRAND_STRUCTURE_XP;
     public static final ModConfigSpec.IntValue STRUCTURE_ENTRY_COOLDOWN_MINUTES;
@@ -178,6 +182,27 @@ public final class ProficiencyConfig {
                 .comment("Share of the usual combat XP a mob from a spawn egg, dispenser, command or",
                         "mob bucket pays. 0 pays nothing.")
                 .defineInRange("artificialMobXp", 0.0, 0.0, 1.0);
+
+        KILL_BONUS_BASE = b
+                .comment("Kill bonus: XP a kill pays to the skill of the killing blow, before",
+                        "multipliers, is clamp(killBonusBase + maxHealth / killBonusHealthDivisor,",
+                        "killBonusBase, killBonusCap). Hits pay their normal XP and no first-time",
+                        "bonus; the first-time bonus for a new mob is paid on its first kill.",
+                        "Spawn-egg and spawner mobs scale it like any combat XP. 0 turns kills off.")
+                .defineInRange("killBonusBase", 2.0, 0.0, 1000.0);
+
+        KILL_BONUS_HEALTH_DIVISOR = b
+                .comment("Max health per extra point of kill bonus (20 health pays 4 at the default 5).")
+                .defineInRange("killBonusHealthDivisor", 5.0, 0.1, 10000.0);
+
+        KILL_BONUS_CAP = b
+                .comment("Most a single kill pays before the boss multiplier.")
+                .defineInRange("killBonusCap", 20.0, 0.0, 10000.0);
+
+        KILL_BONUS_BOSS_MULTIPLIER = b
+                .comment("Multiplier on the kill bonus for mobs in the proficiency:notable_bosses tag",
+                        "(or over bossHealthThreshold health). Applied after the cap.")
+                .defineInRange("killBonusBossMultiplier", 2.0, 0.0, 100.0);
 
         STRUCTURE_XP = b
                 .comment("Wayfaring XP, before multipliers, for the first visit to each kind of",
@@ -421,6 +446,22 @@ public final class ProficiencyConfig {
 
     public static double spawnerMobXp() {
         return safe(SPAWNER_MOB_XP, 0.25);
+    }
+
+    public static double killBonusBase() {
+        return safe(KILL_BONUS_BASE, 2.0);
+    }
+
+    public static double killBonusHealthDivisor() {
+        return safe(KILL_BONUS_HEALTH_DIVISOR, 5.0);
+    }
+
+    public static double killBonusCap() {
+        return safe(KILL_BONUS_CAP, 20.0);
+    }
+
+    public static double killBonusBossMultiplier() {
+        return safe(KILL_BONUS_BOSS_MULTIPLIER, 2.0);
     }
 
     public static double artificialMobXp() {

@@ -251,7 +251,8 @@ public final class CourageEvents {
             return 0f;
         }
         EntityData.of(target).putFloat(PAID_TAG, (float) (paid + counted));
-        return SkillService.grant(player, Skill.COURAGE, xp, target.getType().getDescriptionId());
+        // A hit, so no first-time bonus; the kill pays it.
+        return SkillService.grantNoFirstTime(player, Skill.COURAGE, xp, target.getType().getDescriptionId());
     }
 
     // ---- Kills: XP, Rally, Lionheart, Spoils of Valor ------------------------------------------

@@ -65,4 +65,13 @@ public record Talent(
     public String descriptionKey() {
         return "proficiency.talent." + skill.id() + "." + id + ".desc";
     }
+
+    /**
+     * The one-line version for the short tooltip. Every tree's root says the same thing, so they
+     * share one string; a node whose description is already short has none and is shown whole.
+     */
+    public String shortKey() {
+        return kind == Kind.ROOT ? "proficiency.talent.root.short"
+                : "proficiency.talent." + skill.id() + "." + id + ".short";
+    }
 }

@@ -83,8 +83,26 @@ public final class AbilityWheelScreen extends Screen {
         // Room for every slot around the ring, but never off the screen.
         int wanted = (int) Math.ceil(entries.size() * (SLOT + 6) / (2 * Math.PI));
         int most = Math.min(this.width, this.height) / 2 - RING_HALF_WIDTH - 6;
-        // The floor keeps the middle wide enough for a two-word ability name on one line.
-        return Math.max(MIN_RADIUS, Math.min(wanted, most));
+        // The floor keeps the middle wide enough for a two-word ability name on one line, but the
+        // screen has the last word: a ring that leaves the window is no use at any size.
+        return Math.min(most, Math.max(MIN_RADIUS, wanted));
+    }
+
+    int slotCount() {
+        return entries.size();
+    }
+
+    /** Screen position of slot i's centre; the layout demo hovers it. */
+    int[] slotPoint(int index) {
+        double angle = -Math.PI / 2 + index * 2 * Math.PI / entries.size();
+        return new int[] {this.width / 2 + (int) Math.round(radius() * Math.cos(angle)),
+                this.height / 2 + (int) Math.round(radius() * Math.sin(angle))};
+    }
+
+    /** The slot's side: 22 when they all fit round the ring, smaller when the ring is crowded. */
+    private int slotSize() {
+        int fit = (int) Math.floor(2 * Math.PI * radius() / entries.size()) - 2;
+        return Math.max(12, Math.min(SLOT, fit));
     }
 
     private int pick(int mouseX, int mouseY) {
@@ -137,7 +155,7 @@ public final class AbilityWheelScreen extends Screen {
             int y = cy + (int) Math.round(radius * Math.sin(angle));
             int accent = SkillPalette.accent(skill.category());
             long cooldown = skills.cooldownRemaining(skill, now);
-            int half = SLOT / 2;
+            int half = slotSize() / 2;
             if (i == selected) {
                 graphics.fill(x - half - 2, y - half - 2, x + half + 2, y + half + 2, accent);
                 graphics.fill(x - half, y - half, x + half, y + half, 0xF0121418);
@@ -147,14 +165,15 @@ public final class AbilityWheelScreen extends Screen {
             if (icons) {
                 // The skill's own icon: an item stood in for most skills only loosely (a cake for
                 // Social, a golden apple for Guardian), the drawn one names the skill.
-                SkillIcons.draw(graphics, skill, x - 8, y - 8, SkillIcons.LARGE);
+                int iconSize = Math.min(SkillIcons.LARGE, half * 2 - 2);
+                SkillIcons.draw(graphics, skill, x - iconSize / 2, y - iconSize / 2, iconSize);
             } else {
                 graphics.renderItem(icon(skill), x - 8, y - 8);
             }
             if (cooldown > 0) {
                 // A cooling ability is greyed and fills back up from the bottom as it recovers.
                 double left = cooldown / (double) Math.max(1L, ActiveService.cooldownTicks(skills, skill));
-                int shade = (int) Math.round(SLOT * Math.min(1.0, left));
+                int shade = (int) Math.round(half * 2 * Math.min(1.0, left));
                 graphics.fill(x - half, y + half - shade, x + half, y + half, 0xA0000000);
             }
             if (skill == inHands) {
@@ -167,7 +186,7 @@ public final class AbilityWheelScreen extends Screen {
 
     /** What the selected slot would cast, in the middle of the ring; the hint when none is. */
     private void centre(GuiGraphics graphics, int cx, int cy, int room, PlayerSkills skills, long now) {
-        List<FormattedCharSequence> lines = new ArrayList<>();
+        List<String> lines = new ArrayList<>();
         List<Integer> colours = new ArrayList<>();
         int width = Math.max(60, room * 2 - 8);
         if (selected < 0) {
@@ -191,22 +210,38 @@ public final class AbilityWheelScreen extends Screen {
             } else {
                 add(lines, colours, Component.translatable("proficiency.wheel.ready"), 0xFF8FD18F, width);
             }
-            if (skill == inHands) {
-                add(lines, colours, Component.translatable("proficiency.wheel.in_hands"),
+            if (TooltipDetail.detailed()) {
+                add(lines, colours, Component.translatable("proficiency.stats.ability",
+                        SkillNumbers.seconds(ActiveService.durationTicks(skills, skill)),
+                        SkillNumbers.seconds(ActiveService.cooldownTicks(skills, skill))),
                         SkillPalette.TEXT_DIM, width);
+                if (skill == inHands) {
+                    add(lines, colours, Component.translatable("proficiency.wheel.in_hands"),
+                            SkillPalette.TEXT_DIM, width);
+                }
+            } else {
+                add(lines, colours, TooltipDetail.hint(), 0xFF5C636D, width);
             }
         }
+        // The middle is a disc: a line near its top or bottom has less room than one at the
+        // centre, so each line is cut to the chord at its own height.
+        int disc = Math.max(20, room + 10 - 2);
         int y = cy - lines.size() * 10 / 2;
         for (int i = 0; i < lines.size(); i++) {
-            FormattedCharSequence line = lines.get(i);
-            graphics.drawString(this.font, line, cx - this.font.width(line) / 2, y, colours.get(i), false);
+            String line = lines.get(i);
+            int fromCentre = Math.abs(y + 4 - cy) + 5;
+            int chord = (int) (2 * Math.sqrt(Math.max(0, disc * disc - fromCentre * fromCentre)));
+            String shown = TextFit.clip(this.font, line, Math.max(20, chord));
+            if (!shown.equals(line)) {
+                TextFit.note("wheel.centre");
+            }
+            graphics.drawString(this.font, shown, cx - this.font.width(shown) / 2, y, colours.get(i), false);
             y += 10;
         }
     }
 
-    private void add(List<FormattedCharSequence> lines, List<Integer> colours, Component text, int colour,
-            int width) {
-        for (FormattedCharSequence line : this.font.split(text, width)) {
+    private void add(List<String> lines, List<Integer> colours, Component text, int colour, int width) {
+        for (String line : TextFit.wrapPlain(this.font, text.getString(), width)) {
             lines.add(line);
             colours.add(colour);
         }

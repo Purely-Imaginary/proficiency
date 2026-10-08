@@ -36,6 +36,7 @@ public final class ProficiencyClientConfig {
     private static final ModConfigSpec.BooleanValue BANNERS_SOUND;
     private static final ModConfigSpec.BooleanValue BANNERS_REVEAL;
     private static final ModConfigSpec.BooleanValue TOOLTIP_SKILL_INFO;
+    private static final ModConfigSpec.BooleanValue TOOLTIP_ALWAYS_DETAILED;
     private static final ModConfigSpec.IntValue FEED_X;
     private static final ModConfigSpec.DoubleValue FEED_Y;
     private static final ModConfigSpec.IntValue FEED_MAX_LINES;
@@ -120,6 +121,9 @@ public final class ProficiencyClientConfig {
                 + "skill, your passive, the signature proc and the ability in its tooltip. "
                 + "The details sit behind Shift.")
                 .translation(LANG + "tooltip.skillInfo").define("skillInfo", true);
+        TOOLTIP_ALWAYS_DETAILED = b.comment("Every tooltip of the mod shows its detailed layer at once "
+                + "and the Shift hint goes away. Off: short tooltips, details on Shift.")
+                .translation(LANG + "tooltip.alwaysDetailed").define("alwaysDetailed", false);
         b.pop();
 
         b.comment("The skills panel and the talent trees.")
@@ -201,6 +205,10 @@ public final class ProficiencyClientConfig {
 
     public static boolean tooltipSkillInfo() {
         return flag(TOOLTIP_SKILL_INFO, true);
+    }
+
+    public static boolean tooltipAlwaysDetailed() {
+        return flag(TOOLTIP_ALWAYS_DETAILED, false);
     }
 
     public static int feedX() {

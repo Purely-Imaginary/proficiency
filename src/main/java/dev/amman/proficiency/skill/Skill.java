@@ -145,6 +145,11 @@ public enum Skill {
         return "proficiency.proc." + id + ".desc";
     }
 
+    /** Lang key for the one-line version of the proc's description (the short tooltip). */
+    public String procShortKey() {
+        return "proficiency.proc." + id + ".short";
+    }
+
     /** Lang key for the active ability's name. */
     public String activeKey() {
         return "proficiency.active." + id;

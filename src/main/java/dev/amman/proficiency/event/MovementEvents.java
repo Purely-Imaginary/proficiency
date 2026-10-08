@@ -216,7 +216,7 @@ public final class MovementEvents {
         if (bonus > 0) {
             // maxBonus is read as extra height; height goes with the square of the launch speed.
             Vec3 motion = player.getDeltaMovement();
-            player.setDeltaMovement(motion.x, motion.y * Math.sqrt(1.0 + bonus), motion.z);
+            player.setDeltaMovement(motion.x, motion.y * dev.amman.proficiency.skill.SkillPassives.jumpLaunch(bonus), motion.z);
             player.hasImpulse = true;
         }
         if (player.isSprinting()) {
@@ -253,7 +253,7 @@ public final class MovementEvents {
         float fallen = event.getDistance();
         double bonus = SkillService.bonus(player, Skill.JUMPING);
         if (bonus > 0) {
-            event.setDistance((float) (event.getDistance() * (1.0 - Math.min(0.6, bonus * 0.5))));
+            event.setDistance((float) (event.getDistance() * dev.amman.proficiency.skill.SkillPassives.fallFactor(bonus)));
         }
         double softer = TalentMovementEvents.fallDamageFactor(player);
         if (softer < 1.0) {
@@ -280,7 +280,7 @@ public final class MovementEvents {
             return;
         }
         // Air is consumed one unit per tick, so the bonus has to buy whole skipped ticks.
-        if (player.level().getRandom().nextDouble() < Math.min(0.9, bonus)) {
+        if (player.level().getRandom().nextDouble() < dev.amman.proficiency.skill.SkillPassives.airSkip(bonus)) {
             event.setConsumeAirAmount(0);
         }
     }

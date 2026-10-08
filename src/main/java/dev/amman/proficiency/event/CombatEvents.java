@@ -2,6 +2,8 @@ package dev.amman.proficiency.event;
 
 import dev.amman.proficiency.Proficiency;
 import dev.amman.proficiency.perk.TalentService;
+import dev.amman.proficiency.skill.KillCredit;
+import dev.amman.proficiency.skill.KillXp;
 import dev.amman.proficiency.skill.ProcService;
 import dev.amman.proficiency.skill.Skill;
 import dev.amman.proficiency.skill.SkillService;
@@ -20,6 +22,7 @@ import net.minecraft.world.phys.AABB;
 import dev.amman.proficiency.platform.bus.SubscribeEvent;
 import dev.amman.proficiency.platform.bus.EventBusSubscriber;
 import dev.amman.proficiency.platform.event.entity.living.LivingIncomingDamageEvent;
+import dev.amman.proficiency.platform.event.entity.living.LivingDeathEvent;
 import dev.amman.proficiency.platform.event.entity.living.LivingKnockBackEvent;
 import dev.amman.proficiency.platform.event.entity.living.LivingShieldBlockEvent;
 import org.jetbrains.annotations.Nullable;
@@ -85,7 +88,7 @@ public final class CombatEvents {
 
         LivingEntity target = event.getEntity();
         double bonus = SkillService.bonus(player, skill);
-        float amount = bonus > 0 ? (float) (event.getAmount() * (1.0 + bonus)) : event.getAmount();
+        float amount = bonus > 0 ? (float) (event.getAmount() * dev.amman.proficiency.skill.SkillPassives.more(bonus)) : event.getAmount();
         amount *= synergyDamage(player, skill);
 
         if (!SPLASHING.get()) {
@@ -105,9 +108,78 @@ public final class CombatEvents {
         }
         if (!SPLASHING.get()) {
             // Spawn-egg and command mobs pay nothing, spawner mobs a share (SpawnOrigin).
-            SkillService.grant(player, skill, dev.amman.proficiency.skill.SpawnOrigin.xpFactor(target),
+            // Hits pay their XP but never the first-time bonus; that waits for the kill.
+            SkillService.grantNoFirstTime(player, skill,
+                    dev.amman.proficiency.skill.SpawnOrigin.xpFactor(target),
                     target.getType().getDescriptionId());
         }
+        KillCredit.record(target, player, skill);
+    }
+
+    /**
+     * The kill bonus. The skill is the one of the killing blow: the weapon in hand, the arrow or
+     * trident that flew, a spell. A death with no player weapon behind it (lava, fire, a fall) goes
+     * to whoever last hit the mob within five seconds, with the skill of that hit.
+     */
+    @SubscribeEvent
+    public static void onKillBonus(LivingDeathEvent event) {
+        LivingEntity victim = event.getEntity();
+        if (victim.level().isClientSide() || victim instanceof Player) {
+            return;
+        }
+        DamageSource source = event.getSource();
+        Entity killer = source.getEntity();
+        Player player;
+        Skill skill;
+        if (killer instanceof Player direct) {
+            player = direct;
+            skill = killingSkill(player, source);
+            if (skill == null) {
+                skill = KillCredit.recent(victim, player.getUUID());
+            }
+        } else if (killer == null && KillCredit.recentHitter(victim) != null
+                && victim.level() instanceof net.minecraft.server.level.ServerLevel level
+                && level.getPlayerByUUID(KillCredit.recentHitter(victim)) != null) {
+            player = level.getPlayerByUUID(KillCredit.recentHitter(victim));
+            skill = KillCredit.recent(victim, player.getUUID());
+        } else {
+            return;
+        }
+        if (skill == null) {
+            return;
+        }
+        double base = killBonus(victim) * dev.amman.proficiency.skill.SpawnOrigin.xpFactor(victim);
+        if (base > 0) {
+            SkillService.grantKill(player, skill, base, victim.getType().getDescriptionId());
+        }
+    }
+
+    /** What a kill of this mob is worth before multipliers and spawn origin. */
+    public static double killBonus(LivingEntity victim) {
+        return KillXp.bonus(victim.getMaxHealth(), ExpansionEvents.isNotableBoss(victim),
+                dev.amman.proficiency.config.ProficiencyConfig.killBonusBase(),
+                dev.amman.proficiency.config.ProficiencyConfig.killBonusHealthDivisor(),
+                dev.amman.proficiency.config.ProficiencyConfig.killBonusCap(),
+                dev.amman.proficiency.config.ProficiencyConfig.killBonusBossMultiplier());
+    }
+
+    /** The weapon skill a player's damage source stands for, or null when it is none of them. */
+    @Nullable
+    private static Skill killingSkill(Player player, DamageSource source) {
+        if (ExpansionEvents.isArcaneSource(source)) {
+            return Skill.SPELLCASTING;
+        }
+        Entity direct = source.getDirectEntity();
+        if (direct == player) {
+            return SkillTools.meleeSkill(player.getMainHandItem());
+        }
+        if (direct instanceof AbstractArrow arrow) {
+            return arrowSkill(arrow);
+        }
+        if (direct instanceof ThrownTrident) {
+            return Skill.TRIDENTS;
+        }
+        return null;
     }
 
     /**
@@ -229,7 +301,7 @@ public final class CombatEvents {
         }
         double bonus = SkillService.bonus(player, Skill.BLOCKING);
         if (bonus > 0) {
-            event.setShieldDamage((float) (event.shieldDamage() * (1.0 - Math.min(0.9, bonus))));
+            event.setShieldDamage((float) (event.shieldDamage() * dev.amman.proficiency.skill.SkillPassives.lessUpTo90(bonus)));
         }
 
         LivingEntity attacker = event.getDamageSource().getEntity() instanceof LivingEntity living
@@ -264,7 +336,7 @@ public final class CombatEvents {
         }
         double bonus = SkillService.bonus(player, Skill.BLOCKING);
         if (bonus > 0) {
-            event.setStrength((float) (event.getStrength() * (1.0 - Math.min(0.9, bonus))));
+            event.setStrength((float) (event.getStrength() * dev.amman.proficiency.skill.SkillPassives.lessUpTo90(bonus)));
         }
     }
 }

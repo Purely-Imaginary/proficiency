@@ -39,7 +39,6 @@ import java.util.Set;
 public final class GatheringEvents {
 
     /** Share of the raw skill bonus that becomes a bonus-drop chance rather than break speed. */
-    private static final double DROP_SHARE = 0.25;
 
     /** Ceiling on a single Timber, so one lucky swing on a jungle giant is not a lag spike. */
     private static final int TIMBER_LIMIT = 128;
@@ -91,7 +90,7 @@ public final class GatheringEvents {
         }
         double bonus = SkillService.bonus(player, skill);
         if (bonus > 0) {
-            event.setNewSpeed((float) (event.getOriginalSpeed() * (1.0 + bonus)));
+            event.setNewSpeed((float) (event.getOriginalSpeed() * dev.amman.proficiency.skill.SkillPassives.more(bonus)));
         }
     }
 
@@ -356,10 +355,7 @@ public final class GatheringEvents {
         }
 
         int copies = 0;
-        double chance = SkillService.bonus(player, skill);
-        if (skill != Skill.FARMING) {
-            chance *= DROP_SHARE;
-        }
+        double chance = dev.amman.proficiency.skill.SkillPassives.dropChance(skill, SkillService.bonus(player, skill));
         if (chance > 0 && player.level().getRandom().nextDouble() < chance) {
             copies++;
         }
@@ -500,11 +496,11 @@ public final class GatheringEvents {
         }
         if (bonus > 0) {
             // damageRodBy sets rather than adds, and refuses negatives.
-            int spared = (int) Math.round(event.getRodDamage() * Math.min(0.9, bonus));
+            int spared = (int) Math.round(event.getRodDamage() * dev.amman.proficiency.skill.SkillPassives.rodSpared(bonus));
             if (spared > 0 && !unbreakable) {
                 event.damageRodBy(Math.max(0, event.getRodDamage() - spared));
             }
-            if (player.level().getRandom().nextDouble() < bonus * 0.5 && !event.getDrops().isEmpty()) {
+            if (player.level().getRandom().nextDouble() < dev.amman.proficiency.skill.SkillPassives.doubleCatch(bonus) && !event.getDrops().isEmpty()) {
                 event.getDrops().add(event.getDrops().get(0).copy());
             }
         }

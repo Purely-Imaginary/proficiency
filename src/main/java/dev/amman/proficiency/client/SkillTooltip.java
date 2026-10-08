@@ -7,7 +7,6 @@ import dev.amman.proficiency.skill.Skill;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
@@ -32,25 +31,27 @@ public final class SkillTooltip {
     /** The cached lines are rebuilt after this many ticks, or at once when the level changes. */
     private static final long CACHE_TICKS = 10;
 
-    private static final Component HOLD_SHIFT = Component.translatable("proficiency.tooltip.hold_shift")
-            .withStyle(ChatFormatting.DARK_GRAY, ChatFormatting.ITALIC);
+    static void forceShift(Boolean state) {
+        TooltipDetail.force(state);
+    }
 
-    private static volatile boolean shiftDown;
-    private static final Component[][] CACHE = new Component[Skill.VALUES.length][];
-    private static final int[] CACHE_LEVEL = new int[Skill.VALUES.length];
-    private static final long[] CACHE_TICK = new long[Skill.VALUES.length];
+    /** One cache per layer: [0] short, [1] detailed. */
+    private static final Component[][][] CACHE = new Component[2][Skill.VALUES.length][];
+    private static final int[][] CACHE_LEVEL = new int[2][Skill.VALUES.length];
+    private static final long[][] CACHE_TICK = new long[2][Skill.VALUES.length];
 
     private SkillTooltip() {
     }
 
     /** Once per client tick, on the main thread. */
     static void tick() {
-        shiftDown = Screen.hasShiftDown();
+        TooltipDetail.tick();
     }
 
     static void reset() {
-        shiftDown = false;
-        Arrays.fill(CACHE, null);
+        TooltipDetail.reset();
+        Arrays.fill(CACHE[0], null);
+        Arrays.fill(CACHE[1], null);
     }
 
     /** Called once from the Fabric client entry point. */
@@ -59,37 +60,53 @@ public final class SkillTooltip {
                 append(Minecraft.getInstance().player, stack, lines));
     }
 
+    /** Widest a tooltip line of ours gets before it wraps. */
+    private static final int WRAP_WIDTH = 240;
+
     static void append(Player player, ItemStack stack, List<Component> tip) {
-        if (!ProficiencyClientConfig.tooltipSkillInfo() || player == null || stack.isEmpty()
-                || stack.getItem() instanceof BlockItem || !RenderSystem.isOnRenderThread()
-                || !ClientSync.isSynced() || Minecraft.getInstance().screen == null) {
+        if (player == null || stack.isEmpty() || !RenderSystem.isOnRenderThread()
+                || Minecraft.getInstance().screen == null) {
+            return;
+        }
+        // The mod's own items (compasses, the mace, the stews) describe themselves in long lines;
+        // the vanilla tooltip wraps them on some loaders and not on others, so wrap them here.
+        if (TextFit.isOurs(stack)) {
+            List<Component> wrapped = TextFit.wrapComponents(Minecraft.getInstance().font, new java.util.ArrayList<>(tip),
+                    Math.max(120, Math.min(WRAP_WIDTH, Minecraft.getInstance().screen.width - 40)));
+            tip.clear();
+            tip.addAll(wrapped);
+        }
+        if (!ProficiencyClientConfig.tooltipSkillInfo() || stack.getItem() instanceof BlockItem
+                || !ClientSync.isSynced()) {
             return;
         }
         Skill skill = AbilityContext.forItem(stack, player);
         if (skill == null) {
             return;
         }
-        Component[] lines = lines(ProficiencyAttachments.of(player), skill, player.level().getGameTime());
-        tip.add(lines[0]);
-        if (shiftDown) {
-            for (int i = 1; i < lines.length; i++) {
-                tip.add(lines[i]);
-            }
-        } else {
-            tip.add(HOLD_SHIFT);
-        }
+        boolean detailed = TooltipDetail.detailed();
+        Component[] lines = lines(ProficiencyAttachments.of(player), skill, player.level().getGameTime(), detailed);
+        // Our lines wrap to the window: a vanilla tooltip does not wrap on every loader, and a long
+        // translation ran off the screen edge.
+        net.minecraft.client.gui.Font font = Minecraft.getInstance().font;
+        int room = Math.max(120, Math.min(WRAP_WIDTH, Minecraft.getInstance().screen.width - 40));
+        List<Component> mine = new java.util.ArrayList<>();
+        mine.addAll(Arrays.asList(lines));
+        TooltipDetail.withHint(mine, true);
+        tip.addAll(TextFit.wrapComponents(font, mine, room));
     }
 
-    /** Header first, then the detail lines; rebuilt twice a second at most, not on every hover frame. */
-    private static Component[] lines(PlayerSkills skills, Skill skill, long gameTime) {
+    /** Header first, then the layer's lines; rebuilt twice a second at most, not on every hover frame. */
+    private static Component[] lines(PlayerSkills skills, Skill skill, long gameTime, boolean detailed) {
+        int layer = detailed ? 1 : 0;
         int slot = skill.ordinal();
         int level = skills.level(skill);
-        Component[] cached = CACHE[slot];
-        if (cached != null && CACHE_LEVEL[slot] == level && gameTime >= CACHE_TICK[slot]
-                && gameTime - CACHE_TICK[slot] < CACHE_TICKS) {
+        Component[] cached = CACHE[layer][slot];
+        if (cached != null && CACHE_LEVEL[layer][slot] == level && gameTime >= CACHE_TICK[layer][slot]
+                && gameTime - CACHE_TICK[layer][slot] < CACHE_TICKS) {
             return cached;
         }
-        List<Component> details = SkillNumbers.itemLines(skills, skill, gameTime);
+        List<Component> details = SkillNumbers.itemLines(skills, skill, gameTime, detailed);
         Component[] built = new Component[details.size() + 1];
         built[0] = Component.translatable("proficiency.tooltip.skill",
                 Component.translatable(skill.translationKey()), level)
@@ -97,9 +114,9 @@ public final class SkillTooltip {
         for (int i = 0; i < details.size(); i++) {
             built[i + 1] = details.get(i).copy().withStyle(ChatFormatting.GRAY);
         }
-        CACHE[slot] = built;
-        CACHE_LEVEL[slot] = level;
-        CACHE_TICK[slot] = gameTime;
+        CACHE[layer][slot] = built;
+        CACHE_LEVEL[layer][slot] = level;
+        CACHE_TICK[layer][slot] = gameTime;
         return built;
     }
 }

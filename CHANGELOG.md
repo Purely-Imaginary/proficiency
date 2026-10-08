@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.2.0
+
+The readable release. The network protocol is unchanged from 1.1.0 (still 4), so a 1.1.0 client can join a 1.2.0 server, but update both sides to get the new tooltips and the kill bonus.
+
+- Every text fits its room in all 12 languages. Long lines wrap or end in an ellipsis with the full text on hover. The talent tree fits 1280x720 and the Steam Deck screen.
+- Kills pay a kill bonus of 2 + max health / 5, kept between 2 and 20, and doubled for bosses. All four numbers are server config values.
+- The first-time bonus for a mob type now comes with the first kill, not the first hit.
+- Tooltips are short by default, with the full detail on Shift. The detailed layer shows what a passive really changes, for example "Block reach: 4.5 -> 5.1", for all 34 skills.
+- A new client setting, "Always show details", keeps the detailed layer on.
+- Short one-line descriptions for talents, signature moves and synergies, in all 12 languages.
+
+## 1.1.1
+
+The localisation release.
+
+- Ten new languages are in. Simplified Chinese, Russian, Brazilian Portuguese, Spanish, German, French, Japanese, Korean, Turkish and Ukrainian. Each was translated for meaning, using the game's own terms in that language, and reviewed.
+- Polish is complete on every loader.
+- The survival streak is now called the survival bonus.
+- No gameplay change. Servers and clients on 1.1.0 and 1.1.1 can play together.
+- Internal build, not released publicly.
+
 ## 1.1.0
 
 The visual release. Nothing in the XP rules changed. Every effect below has its own client toggle, so you can switch any of them off.

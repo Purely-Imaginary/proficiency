@@ -46,6 +46,22 @@ public final class SkillToasts {
             this.level = level;
         }
 
+        /** The frame is 160 wide; a longer translation widens it (up to the screen) rather than spilling out. */
+        @Override
+        public int width() {
+            Minecraft minecraft = Minecraft.getInstance();
+            int text = Math.max(minecraft.font.width(Component.translatable("proficiency.toast.title")),
+                    minecraft.font.width(lineText()));
+            int wanted = Math.max(160, text + 20);
+            int allowed = Math.max(160, minecraft.getWindow().getGuiScaledWidth() - 8);
+            return Math.min(wanted, allowed);
+        }
+
+        private Component lineText() {
+            return Component.translatable("proficiency.toast.line",
+                    Component.translatable(skill.translationKey()), level);
+        }
+
         @Override
         public Toast.Visibility render(GuiGraphics graphics, ToastComponent parent, long shownFor) {
             if (changed) {
@@ -53,16 +69,16 @@ public final class SkillToasts {
                 changed = false;
             }
 
-            graphics.blitSprite(BACKGROUND, 0, 0, width(), height());
+            // A nine-slice sprite, so a wider toast stretches the frame.
+            int w = width();
+            graphics.blitSprite(BACKGROUND, 0, 0, w, height());
 
             Minecraft minecraft = Minecraft.getInstance();
-            graphics.drawString(minecraft.font,
-                    Component.translatable("proficiency.toast.title"),
-                    10, 7, SkillPalette.accent(skill.category()), false);
-            graphics.drawString(minecraft.font,
-                    Component.translatable("proficiency.toast.line",
-                            Component.translatable(skill.translationKey()), level),
-                    10, 18, 0xFFFFFFFF, false);
+            int room = w - 20;
+            String title = TextFit.clip(minecraft.font, Component.translatable("proficiency.toast.title").getString(), room);
+            String line = TextFit.clip(minecraft.font, lineText().getString(), room);
+            graphics.drawString(minecraft.font, title, 10, 7, SkillPalette.accent(skill.category()), false);
+            graphics.drawString(minecraft.font, line, 10, 18, 0xFFFFFFFF, false);
 
             return shownFor - lastChanged >= DURATION_MS ? Visibility.HIDE : Visibility.SHOW;
         }

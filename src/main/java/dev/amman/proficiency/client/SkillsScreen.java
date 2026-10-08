@@ -26,9 +26,13 @@ import java.util.Map;
 public final class SkillsScreen extends Screen {
 
     private static final int PANEL_WIDTH = 340;
+    /** Narrowest a skill column gets before the two columns become one. */
+    private static final int MIN_COLUMN = 150;
+    private static final int STREAK_LINE = 10;
     private static final int PADDING = 10;
     private static final int ROW_HEIGHT = 13;
-    private static final int HEADER_HEIGHT = 14;
+    /** Rows and headers share one height, so a scrolled list always lands on a whole row. */
+    private static final int HEADER_HEIGHT = 13;
     private static final int COLUMN_GAP = 12;
     private static final int BAR_HEIGHT = 3;
     /** Survival streak block under the columns: title line, two bars, caption line. */
@@ -57,6 +61,15 @@ public final class SkillsScreen extends Screen {
     private int panelX;
     private int panelY;
     private int panelHeight;
+    private int panelWidth = PANEL_WIDTH;
+    private int columnWidth;
+    private int columns = 2;
+    private int buttonWidth = 60;
+    /** The streak block's pairs of texts stacked on two lines when they do not fit side by side. */
+    private boolean stackTitle;
+    private boolean stackNext;
+    private int streakHeight = STREAK_HEIGHT;
+    private final TextFit.Hovers hovers = new TextFit.Hovers();
     /** Height of the scrolling body (skill columns) actually shown, and how far it is scrolled. */
     private int viewportHeight;
     private int bodyHeight;
@@ -80,31 +93,101 @@ public final class SkillsScreen extends Screen {
 
     @Override
     protected void init() {
+        int levelWidth = this.font.width("100");
+        int need = 0;
+        boolean icons = SkillIcons.enabled();
+        for (Skill skill : Skill.VALUES) {
+            need = Math.max(need, this.font.width(Component.translatable(skill.translationKey()))
+                    + 6 + levelWidth);
+        }
+        for (SkillCategory category : SkillCategory.values()) {
+            need = Math.max(need, this.font.width(Component.translatable(category.translationKey())));
+        }
+        // Two columns as wide as the longest name asks (never narrower than the original 340-pixel
+        // panel); one scrolling column when the window cannot hold two.
+        int iconRoom = icons ? SkillIcons.advance(SkillIcons.SMALL) : 0;
+        int column = Math.max(MIN_COLUMN, need + iconRoom);
+        int availWidth = this.width - 8;
+        int twoColumns = column * 2 + COLUMN_GAP + PADDING * 2;
+        columns = twoColumns <= availWidth ? 2 : 1;
+        if (columns == 2) {
+            panelWidth = Math.min(availWidth, Math.max(PANEL_WIDTH, twoColumns));
+            columnWidth = (panelWidth - PADDING * 2 - COLUMN_GAP) / 2;
+        } else {
+            panelWidth = Math.min(availWidth, Math.max(column + PADDING * 2, 200));
+            columnWidth = panelWidth - PADDING * 2 - 4;
+        }
+        if (columns == 1) {
+            TextFit.note("panel.single_column");
+        }
+
+        buttonWidth = Math.max(60, this.font.width(Component.translatable("proficiency.journal.button")) + 12);
+        measureStreak(panelWidth - PADDING * 2);
+
         int leftRows = countRows(LEFT);
         int rightRows = countRows(RIGHT);
-        bodyHeight = Math.max(leftRows, rightRows);
+        bodyHeight = columns == 2 ? Math.max(leftRows, rightRows) : leftRows + rightRows;
         // At a large GUI scale the whole list no longer fits the window. The streak block stays
         // pinned under the list and the skill columns scroll (mouse wheel) inside what is left.
-        int fixed = PADDING + HEADER_HEIGHT + STREAK_HEIGHT + PADDING;
-        viewportHeight = Math.max(ROW_HEIGHT * 3, Math.min(bodyHeight, this.height - 8 - fixed));
+        // The viewport is a whole number of rows, so no row is ever half under the footer.
+        int fixed = PADDING + HEADER_HEIGHT + streakHeight + PADDING;
+        int room = this.height - 8 - fixed;
+        viewportHeight = Math.max(ROW_HEIGHT * 3, Math.min(bodyHeight, room / ROW_HEIGHT * ROW_HEIGHT));
         scroll = Math.max(0, Math.min(scroll, bodyHeight - viewportHeight));
         panelHeight = fixed + viewportHeight;
 
-        panelX = (this.width - PANEL_WIDTH) / 2;
+        panelX = (this.width - panelWidth) / 2;
         panelY = Math.max(4, (this.height - panelHeight) / 2);
 
-        int columnWidth = (PANEL_WIDTH - PADDING * 2 - COLUMN_GAP) / 2;
         // Event handling only (addWidget): the panel is filled after super.render, which would
         // paint over a renderable widget, so the button is drawn at the end of render.
         journalButton = addWidget(net.minecraft.client.gui.components.Button.builder(
                         Component.translatable("proficiency.journal.button"),
                         button -> this.minecraft.setScreen(new DiscoveryJournalScreen(this)))
-                .bounds(panelX + PANEL_WIDTH - PADDING - 60, panelY + PADDING - 3, 60, 14).build());
+                .bounds(panelX + panelWidth - PADDING - buttonWidth, panelY + PADDING - 3, buttonWidth, 14).build());
         rows.clear();
-        layoutColumn(LEFT, panelX + PADDING, columnWidth);
-        layoutColumn(RIGHT, panelX + PADDING + columnWidth + COLUMN_GAP, columnWidth);
+        if (columns == 2) {
+            layoutColumn(LEFT, panelX + PADDING, columnWidth, 0);
+            layoutColumn(RIGHT, panelX + PADDING + columnWidth + COLUMN_GAP, columnWidth, 0);
+        } else {
+            int used = layoutColumn(LEFT, panelX + PADDING, columnWidth, 0);
+            layoutColumn(RIGHT, panelX + PADDING, columnWidth, used);
+        }
         leftColumnIcons = columnFitsIcons(panelX + PADDING, true);
-        rightColumnIcons = columnFitsIcons(panelX + PADDING, false);
+        rightColumnIcons = columns == 1 ? leftColumnIcons : columnFitsIcons(panelX + PADDING, false);
+    }
+
+    /** Decides, with the widest numbers the block can show, which text pairs need two lines. */
+    private void measureStreak(int width) {
+        int cap = Math.max(50, SurvivalStreak.capPercent());
+        int title = this.font.width(Component.translatable("proficiency.streak.title", cap));
+        int capLabel = this.font.width(Component.translatable("proficiency.streak.cap", cap));
+        int next = Math.max(this.font.width(Component.translatable("proficiency.streak.next", cap, 99)),
+                this.font.width(Component.translatable("proficiency.streak.next_max")));
+        int value = this.font.width(Component.translatable("proficiency.streak.value", cap, cap));
+        stackTitle = title + capLabel + 8 > width;
+        stackNext = next + value + 8 > width;
+        streakHeight = STREAK_HEIGHT + (stackTitle ? STREAK_LINE : 0) + (stackNext ? STREAK_LINE : 0);
+        if (stackTitle) {
+            TextFit.note("panel.streak_title");
+        }
+        if (stackNext) {
+            TextFit.note("panel.streak_next");
+        }
+    }
+
+    /** Screen position to point at for this skill's row (scrolls it into view); the layout demo uses it. */
+    int[] rowPoint(Skill skill) {
+        int bodyTop = panelY + PADDING + HEADER_HEIGHT;
+        for (Row row : rows) {
+            if (row.skill() == skill) {
+                if (row.y() - scroll < bodyTop || row.y() - scroll > bodyTop + viewportHeight - ROW_HEIGHT) {
+                    scroll = Math.max(0, Math.min(bodyHeight - viewportHeight, row.y() - bodyTop - ROW_HEIGHT));
+                }
+                return new int[] {row.x() + row.width() / 2, row.y() - scroll + 4};
+            }
+        }
+        return new int[] {0, 0};
     }
 
     private int countRows(List<SkillCategory> categories) {
@@ -115,8 +198,9 @@ public final class SkillsScreen extends Screen {
         return height;
     }
 
-    private void layoutColumn(List<SkillCategory> categories, int x, int width) {
-        int y = panelY + PADDING + HEADER_HEIGHT;
+    /** Places the rows of these categories from {@code skipped} pixels down; returns the height used. */
+    private int layoutColumn(List<SkillCategory> categories, int x, int width, int skipped) {
+        int y = panelY + PADDING + HEADER_HEIGHT + skipped;
         for (SkillCategory category : categories) {
             y += HEADER_HEIGHT;
             for (Skill skill : grouped.get(category)) {
@@ -124,27 +208,40 @@ public final class SkillsScreen extends Screen {
                 y += ROW_HEIGHT;
             }
         }
+        return y - (panelY + PADDING + HEADER_HEIGHT);
     }
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         super.render(graphics, mouseX, mouseY, partialTick);
 
-        graphics.fill(panelX, panelY, panelX + PANEL_WIDTH, panelY + panelHeight, SkillPalette.PANEL);
-        drawBorder(graphics, panelX, panelY, PANEL_WIDTH, panelHeight, SkillPalette.PANEL_BORDER);
+        hovers.clear();
+        graphics.fill(panelX, panelY, panelX + panelWidth, panelY + panelHeight, SkillPalette.PANEL);
+        drawBorder(graphics, panelX, panelY, panelWidth, panelHeight, SkillPalette.PANEL_BORDER);
 
-        graphics.drawCenteredString(this.font, this.title,
-                panelX + PANEL_WIDTH / 2, panelY + PADDING, SkillPalette.TEXT);
+        // The title is centred on the panel unless the Journal button would touch it.
+        int titleWidth = this.font.width(this.title);
+        int titleLeft = panelX + (panelWidth - titleWidth) / 2;
+        int titleLimit = panelX + panelWidth - PADDING - buttonWidth - 6;
+        if (titleLeft + titleWidth > titleLimit) {
+            titleLeft = Math.max(panelX + PADDING, titleLimit - titleWidth);
+        }
+        TextFit.draw(graphics, this.font, "panel.title", this.title.getString(), titleLeft, panelY + PADDING,
+                titleLimit - titleLeft, SkillPalette.TEXT, false);
 
         PlayerSkills skills = playerSkills();
         int bodyTop = panelY + PADDING + HEADER_HEIGHT;
         boolean inBody = mouseY >= bodyTop && mouseY < bodyTop + viewportHeight;
-        graphics.enableScissor(panelX, bodyTop, panelX + PANEL_WIDTH, bodyTop + viewportHeight);
+        graphics.enableScissor(panelX, bodyTop, panelX + panelWidth, bodyTop + viewportHeight);
         graphics.pose().pushPose();
         graphics.pose().translate(0, -scroll, 0);
-        drawHeaders(graphics, LEFT, panelX + PADDING);
-        drawHeaders(graphics, RIGHT,
-                panelX + PADDING + (PANEL_WIDTH - PADDING * 2 - COLUMN_GAP) / 2 + COLUMN_GAP);
+        if (columns == 2) {
+            drawHeaders(graphics, LEFT, panelX + PADDING, 0);
+            drawHeaders(graphics, RIGHT, panelX + PADDING + columnWidth + COLUMN_GAP, 0);
+        } else {
+            drawHeaders(graphics, LEFT, panelX + PADDING, 0);
+            drawHeaders(graphics, RIGHT, panelX + PADDING, countRows(LEFT));
+        }
 
         Row hovered = null;
         // A monotonic clock, so a stepped system clock cannot make a glow last or flip.
@@ -168,22 +265,30 @@ public final class SkillsScreen extends Screen {
             int thumb = Math.max(8, viewportHeight * viewportHeight / bodyHeight);
             int travel = viewportHeight - thumb;
             int thumbTop = bodyTop + (int) (travel * (scroll / (float) (bodyHeight - viewportHeight)));
-            graphics.fill(panelX + PANEL_WIDTH - 3, thumbTop, panelX + PANEL_WIDTH - 1, thumbTop + thumb,
-                    SkillPalette.TEXT_DIM);
+            graphics.fill(panelX + panelWidth - 5, bodyTop, panelX + panelWidth - 3, bodyTop + viewportHeight,
+                    SkillPalette.TRACK);
+            graphics.fill(panelX + panelWidth - 5, thumbTop, panelX + panelWidth - 3, thumbTop + thumb,
+                    SkillPalette.TEXT);
         }
         drawStreak(graphics, skills);
         journalButton.render(graphics, mouseX, mouseY, partialTick);
         if (hovered != null && skills != null) {
-            graphics.renderComponentTooltip(this.font, tooltip(hovered.skill(), skills), mouseX, mouseY);
+            TextFit.tooltip(graphics, this.font, tooltip(hovered.skill(), skills), mouseX, mouseY,
+                    Math.min(300, this.width - 16));
+        } else {
+            List<Component> full = hovers.at(mouseX, mouseY);
+            if (full != null) {
+                TextFit.tooltip(graphics, this.font, full, mouseX, mouseY, Math.min(300, this.width - 16));
+            }
         }
     }
 
-    private void drawHeaders(GuiGraphics graphics, List<SkillCategory> categories, int x) {
-        int y = panelY + PADDING + HEADER_HEIGHT;
+    private void drawHeaders(GuiGraphics graphics, List<SkillCategory> categories, int x, int skipped) {
+        int y = panelY + PADDING + HEADER_HEIGHT + skipped;
         for (SkillCategory category : categories) {
-            graphics.drawString(this.font,
-                    Component.translatable(category.translationKey()),
-                    x, y + 3, SkillPalette.accent(category), false);
+            Component name = Component.translatable(category.translationKey());
+            TextFit.draw(graphics, this.font, "panel.category", name.getString(), x, y + 3, columnWidth,
+                    SkillPalette.accent(category), false);
             y += HEADER_HEIGHT + grouped.get(category).size() * ROW_HEIGHT;
         }
     }
@@ -270,7 +375,14 @@ public final class SkillsScreen extends Screen {
             SkillIcons.draw(graphics, skill, row.x(), SkillIcons.smallTop(row.y()), icon, level > 0 ? 255 : 150);
         }
         int nameX = row.x() + SkillIcons.advance(icon);
-        graphics.drawString(this.font, name,
+        // A name too long for its column is cut with an ellipsis; the row's tooltip names it whole.
+        String nameText = name.getString();
+        String shown = TextFit.clip(this.font, nameText, row.width() - SkillIcons.advance(icon) - levelWidth - 4);
+        if (!shown.equals(nameText)) {
+            TextFit.note("panel.row");
+            nameWidth = this.font.width(shown);
+        }
+        graphics.drawString(this.font, shown,
                 nameX, row.y(), level > 0 ? SkillPalette.TEXT : SkillPalette.TEXT_DIM, false);
         graphics.drawString(this.font, levelText,
                 row.x() + row.width() - levelWidth, row.y(),
@@ -340,15 +452,19 @@ public final class SkillsScreen extends Screen {
         int accent = capped ? SkillPalette.MAXED : SkillPalette.TEXT;
 
         int left = panelX + PADDING;
-        int width = PANEL_WIDTH - PADDING * 2;
-        int top = panelY + panelHeight - PADDING - STREAK_HEIGHT + 2;
+        int width = panelWidth - PADDING * 2;
+        int top = panelY + panelHeight - PADDING - streakHeight + 2;
 
         graphics.fill(left, top - 3, left + width, top - 2, SkillPalette.PANEL_BORDER);
+        // Each pair (title and cap, next and value) shares a line when both fit, else the second
+        // goes on a line of its own, right-aligned, so neither is cut and neither overlaps.
         Component title = Component.translatable("proficiency.streak.title", percent);
-        graphics.drawString(this.font, title, left, top, off ? SkillPalette.TEXT_DIM : accent, false);
         Component capLabel = Component.translatable("proficiency.streak.cap", cap);
-        graphics.drawString(this.font, capLabel, left + width - this.font.width(capLabel), top,
-                SkillPalette.MAXED, false);
+        pair(graphics, title, off ? SkillPalette.TEXT_DIM : accent, capLabel, SkillPalette.MAXED, left, top,
+                width, stackTitle);
+        if (stackTitle) {
+            top += STREAK_LINE;
+        }
 
         int barWidth = (width - STREAK_GAP) / 2;
         int barTop = top + 12;
@@ -365,11 +481,39 @@ public final class SkillsScreen extends Screen {
                 ? Component.translatable("proficiency.streak.next_max")
                 : Component.translatable("proficiency.streak.next", percent + 1,
                         (int) Math.floor(step * 100));
-        graphics.drawString(this.font, next, left, barTop + STREAK_BAR_HEIGHT + 3,
-                SkillPalette.TEXT_DIM, false);
         Component now = Component.translatable("proficiency.streak.value", percent, cap);
-        graphics.drawString(this.font, now, rightLeft + barWidth - this.font.width(now),
-                barTop + STREAK_BAR_HEIGHT + 3, SkillPalette.TEXT_DIM, false);
+        pair(graphics, next, SkillPalette.TEXT_DIM, now, SkillPalette.TEXT_DIM, left,
+                barTop + STREAK_BAR_HEIGHT + 3, width, stackNext);
+    }
+
+    /** Two texts on one line, the second flush right, or stacked (first, then second below it). */
+    private void pair(GuiGraphics graphics, Component first, int firstColour, Component second, int secondColour,
+            int left, int y, int width, boolean stacked) {
+        int secondWidth = this.font.width(second);
+        if (stacked) {
+            if (clippedDraw(graphics, first, left, y, width, firstColour)) {
+                hovers.add(left, y, width, 9, first);
+            }
+            int secondRoom = Math.min(width, secondWidth);
+            clippedDraw(graphics, second, left + width - secondRoom, y + STREAK_LINE, secondRoom, secondColour);
+            return;
+        }
+        int room = width - secondWidth - 8;
+        if (clippedDraw(graphics, first, left, y, room, firstColour)) {
+            hovers.add(left, y, room, 9, first);
+        }
+        graphics.drawString(this.font, second, left + width - secondWidth, y, secondColour, false);
+    }
+
+    private boolean clippedDraw(GuiGraphics graphics, Component text, int x, int y, int room, int colour) {
+        String full = text.getString();
+        String shown = TextFit.clip(this.font, full, room);
+        graphics.drawString(this.font, shown, x, y, colour, false);
+        boolean cut = !shown.equals(full);
+        if (cut) {
+            TextFit.note("panel.streak");
+        }
+        return cut;
     }
 
     private static void drawStreakBar(GuiGraphics graphics, int left, int top, int width,
@@ -384,17 +528,28 @@ public final class SkillsScreen extends Screen {
         }
     }
 
+    /**
+     * Short: the name, how far to the next level and the stat that matters (a row with points to
+     * spend is marked in the list itself). Detailed (Shift): what the skill does, every stat as base to current,
+     * the signature move, the tree and its synergies.
+     */
     private List<Component> tooltip(Skill skill, PlayerSkills skills) {
+        boolean detailed = TooltipDetail.detailed();
         int level = skills.level(skill);
         List<Component> lines = new ArrayList<>();
         lines.add(Component.translatable(skill.translationKey())
                 .withStyle(style -> style.withColor(SkillPalette.accent(skill.category()))));
-        lines.add(Component.translatable(skill.descriptionKey()).withStyle(ChatFormatting.GRAY));
+        lines.add(progressLine(skill, skills, level));
+        lines.add(SkillNumbers.headline(skills, skill));
+        int points = skills.pointsAvailable(skill);
+        if (!detailed) {
+            return TooltipDetail.withHint(lines, true);
+        }
 
-        // The real passive, talents and synergies included (it used to show the bare level value).
-        int percent = (int) Math.round(skills.bonus(skill) * 100);
-        lines.add(Component.translatable("proficiency.tooltip.effect", percent)
-                .withStyle(ChatFormatting.DARK_AQUA));
+        // Detailed, top-down: what it is, the numbers, the signature move, the tree.
+        lines.remove(lines.size() - 1);
+        lines.add(Component.translatable(skill.descriptionKey()).withStyle(ChatFormatting.GRAY));
+        lines.addAll(SkillNumbers.statRows(skills, skill));
 
         double procChance = skills.procChance(skill);
         if (procChance > 0) {
@@ -419,19 +574,18 @@ public final class SkillsScreen extends Screen {
             lines.add(Component.translatable("proficiency.tooltip.synergies", awake)
                     .withStyle(ChatFormatting.LIGHT_PURPLE));
         }
-        lines.add(Component.translatable("proficiency.tooltip.points",
-                skills.pointsAvailable(skill)).withStyle(ChatFormatting.GRAY));
-
-        if (level >= SkillMath.MAX_LEVEL) {
-            lines.add(Component.translatable("proficiency.tooltip.maxed")
-                    .withStyle(ChatFormatting.GOLD));
-        } else {
-            int done = (int) Math.floor(skills.xp(skill));
-            int need = (int) Math.ceil(SkillMath.xpToNext(level));
-            lines.add(Component.translatable("proficiency.tooltip.progress", level, level + 1, done, need)
-                    .withStyle(ChatFormatting.DARK_GRAY));
-        }
+        lines.add(Component.translatable("proficiency.tooltip.points", points).withStyle(ChatFormatting.GRAY));
         return lines;
+    }
+
+    private static Component progressLine(Skill skill, PlayerSkills skills, int level) {
+        if (level >= SkillMath.MAX_LEVEL) {
+            return Component.translatable("proficiency.tooltip.maxed").withStyle(ChatFormatting.GOLD);
+        }
+        int done = (int) Math.floor(skills.xp(skill));
+        int need = (int) Math.ceil(SkillMath.xpToNext(level));
+        return Component.translatable("proficiency.tooltip.progress", level, level + 1, done, need)
+                .withStyle(ChatFormatting.GRAY);
     }
 
     private static void drawBorder(GuiGraphics graphics, int x, int y, int width, int height, int color) {

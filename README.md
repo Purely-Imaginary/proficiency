@@ -21,7 +21,7 @@ This branch is the **Fabric 1.21.1** build. The same mod exists for
 - **17 synergies** between trees. Each pays off when you invest in two related skills.
 - **An active ability per skill** from level 50. Tap the ability key for the held item's ability,
   hold it for a wheel with every ability you have unlocked.
-- **Survival streak.** +1% skill XP per active hour alive, up to +50%. A death wipes the streak and
+- **Survival bonus.** +1% skill XP per active hour alive, up to +50%. A death wipes the bonus and
   the XP bars, never your levels or talents.
 - **Discovery.** Banners for new biomes, dimensions and structures, a one-time bonus for every new
   kind of block, mob and item, and a discovery journal.
@@ -40,7 +40,15 @@ This branch is the **Fabric 1.21.1** build. The same mod exists for
   switch in `config/proficiency-client.toml`.
 - **Fair XP.** Blocks you placed pay no gathering XP when you break them. Mobs from spawn eggs,
   dispensers, commands and buckets pay no combat XP, and spawner mobs pay 25%. Unripe crops pay
-  nothing.
+  nothing. Kills pay a bonus on top of the hits, bigger for tougher mobs, and the first kill of a
+  new mob type pays a one-time bonus.
+- **Tooltips in two layers.** Hovering a tool, a skill or a talent shows a short summary. Hold
+  Shift for everything: the real numbers your passive changes (Block reach 4.5 → 5.1, Break
+  speed ×1.00 → ×1.30), proc chance and power, costs and requirements. Power users can make the
+  detail permanent with one client setting.
+- **12 languages.** English, Polish, Simplified Chinese, Russian, Brazilian Portuguese, Spanish,
+  German, French, Japanese, Korean, Turkish and Ukrainian, each written for meaning with the
+  game's own terms, and every screen laid out so long words wrap instead of clipping.
 
 Every tree, node and synergy is listed in [docs/TREES.md](docs/TREES.md). The full list of changes is
 in [CHANGELOG.md](CHANGELOG.md).
@@ -73,9 +81,11 @@ wheel). Both can be rebound under Controls.
 ## Configuration
 
 - `config/proficiency-server.toml`, created on first start: per-skill switches and XP rates, the
-  level curve, the streak, abilities, and the placed-block and spawner rules
-  (`placedBlocksPayXp`, `spawnerMobXp`, `artificialMobXp`).
-- `config/proficiency-client.toml`, per player: banners, the XP feed position and the XP dots.
+  level curve, the survival bonus, abilities, the placed-block and spawner rules
+  (`placedBlocksPayXp`, `spawnerMobXp`, `artificialMobXp`) and the kill bonus (`killBonusBase`,
+  `killBonusHealthDivisor`, `killBonusCap`, `killBonusBossMultiplier`).
+- `config/proficiency-client.toml`, per player: banners, the XP feed position, the XP dots, every
+  visual effect, and `tooltip.alwaysDetailed` (always show the Shift layer).
 
 Levels cost `8 + 2 * L^1.35` XP by default, about 44,000 XP from 0 to 100. Change `curveFloor`,
 `curveBase` and `curveExponent` in the server config to make it faster or slower.

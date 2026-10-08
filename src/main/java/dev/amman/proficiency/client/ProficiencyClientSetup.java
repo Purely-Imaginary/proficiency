@@ -54,6 +54,7 @@ public final class ProficiencyClientSetup implements ClientModInitializer {
                 (payload, context) -> ProcFxPlayer.accept(payload));
         ClientPlayNetworking.registerGlobalReceiver(dev.amman.proficiency.net.DeathRecapPayload.TYPE,
                 (payload, context) -> DeathRecapHud.accept(payload));
+        OverlayFallback.register();
         // The recent-XP list is per session on the server; leaving a world ends it here too, or
         // the next server would open on the last one's lines.
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {

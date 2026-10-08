@@ -1,6 +1,7 @@
 package dev.amman.proficiency.client;
 
 import dev.amman.proficiency.ProficiencyAttachments;
+import dev.amman.proficiency.config.ProficiencyClientConfig;
 import dev.amman.proficiency.perk.Synergies;
 import dev.amman.proficiency.perk.Talent;
 import dev.amman.proficiency.perk.TalentService;
@@ -35,6 +36,9 @@ public final class SkillsScreen extends Screen {
     private static final int STREAK_BAR_HEIGHT = 4;
     private static final int STREAK_GAP = 8;
     private static final int CAP_MARK = 0xFFF2D98A;
+    private static final int SPARK_PITCH = 2;
+    private static final int SPARK_HEIGHT = 7;
+    private static final float[] SPARK = new float[SkillActivity.BUCKETS];
 
     /** Left column holds these categories, right column the rest. Keeps the two sides even. */
     private static final List<SkillCategory> LEFT =
@@ -57,6 +61,9 @@ public final class SkillsScreen extends Screen {
     private int viewportHeight;
     private int bodyHeight;
     private int scroll;
+    /** Whether each column has room for the skill icons; see columnFitsIcons. */
+    private boolean leftColumnIcons;
+    private boolean rightColumnIcons;
 
     private record Row(Skill skill, int x, int y, int width) {
         boolean contains(double mouseX, double mouseY) {
@@ -96,6 +103,8 @@ public final class SkillsScreen extends Screen {
         rows.clear();
         layoutColumn(LEFT, panelX + PADDING, columnWidth);
         layoutColumn(RIGHT, panelX + PADDING + columnWidth + COLUMN_GAP, columnWidth);
+        leftColumnIcons = columnFitsIcons(panelX + PADDING, true);
+        rightColumnIcons = columnFitsIcons(panelX + PADDING, false);
     }
 
     private int countRows(List<SkillCategory> categories) {
@@ -140,8 +149,16 @@ public final class SkillsScreen extends Screen {
                 panelX + PADDING + (PANEL_WIDTH - PADDING * 2 - COLUMN_GAP) / 2 + COLUMN_GAP);
 
         Row hovered = null;
+        // A monotonic clock, so a stepped system clock cannot make a glow last or flip.
+        long now = net.minecraft.Util.getMillis();
+        boolean activity = ProficiencyClientConfig.screensActivity();
+        // Icons are on or off for a whole column, so the names in it stay in one line.
+        boolean icons = SkillIcons.enabled();
+        int leftX = panelX + PADDING;
+        boolean leftIcons = icons && leftColumnIcons;
+        boolean rightIcons = icons && rightColumnIcons;
         for (Row row : rows) {
-            drawRow(graphics, row, skills);
+            drawRow(graphics, row, skills, now, activity, row.x() == leftX ? leftIcons : rightIcons);
             if (inBody && row.contains(mouseX, mouseY + scroll)) {
                 hovered = row;
             }
@@ -203,26 +220,67 @@ public final class SkillsScreen extends Screen {
         return false;
     }
 
-    private void drawRow(GuiGraphics graphics, Row row, PlayerSkills skills) {
+    /**
+     * Whether every row of one column has room for its icon beside the name and a three-digit
+     * level. Worked out once per layout, so a frame measures nothing for it.
+     */
+    private boolean columnFitsIcons(int leftX, boolean left) {
+        int levelWidth = this.font.width("100");
+        for (Row row : rows) {
+            if ((row.x() == leftX) != left) {
+                continue;
+            }
+            int content = this.font.width(Component.translatable(row.skill().translationKey()))
+                    + 4 + levelWidth;
+            if (SkillIcons.fit(row.width(), content, SkillIcons.SMALL) == 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private void drawRow(GuiGraphics graphics, Row row, PlayerSkills skills, long now, boolean activity,
+            boolean icons) {
         Skill skill = row.skill();
         int level = skills == null ? 0 : skills.level(skill);
         float progress = skills == null ? 0f : skills.progress(skill);
         boolean maxed = level >= SkillMath.MAX_LEVEL;
         int accent = maxed ? SkillPalette.MAXED : SkillPalette.accent(skill.category());
 
+        if (activity) {
+            // Gained XP in the last ten minutes: a faint wash behind the row, fading with age.
+            float glow = SkillActivity.glow(skill, now);
+            if (glow > 0f) {
+                int alpha = 0x08 + (int) (0x1C * glow);
+                graphics.fill(row.x() - 2, row.y() - 2, row.x() + row.width() + 2, row.y() + ROW_HEIGHT - 2,
+                        (accent & 0x00FFFFFF) | (alpha << 24));
+            }
+        }
+
         if (skills != null && readyToBuy(skill, skills)) {
             // A quiet marker rather than a popup: something here is affordable.
             graphics.fill(row.x() - 4, row.y() - 1, row.x() - 2, row.y() + 8, accent);
         }
 
-        graphics.drawString(this.font, Component.translatable(skill.translationKey()),
-                row.x(), row.y(), level > 0 ? SkillPalette.TEXT : SkillPalette.TEXT_DIM, false);
-
+        Component name = Component.translatable(skill.translationKey());
         String levelText = String.valueOf(level);
         int levelWidth = this.font.width(levelText);
+        int nameWidth = this.font.width(name);
+        // The column decided whether its rows have room for icons (see columnFitsIcons).
+        int icon = icons ? SkillIcons.SMALL : 0;
+        if (icon > 0) {
+            SkillIcons.draw(graphics, skill, row.x(), SkillIcons.smallTop(row.y()), icon, level > 0 ? 255 : 150);
+        }
+        int nameX = row.x() + SkillIcons.advance(icon);
+        graphics.drawString(this.font, name,
+                nameX, row.y(), level > 0 ? SkillPalette.TEXT : SkillPalette.TEXT_DIM, false);
         graphics.drawString(this.font, levelText,
                 row.x() + row.width() - levelWidth, row.y(),
                 level > 0 ? accent : SkillPalette.TEXT_DIM, false);
+
+        if (activity) {
+            sparkline(graphics, row, skill, nameX + nameWidth, levelWidth, now);
+        }
 
         // Every row's bar spans the row's own width at one fixed offset. It used to start after
         // the name and stop before the level digits, so no two bars began or ended at the same x.
@@ -233,6 +291,38 @@ public final class SkillsScreen extends Screen {
         int filled = Math.round(barWidth * (maxed ? 1.0f : progress));
         if (filled > 0) {
             graphics.fill(barLeft, barTop, barLeft + Math.min(barWidth, filled), barTop + BAR_HEIGHT, accent);
+        }
+    }
+
+    /**
+     * The skill's XP over the last two hours as 24 two-pixel columns between the name and the
+     * level. A row with no room for it (a long name, a narrow panel) gets none rather than an
+     * overlap, and a skill with no gains in the window draws nothing at all.
+     */
+    private void sparkline(GuiGraphics graphics, Row row, Skill skill, int nameRight, int levelWidth,
+            long now) {
+        // Data first: most rows have none, and they should cost nothing.
+        float max = SkillActivity.series(skill, now, SPARK);
+        if (max <= 0f) {
+            return;
+        }
+        int width = SkillActivity.BUCKETS * SPARK_PITCH - (SPARK_PITCH - 1);
+        int left = row.x() + row.width() - levelWidth - 5 - width;
+        if (left < nameRight + 5) {
+            return;
+        }
+        int base = row.y() + 8;
+        int colour = SkillPalette.accent(skill.category());
+        for (int i = 0; i < SkillActivity.BUCKETS; i++) {
+            int x = left + i * SPARK_PITCH;
+            float v = SPARK[i];
+            if (v <= 0f) {
+                graphics.fill(x, base - 1, x + 1, base, SkillPalette.TRACK);
+                continue;
+            }
+            int height = 1 + Math.round(v / max * (SPARK_HEIGHT - 1));
+            int tint = i == SkillActivity.BUCKETS - 1 ? colour : (colour & 0x00FFFFFF) | 0xB0000000;
+            graphics.fill(x, base - height, x + 1, base, tint);
         }
     }
 

@@ -34,6 +34,16 @@ public final class AbilityContext {
     @Nullable
     public static Skill current(Player player) {
         ItemStack main = player.getMainHandItem();
+        Skill byItem = forItem(main, player);
+        if (byItem != null) {
+            return byItem;
+        }
+        return main.isEmpty() ? bareHanded(player) : null;
+    }
+
+    /** The skill an item means when held, or null for an empty hand or an item with no skill. */
+    @Nullable
+    public static Skill forItem(ItemStack main, Player player) {
         Item item = main.getItem();
 
         if (main.is(ItemTags.PICKAXES) || item instanceof PickaxeItem) {
@@ -104,8 +114,12 @@ public final class AbilityContext {
             }
             return build;
         }
+        return null;
+    }
 
-        if (main.isEmpty()) {
+    @Nullable
+    private static Skill bareHanded(Player player) {
+        {
             if (player.isInWater()) {
                 return Skill.SWIMMING;
             }
@@ -122,6 +136,5 @@ public final class AbilityContext {
             }
             return Skill.UNARMED;
         }
-        return null;
     }
 }

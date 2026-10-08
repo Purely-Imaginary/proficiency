@@ -34,6 +34,7 @@ public final class ProficiencyClientSetup {
             XpFeedHud.clear();
             DiscoveryBanner.clear();
             ClientVisited.clear();
+            HudState.reset();
         });
     }
 

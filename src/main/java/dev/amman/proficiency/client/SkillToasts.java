@@ -19,6 +19,8 @@ public final class SkillToasts {
         if (minecraft.player == null) {
             return;
         }
+        // The HUD line plays its own level-up moment for this.
+        LevelUpFx.queue(skill, level);
         // Levelling the same skill twice in a row refreshes the toast that is already up.
         SkillToast existing = minecraft.getToasts().getToast(SkillToast.class, skill);
         if (existing != null) {

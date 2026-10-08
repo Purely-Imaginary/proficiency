@@ -9,6 +9,10 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.Style;
+import net.minecraft.util.FormattedCharSequence;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -56,8 +60,14 @@ public final class DiscoveryBanner {
 
     /** {@code kicker} and {@code xp} are null for a re-entry banner. */
     private record Banner(int kind, Component title, Component xp, Component kicker, Skill skill,
-            long queuedAt) {
+            long queuedAt, int tint, int iconFamily) {
     }
+
+    /** What the banner shows now, spelled out once when it starts so a frame allocates nothing. */
+    private static FormattedCharSequence[] letters = new FormattedCharSequence[0];
+    private static FormattedCharSequence[] prefixes = new FormattedCharSequence[] {FormattedCharSequence.EMPTY};
+    private static boolean[] spaces = new boolean[0];
+    private static ItemStack icon = ItemStack.EMPTY;
 
     private static final Deque<Banner> QUEUE = new ArrayDeque<>();
     private static Banner current;
@@ -89,7 +99,8 @@ public final class DiscoveryBanner {
             // dropped in onRenderGui if it waited too long to still be true.
             QUEUE.removeIf(banner -> banner.kind() == DiscoveryPayload.ENTER);
             QUEUE.add(new Banner(payload.kind(), name(payload.name(), payload.id()), null, null,
-                    Skill.WAYFARING, System.currentTimeMillis()));
+                    Skill.WAYFARING, System.currentTimeMillis(), tintFor(payload),
+                    BannerStyle.ICON_NONE));
             return;
         }
         boolean first = payload.kind() == DiscoveryPayload.FIRST;
@@ -117,7 +128,67 @@ public final class DiscoveryBanner {
         if (!payload.with().isEmpty()) {
             kicker = Component.translatable("proficiency.discovery.with", kicker, payload.with());
         }
-        QUEUE.add(new Banner(payload.kind(), title, xp, kicker, skill, System.currentTimeMillis()));
+        QUEUE.add(new Banner(payload.kind(), title, xp, kicker, skill, System.currentTimeMillis(),
+                tintFor(payload), payload.kind() == DiscoveryPayload.STRUCTURE
+                        ? BannerStyle.iconFamily(payload.id()) : BannerStyle.ICON_NONE));
+    }
+
+    /** A dimension banner takes its own colour; any other takes the dimension the player is in. */
+    private static int tintFor(DiscoveryPayload payload) {
+        if (payload.kind() == DiscoveryPayload.DIMENSION) {
+            return BannerStyle.dimensionTint(payload.id());
+        }
+        Minecraft minecraft = Minecraft.getInstance();
+        return minecraft.level == null ? TITLE_COLOUR
+                : BannerStyle.dimensionTint(minecraft.level.dimension().location().toString());
+    }
+
+    private static ItemStack iconFor(int family) {
+        return new ItemStack(switch (family) {
+            case BannerStyle.ICON_VILLAGE -> Items.BELL;
+            case BannerStyle.ICON_OUTPOST -> Items.CROSSBOW;
+            case BannerStyle.ICON_TEMPLE -> Items.GOLD_INGOT;
+            case BannerStyle.ICON_STRONGHOLD -> Items.ENDER_EYE;
+            case BannerStyle.ICON_MANSION -> Items.TOTEM_OF_UNDYING;
+            case BannerStyle.ICON_MONUMENT -> Items.PRISMARINE_SHARD;
+            case BannerStyle.ICON_MINESHAFT -> Items.RAIL;
+            default -> Items.MAP;
+        });
+    }
+
+    private static void prepare(Banner banner) {
+        // By code point, in visual order, each with its own style, so a surrogate pair is never
+        // split and a styled or translated title looks the same while it reveals and once done.
+        java.util.List<Integer> codePoints = new java.util.ArrayList<>();
+        java.util.List<Style> styleList = new java.util.ArrayList<>();
+        banner.title().getVisualOrderText().accept((index, style, codePoint) -> {
+            codePoints.add(codePoint);
+            styleList.add(style);
+            return true;
+        });
+        int n = codePoints.size();
+        int[] cps = new int[n];
+        Style[] styles = new Style[n];
+        letters = new FormattedCharSequence[n];
+        prefixes = new FormattedCharSequence[n + 1];
+        spaces = new boolean[n];
+        prefixes[0] = FormattedCharSequence.EMPTY;
+        for (int i = 0; i < n; i++) {
+            cps[i] = codePoints.get(i);
+            styles[i] = styleList.get(i);
+            spaces[i] = Character.isWhitespace(cps[i]);
+            final int last = i;
+            letters[i] = sink -> sink.accept(0, styles[last], cps[last]);
+            prefixes[i + 1] = sink -> {
+                for (int k = 0; k <= last; k++) {
+                    if (!sink.accept(k, styles[k], cps[k])) {
+                        return false;
+                    }
+                }
+                return true;
+            };
+        }
+        icon = banner.iconFamily() == BannerStyle.ICON_NONE ? ItemStack.EMPTY : iconFor(banner.iconFamily());
     }
 
     /** A new world starts clean; a banner from the last one must not play in this one. */
@@ -125,6 +196,10 @@ public final class DiscoveryBanner {
         QUEUE.clear();
         current = null;
         bottom = 0;
+        letters = new FormattedCharSequence[0];
+        prefixes = new FormattedCharSequence[] {FormattedCharSequence.EMPTY};
+        spaces = new boolean[0];
+        icon = ItemStack.EMPTY;
     }
 
     static int bottom() {
@@ -158,6 +233,7 @@ public final class DiscoveryBanner {
                 return;
             }
             startedAt = now;
+            prepare(current);
             // A soft toast for a discovery; never for the small re-entry banner.
             if (ProficiencyClientConfig.bannerSound() && current.kind() != DiscoveryPayload.ENTER) {
                 Minecraft.getInstance().getSoundManager().play(
@@ -179,6 +255,7 @@ public final class DiscoveryBanner {
             return;
         }
         float alpha;
+        boolean reveal = ProficiencyClientConfig.bannerReveal();
         if (age < FADE_IN_MS) {
             alpha = age / (float) FADE_IN_MS;
         } else if (age < FADE_IN_MS + hold) {
@@ -187,14 +264,18 @@ public final class DiscoveryBanner {
             alpha = 1f - (age - FADE_IN_MS - hold) / (float) FADE_OUT_MS;
         }
         // Eased, so it swells in and melts out rather than ramping.
-        alpha = alpha * alpha * (3f - 2f * alpha);
-        draw(event.getGuiGraphics(), minecraft.font, current, alpha);
+        alpha = HudMath.smooth(alpha);
+        // The revealing title brings its own fade, letter by letter, so only the fade-out applies.
+        float titleAlpha = reveal && age < FADE_IN_MS + hold ? 1f : alpha;
+        draw(event.getGuiGraphics(), minecraft.font, current, alpha, titleAlpha, reveal, age);
     }
 
-    private static void draw(GuiGraphics graphics, Font font, Banner banner, float alpha) {
+    private static void draw(GuiGraphics graphics, Font font, Banner banner, float alpha,
+            float titleAlpha, boolean reveal, long age) {
         // The font treats an alpha under 4 as fully opaque, so a nearly-gone banner would flash.
         int a = Math.round(alpha * 255);
-        if (a < 8) {
+        int ta = Math.round(titleAlpha * 255);
+        if (Math.max(a, ta) < 8) {
             return;
         }
         int width = graphics.guiWidth();
@@ -208,14 +289,17 @@ public final class DiscoveryBanner {
         graphics.pose().pushPose();
         graphics.pose().translate(width / 2f, topPx, 0);
         graphics.pose().scale(userScale, userScale, 1f);
-        int bottomLocal = drawLocal(graphics, font, banner, a, width / userScale);
+        int bottomLocal = drawLocal(graphics, font, banner, a, ta, width / userScale, reveal, age);
         graphics.pose().popPose();
         bottom = topPx + Math.round(bottomLocal * userScale);
     }
 
     /** Draws at origin (0, 0) = top centre, and returns the local y where the banner ends. */
-    private static int drawLocal(GuiGraphics graphics, Font font, Banner banner, int a, float width) {
+    private static int drawLocal(GuiGraphics graphics, Font font, Banner banner, int a, int ta,
+            float width, boolean reveal, long age) {
         int top = 0;
+        int titleColour = reveal ? banner.tint() : TITLE_COLOUR;
+        int kickerColour = reveal ? BannerStyle.kickerTint(banner.tint()) : KICKER_COLOUR;
 
         Component kicker = banner.kicker();
         if (kicker != null) {
@@ -226,10 +310,10 @@ public final class DiscoveryBanner {
             boolean rules = kickerWidth * kickerScale / 2 + 6 + RULE_LENGTH <= width / 2f;
             graphics.pose().pushPose();
             graphics.pose().scale(kickerScale, kickerScale, 1f);
-            graphics.drawString(font, kicker, -kickerWidth / 2, top, (a << 24) | KICKER_COLOUR, true);
+            graphics.drawString(font, kicker, -kickerWidth / 2, top, (a << 24) | kickerColour, true);
             if (rules) {
-                rule(graphics, -kickerWidth / 2 - 6, top + 4, -1, a);
-                rule(graphics, kickerWidth / 2 + 5, top + 4, 1, a);
+                rule(graphics, -kickerWidth / 2 - 6, top + 4, -1, a, kickerColour);
+                rule(graphics, kickerWidth / 2 + 5, top + 4, 1, a, kickerColour);
             }
             graphics.pose().popPose();
         }
@@ -239,23 +323,86 @@ public final class DiscoveryBanner {
         int titleWidth = font.width(banner.title());
         float full = banner.kind() == DiscoveryPayload.FIRST ? FIRST_SCALE
                 : banner.kind() == DiscoveryPayload.ENTER ? ENTER_SCALE : TITLE_SCALE;
-        float scale = Math.min(full, width * 0.9f / Math.max(1, titleWidth));
+        boolean hasIcon = reveal && !icon.isEmpty();
+        // The icon is about a text line tall (11 text units with its gap), and sits left of the title.
+        float iconUnits = hasIcon ? 13f : 0f;
+        float scale = Math.min(full, width * 0.9f / Math.max(1, titleWidth + iconUnits));
         graphics.pose().pushPose();
         graphics.pose().translate(0, titleTop, 0);
         graphics.pose().scale(scale, scale, 1f);
-        graphics.drawString(font, banner.title(), -titleWidth / 2, 0, (a << 24) | TITLE_COLOUR, true);
+        // Shift right by half the icon so the icon and title together stay centred.
+        float shift = iconUnits / 2f;
+        if (reveal) {
+            drawRevealed(graphics, font, banner, ta, titleColour, titleWidth, shift, age);
+        } else {
+            graphics.drawString(font, banner.title(), -titleWidth / 2, 0, (a << 24) | TITLE_COLOUR, true);
+        }
+        if (hasIcon) {
+            // Scales in with the title and shrinks away as it fades out; an item render has no alpha.
+            float pop = HudMath.smooth(age / 250f) * HudMath.smooth(ta / 255f);
+            if (pop > 0.05f) {
+                float k = 11f / 16f * pop;
+                graphics.pose().pushPose();
+                // Centre of the icon's slot, so it grows from the middle.
+                graphics.pose().translate(shift - titleWidth / 2f - 7f, 4.5f, 0);
+                graphics.pose().scale(k, k, 1f);
+                graphics.renderItem(icon, -8, -8);
+                graphics.pose().popPose();
+            }
+        }
         graphics.pose().popPose();
 
         int y = titleTop + Math.round(9 * scale) + 5;
         if (banner.xp() != null) {
-            graphics.drawString(font, banner.xp(), -font.width(banner.xp()) / 2, y,
+            // The skill line: the skill's icon, then "+15 XP Mining", centred together.
+            int xpWidth = font.width(banner.xp());
+            int icon = SkillIcons.enabled()
+                    ? SkillIcons.fit(Math.round(width) - 8, xpWidth, SkillIcons.SMALL) : 0;
+            int left = -(xpWidth + SkillIcons.advance(icon)) / 2;
+            SkillIcons.draw(graphics, banner.skill(), left, SkillIcons.smallTop(y), icon, a);
+            graphics.drawString(font, banner.xp(), left + SkillIcons.advance(icon), y,
                     (a << 24) | (SkillPalette.accent(banner.skill().category()) & 0xFFFFFF), true);
         }
         return y + 10;
     }
 
-    /** A thin gold line that fades out away from the kicker, drawn a pixel column at a time. */
-    private static void rule(GuiGraphics graphics, int x, int y, int direction, int alpha) {
+    /**
+     * The title a letter at a time. Settled letters go out as one string; the few still inking in
+     * are drawn one by one, dropping a pixel into place with a thin underline that fades.
+     */
+    private static void drawRevealed(GuiGraphics graphics, Font font, Banner banner, int ta,
+            int colour, int titleWidth, float shift, long age) {
+        int length = letters.length;
+        float x0 = shift - titleWidth / 2f;
+        if (length == 0 || age >= BannerStyle.revealDone(length)) {
+            graphics.drawString(font, banner.title(), Math.round(x0), 0, (ta << 24) | colour, true);
+            return;
+        }
+        long per = BannerStyle.perLetter(length);
+        int started = BannerStyle.started(age, length);
+        int settled = (int) Math.max(0, Math.min(started, (age - BannerStyle.INK_MS) / per + 1));
+        if (age < BannerStyle.INK_MS) {
+            settled = 0;
+        }
+        if (settled > 0) {
+            graphics.drawString(font, prefixes[settled], Math.round(x0), 0, (ta << 24) | colour, true);
+        }
+        for (int i = settled; i < started; i++) {
+            float t = HudMath.clamp01((age - i * per) / (float) BannerStyle.INK_MS);
+            int la = Math.round(ta * HudMath.smooth(t));
+            int x = Math.round(x0 + font.width(prefixes[i]));
+            if (la >= 8) {
+                graphics.drawString(font, letters[i], x, Math.round(-(1f - t) * 2f), (la << 24) | colour, true);
+            }
+            int ua = Math.round(ta * (1f - t) * 0.9f);
+            if (ua >= 8 && !spaces[i]) {
+                graphics.fill(x, 10, x + font.width(letters[i]), 11, (ua << 24) | colour);
+            }
+        }
+    }
+
+    /** A thin line that fades out away from the kicker, drawn a pixel column at a time. */
+    private static void rule(GuiGraphics graphics, int x, int y, int direction, int alpha, int colour) {
         int length = RULE_LENGTH;
         for (int i = 0; i < length; i++) {
             int a = Math.round(alpha * (1f - i / (float) length) * 0.8f);
@@ -263,7 +410,7 @@ public final class DiscoveryBanner {
                 break;
             }
             int px = x + direction * i;
-            graphics.fill(px, y, px + 1, y + 1, (a << 24) | KICKER_COLOUR);
+            graphics.fill(px, y, px + 1, y + 1, (a << 24) | colour);
         }
     }
 }

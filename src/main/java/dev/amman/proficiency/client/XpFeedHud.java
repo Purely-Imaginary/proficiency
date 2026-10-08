@@ -185,6 +185,7 @@ public final class XpFeedHud {
             }
             y += 10;
         }
+        boolean iconOn = SkillIcons.enabled();
         for (Line line : LINES.subList(first, LINES.size())) {
             long age = now - line.at;
             float fade = age <= visibleMs ? 1f : 1f - (age - visibleMs) / (float) FADE_MS;
@@ -206,16 +207,21 @@ public final class XpFeedHud {
             int width = font.width(text);
             // Base in grey after it: the gap between the two is the multipliers.
             String base = " (" + format(line.base) + ")";
-            graphics.fill(x - 2, y - 1, x + width + font.width(base) + 2, y + 9,
+            int baseWidth = font.width(base);
+            // The skill's icon leads the line, unless the line already runs to the right edge.
+            int icon = iconOn ? SkillIcons.fit(graphics.guiWidth() - x - 2, width + baseWidth, SkillIcons.SMALL) : 0;
+            int tx = x + SkillIcons.advance(icon);
+            graphics.fill(x - 2, y - 1, tx + width + baseWidth + 2, y + 9,
                     Math.round(a * 0.45f) << 24);
-            graphics.drawString(font, text, x, y,
+            SkillIcons.draw(graphics, line.skill, x, SkillIcons.smallTop(y), icon, a);
+            graphics.drawString(font, text, tx, y,
                     (a << 24) | (SkillPalette.accent(line.skill.category()) & 0xFFFFFF), true);
-            graphics.drawString(font, base, x + width, y, (a << 24) | (SkillPalette.TEXT_DIM & 0xFFFFFF), true);
+            graphics.drawString(font, base, tx + width, y, (a << 24) | (SkillPalette.TEXT_DIM & 0xFFFFFF), true);
             if (detail) {
                 // Smaller and dimmer: the why under the what.
                 var pose = graphics.pose();
                 pose.pushPose();
-                pose.translate(x + 4, y + 10, 0);
+                pose.translate(x + 4 + SkillIcons.advance(icon), y + 10, 0);
                 pose.scale(DETAIL_SCALE, DETAIL_SCALE, 1f);
                 graphics.drawString(font, line.factors, 0, 0,
                         (Math.round(a * 0.75f) << 24) | (SkillPalette.TEXT_DIM & 0xFFFFFF), true);

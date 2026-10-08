@@ -50,12 +50,12 @@ public final class ProcService {
         }
         // A frenzy is not a better roll, it is no roll at all.
         if (ActiveService.isFrenzied(player, skill)) {
-            celebrate(serverPlayer, skill);
+            celebrate(serverPlayer, skill, target, pos);
             MinecraftForge.EVENT_BUS.post(new SkillProcEvent(serverPlayer, skill, target, pos, false));
             return true;
         }
         if (forced(serverPlayer, skill)) {
-            celebrate(serverPlayer, skill);
+            celebrate(serverPlayer, skill, target, pos);
             MinecraftForge.EVENT_BUS.post(new SkillProcEvent(serverPlayer, skill, target, pos, true));
             return true;
         }
@@ -64,7 +64,7 @@ public final class ProcService {
         if (chance <= 0 || serverPlayer.serverLevel().getRandom().nextDouble() >= chance) {
             return false;
         }
-        celebrate(serverPlayer, skill);
+        celebrate(serverPlayer, skill, target, pos);
         ActiveService.onProc(serverPlayer, skill);
         MinecraftForge.EVENT_BUS.post(new SkillProcEvent(serverPlayer, skill, target, pos, true));
         return true;
@@ -83,11 +83,29 @@ public final class ProcService {
 
     private static boolean forced(ServerPlayer player, Skill skill) {
         var set = FORCED.get(player.getUUID());
-        return set != null && set.remove(skill);
+        if (set != null && set.remove(skill)) {
+            return true;
+        }
+        var test = TEST_FORCED.get(player.getUUID());
+        if (test == null) {
+            return false;
+        }
+        Long until = test.remove(skill);
+        return until != null && System.currentTimeMillis() < until;
+    }
+
+    /** Op test tool: like {@link #forceNext}, but the flag lapses after {@code millis}. */
+    private static final java.util.Map<java.util.UUID, java.util.Map<Skill, Long>> TEST_FORCED =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
+    public static void forceNextFor(Player player, Skill skill, long millis) {
+        TEST_FORCED.computeIfAbsent(player.getUUID(), id -> new java.util.concurrent.ConcurrentHashMap<>())
+                .put(skill, System.currentTimeMillis() + millis);
     }
 
     public static void forget(java.util.UUID player) {
         FORCED.remove(player);
+        TEST_FORCED.remove(player);
     }
 
     /**
@@ -131,6 +149,12 @@ public final class ProcService {
 
     /** Announces a proc that some other code decided had happened. */
     public static void celebrate(ServerPlayer player, Skill skill) {
+        celebrate(player, skill, null, null);
+    }
+
+    /** As above, with what the proc was about, so the particles can appear there. */
+    public static void celebrate(ServerPlayer player, Skill skill, @Nullable LivingEntity target,
+            @Nullable BlockPos pos) {
         player.displayClientMessage(
                 Component.translatable(skill.procKey())
                         .withStyle(ChatFormatting.BOLD)
@@ -155,9 +179,8 @@ public final class ProcService {
         // Not playNotifySound: everyone nearby should hear that something happened to you.
         level.playSound(null, player.getX(), player.getY(), player.getZ(),
                 sound(skill), SoundSource.PLAYERS, 0.7f, pitch(skill));
-        level.sendParticles(particleFor(skill),
-                player.getX(), player.getY() + 1.0, player.getZ(),
-                18, 0.45, 0.5, 0.45, 0.05);
+        // The particles are the client's job (ProcFx has the recipe). Each client can switch them off.
+        ProcFxSender.send(player, skill, target, pos);
     }
 
     /**

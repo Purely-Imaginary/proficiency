@@ -34,6 +34,7 @@ public final class ClientInputEvents {
         if (event.phase != TickEvent.Phase.END) {
             return;
         }
+        SkillTooltip.tick();
         Minecraft minecraft = Minecraft.getInstance();
         if (OPEN_TREE != null && !openedFromEnvironment && minecraft.player != null
                 && (minecraft.screen == null

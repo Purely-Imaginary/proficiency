@@ -131,6 +131,7 @@ public final class AbilityWheelScreen extends Screen {
         disc(graphics, cx, cy, radius - RING_HALF_WIDTH, 0x60000000);
 
         double step = 2 * Math.PI / entries.size();
+        boolean icons = SkillIcons.enabled();
         for (int i = 0; i < entries.size(); i++) {
             Skill skill = entries.get(i);
             double angle = -Math.PI / 2 + i * step;
@@ -145,7 +146,13 @@ public final class AbilityWheelScreen extends Screen {
             } else {
                 graphics.fill(x - half, y - half, x + half, y + half, 0xA023282F);
             }
-            graphics.renderItem(icon(skill), x - 8, y - 8);
+            if (icons) {
+                // The skill's own icon: an item stood in for most skills only loosely (a cake for
+                // Social, a golden apple for Guardian), the drawn one names the skill.
+                SkillIcons.draw(graphics, skill, x - 8, y - 8, SkillIcons.LARGE);
+            } else {
+                graphics.renderItem(icon(skill), x - 8, y - 8);
+            }
             if (cooldown > 0) {
                 // A cooling ability is greyed and fills back up from the bottom as it recovers.
                 double left = cooldown / (double) Math.max(1L, ActiveService.cooldownTicks(skills, skill));

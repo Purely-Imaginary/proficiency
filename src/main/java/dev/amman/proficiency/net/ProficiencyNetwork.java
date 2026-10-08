@@ -24,10 +24,11 @@ import java.util.function.Supplier;
 public final class ProficiencyNetwork {
 
     /**
-     * Version 2: DiscoveryPayload gained a trailing string. A mismatched pair must fail at
+     * Version 2: DiscoveryPayload gained a trailing string. Version 3: the sync packet carries the
+     * running frenzies and the death recap packet exists. Version 4: the proc effect packet. A mismatched pair must fail at
      * negotiation, not in readUtf.
      */
-    private static final String PROTOCOL = "2";
+    private static final String PROTOCOL = "4";
 
     /**
      * Accepts a peer without the channel. Do not read this as "the mod is optional on the
@@ -52,6 +53,8 @@ public final class ProficiencyNetwork {
         toClient(DiscoveryPayload.class, DiscoveryPayload.STREAM_CODEC, ProficiencyNetwork::onDiscovery);
         toClient(VisitedPayload.class, VisitedPayload.STREAM_CODEC, ProficiencyNetwork::onVisited);
         toClient(CalledShotPayload.class, CalledShotPayload.STREAM_CODEC, ProficiencyNetwork::onCalledShot);
+        toClient(DeathRecapPayload.class, DeathRecapPayload.STREAM_CODEC, ProficiencyNetwork::onDeathRecap);
+        toClient(ProcFxPayload.class, ProcFxPayload.STREAM_CODEC, ProficiencyNetwork::onProcFx);
         toServer(ActivateAbilityPayload.class, ActivateAbilityPayload.STREAM_CODEC,
                 ProficiencyNetwork::onActivate);
         toServer(UnlockPerkPayload.class, UnlockPerkPayload.STREAM_CODEC, ProficiencyNetwork::onUnlock);
@@ -112,6 +115,27 @@ public final class ProficiencyNetwork {
     private static void onCalledShot(CalledShotPayload payload, NetworkEvent.Context context) {
         // Client-only class, touched only inside the lambda, like the toast above.
         context.enqueueWork(() -> dev.amman.proficiency.client.CalledShotMarks.accept(payload));
+    }
+
+    private static void onDeathRecap(DeathRecapPayload payload, NetworkEvent.Context context) {
+        context.enqueueWork(() -> dev.amman.proficiency.client.DeathRecapHud.accept(payload));
+    }
+
+    private static void onProcFx(ProcFxPayload payload, NetworkEvent.Context context) {
+        context.enqueueWork(() -> dev.amman.proficiency.client.ProcFxPlayer.accept(payload));
+    }
+
+    /** To every client within 48 blocks of the player or of the effect, the player included. */
+    public static void sendProcFx(net.minecraft.server.level.ServerLevel level, ServerPlayer player,
+            ProcFxPayload payload) {
+        double range = 48.0 * 48.0;
+        for (ServerPlayer near : level.players()) {
+            boolean close = near.distanceToSqr(player) <= range
+                    || payload.hasFocus() && near.distanceToSqr(payload.fx(), payload.fy(), payload.fz()) <= range;
+            if (close && canReceive(near)) {
+                send(near, payload);
+            }
+        }
     }
 
     private static void onActivate(ActivateAbilityPayload payload, NetworkEvent.Context context) {
@@ -179,6 +203,14 @@ public final class ProficiencyNetwork {
             return;
         }
         send(player, new LevelUpPayload(skill.ordinal(), level));
+    }
+
+    /** What the death just wiped, for the recap panel. Skipped when there was nothing to show. */
+    public static void sendDeathRecap(ServerPlayer player, DeathRecapPayload payload) {
+        if (payload.isEmpty() || !canReceive(player)) {
+            return;
+        }
+        send(player, payload);
     }
 
     /** The debug feed's gains since the last sync tick, if the player has it on and earned any. */

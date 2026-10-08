@@ -130,6 +130,13 @@ public final class SkillCommand {
                                 .then(Commands.argument("stacks", IntegerArgumentType.integer(0, 1000))
                                         .executes(SkillCommand::setStreak))))
                 .then(xpFeedCommand())
+                .then(Commands.literal("procfx")
+                        .requires(source -> source.hasPermission(2))
+                        .then(Commands.argument("skill", StringArgumentType.word())
+                                .suggests(SKILL_SUGGESTIONS)
+                                .executes(context -> procFx(context, false))
+                                .then(Commands.literal("next")
+                                        .executes(context -> procFx(context, true)))))
                 .then(Commands.literal("reset")
                         .requires(source -> source.hasPermission(2))
                         .then(Commands.argument("player", EntityArgument.player())
@@ -139,6 +146,27 @@ public final class SkillCommand {
         event.getDispatcher().register(Commands.literal("skills")
                 .executes(context -> list(context, context.getSource().getPlayerOrException()))
                 .then(xpFeedCommand()));
+    }
+
+    /**
+     * Op test tool. Plays a skill's proc effect now, on the block you look at; with {@code next} the
+     * skill's next real roll is certain instead, so the real handler plays it.
+     */
+    private static int procFx(CommandContext<CommandSourceStack> context, boolean next)
+            throws CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        Skill skill = requireSkill(context);
+        if (next) {
+            dev.amman.proficiency.skill.ProcService.forceNextFor(player, skill, 60_000L);
+            context.getSource().sendSuccess(() -> Component.literal("The next " + skill.id()
+                    + " proc is certain. It lapses after 60 seconds or when it fires."), false);
+            return 1;
+        }
+        var hit = player.pick(12.0, 0.0f, false);
+        net.minecraft.core.BlockPos pos = hit instanceof net.minecraft.world.phys.BlockHitResult block
+                && hit.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK ? block.getBlockPos() : null;
+        dev.amman.proficiency.skill.ProcFxSender.send(player, skill, null, pos);
+        return 1;
     }
 
     private static Skill requireSkill(CommandContext<CommandSourceStack> context)

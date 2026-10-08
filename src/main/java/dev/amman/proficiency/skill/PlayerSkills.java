@@ -81,6 +81,10 @@ public final class PlayerSkills {
                     buf.writeVarLong(skills.cooldownUntil[skill.ordinal()]);
                 }
                 buf.writeVarLong(skills.streakTicks);
+                // The client draws the ability glow and the crosshair ring from these.
+                for (Skill skill : Skill.VALUES) {
+                    buf.writeVarLong(skills.frenzyUntil[skill.ordinal()]);
+                }
             },
             buf -> {
                 PlayerSkills skills = new PlayerSkills();
@@ -100,6 +104,9 @@ public final class PlayerSkills {
                     skills.cooldownUntil[skill.ordinal()] = buf.readVarLong();
                 }
                 skills.streakTicks = buf.readVarLong();
+                for (Skill skill : Skill.VALUES) {
+                    skills.frenzyUntil[skill.ordinal()] = buf.readVarLong();
+                }
                 return skills;
             });
 
@@ -139,7 +146,10 @@ public final class PlayerSkills {
     /** Game time an active ability comes off cooldown. Persisted, so relogging is not a reset. */
     private final long[] cooldownUntil = new long[Skill.VALUES.length];
 
-    /** Game time a frenzy ends. Deliberately not persisted: twenty seconds does not survive a relog. */
+    /**
+     * Game time a frenzy ends. Deliberately not saved: twenty seconds does not survive a relog. It
+     * is sent in the sync packet, so the client can draw the ability glow and the crosshair ring.
+     */
     private final transient long[] frenzyUntil = new long[Skill.VALUES.length];
 
     /**
@@ -337,6 +347,12 @@ public final class PlayerSkills {
             cooldownUntil[index] = Math.max(now, cooldownUntil[index] - ticks);
             dirty = true;
         }
+    }
+
+    /** A death ends every running frenzy, as it ends the potion effect that rides on it. */
+    public void clearFrenzy() {
+        java.util.Arrays.fill(frenzyUntil, 0L);
+        dirty = true;
     }
 
     public void beginFrenzy(Skill skill, long frenzyEnd, long cooldownEnd) {
@@ -651,6 +667,7 @@ public final class PlayerSkills {
         this.paid.clear();
         this.paid.addAll(other.paid);
         System.arraycopy(other.cooldownUntil, 0, this.cooldownUntil, 0, cooldownUntil.length);
+        System.arraycopy(other.frenzyUntil, 0, this.frenzyUntil, 0, frenzyUntil.length);
         this.visited.clear();
         this.visited.addAll(other.visited);
         this.onboarded = other.onboarded;

@@ -1,0 +1,9 @@
+{
+  "item.proficiency.mace": "Gürz",
+  "item.proficiency.mace.desc": "Gürz becerisini geliştirir. Düşerken yapılan vuruş ezer: ne kadar yüksekten düşülürse o kadar sert.",
+  "proficiency.welcome.body": "Ne yaparsanız onda ustalaşırsınız. Bir beceride atlanan her seviye, o becerinin ağacı için bir yetenek puanı kazandırır. 25. seviyede beceri bir imza hamlesi, 50. seviyede %1$s tuşuna bağlı bir güç kazanır. Ağacı açmak için %2$s tuşuna basın, sonra bir beceriye tıklayın. İki ağacı yeterince doldurursanız bir sinerji uyanır.",
+  "dimension.bloodmagic.dungeon": "Kan Büyüsü Zindanı",
+  "structure.ars_elemental.starbuncle_shrine": "Starbuncle Türbesi",
+  "structure.embers.small_ruin": "Küçük Harabe",
+  "structure.supplementaries.way_sign": "Yol Tabelası"
+}

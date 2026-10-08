@@ -1,4 +1,4 @@
-"""Item textures for the station recipes and their tools.
+"""Item textures for the station recipes and their tools, and (Forge 1.20.1 only) the mace.
 
 The two stews are vanilla's mushroom stew with the soup recoloured, so they sit next to vanilla
 bowls. The rest is drawn here as 16x16 pixel maps.
@@ -9,7 +9,10 @@ import os, sys
 from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUT = os.path.join(ROOT, "src/main/resources/assets/proficiency/textures/item")
+OUT = os.path.join(ROOT, "common/src/main/resources/assets/proficiency/textures/item")
+# Items only the Forge 1.20.1 line has.
+FORGE_OUT = os.path.join(ROOT, "forge-1.20.1/src/main/resources/assets/proficiency/textures/item")
+FORGE_ONLY = {"mace"}
 
 PAL = {
     ".": None,
@@ -123,6 +126,23 @@ bqPqPqPqPqPqPqb.
 ................
 ................
 ................""",
+"mace": """
+................
+.........kkkk...
+........kdiiIk..
+.......kdiiiIdk.
+.......kiiIIIdk.
+.......kiIIIddk.
+........kIIddk..
+........kkdkk...
+.......kok......
+......kwk.......
+.....kwk........
+....kmk.........
+...kwk..........
+..kmk...........
+..kk............
+................""",
 }
 
 STEWS = {
@@ -140,7 +160,7 @@ def draw(name, art):
         for x, ch in enumerate(row):
             if PAL[ch]:
                 im.putpixel((x, y), PAL[ch] + (255,))
-    im.save(os.path.join(OUT, name + ".png"))
+    im.save(os.path.join(FORGE_OUT if name in FORGE_ONLY else OUT, name + ".png"))
 
 
 def stew(name, colours, vanilla):

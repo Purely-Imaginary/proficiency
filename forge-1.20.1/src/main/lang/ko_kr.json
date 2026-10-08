@@ -1,0 +1,9 @@
+{
+  "item.proficiency.mace": "철퇴",
+  "item.proficiency.mace.desc": "철퇴술을 단련합니다. 낙하 중 타격하면 내려찍으며, 높이 떨어질수록 강합니다.",
+  "proficiency.welcome.body": "무언가를 하면 그 일에 능숙해집니다. 스킬 레벨이 오를 때마다 그 스킬 트리의 특성 포인트를 얻습니다. 25레벨에 고유 기술, 50레벨에는 %1$s 키로 쓰는 능력이 생깁니다. %2$s 키를 누르고 스킬을 클릭하면 트리가 열립니다. 두 트리를 깊이 채우면 시너지가 깨어납니다.",
+  "dimension.bloodmagic.dungeon": "블러드 매직 던전",
+  "structure.ars_elemental.starbuncle_shrine": "스타벙클 사당",
+  "structure.embers.small_ruin": "작은 폐허",
+  "structure.supplementaries.way_sign": "길 표지판"
+}

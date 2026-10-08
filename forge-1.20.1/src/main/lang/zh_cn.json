@@ -1,0 +1,9 @@
+{
+  "item.proficiency.mace": "重锤",
+  "item.proficiency.mace.desc": "训练锤术。下落时命中会造成重击：坠落越高，伤害越大。",
+  "proficiency.welcome.body": "多做多会。技能每升一级，就能为该技能的天赋树换来一点天赋点。到25级技能获得招牌技，到50级获得能在%1$s上使用的能力。按%2$s，再点击技能即可打开它的天赋树。两棵树都走得够深，就会激活协同。",
+  "dimension.bloodmagic.dungeon": "血魔法地牢",
+  "structure.ars_elemental.starbuncle_shrine": "星火精灵神龛",
+  "structure.embers.small_ruin": "小型废墟",
+  "structure.supplementaries.way_sign": "路牌"
+}

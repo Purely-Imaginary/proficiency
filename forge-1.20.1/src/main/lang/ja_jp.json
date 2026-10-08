@@ -1,0 +1,9 @@
+{
+  "item.proficiency.mace": "メイス",
+  "item.proficiency.mace.desc": "メイス術を鍛える。落下中の一撃は叩き潰す。落ちた距離が長いほど強い。",
+  "proficiency.welcome.body": "やればやるほど上達する。スキルのレベルが1上がるごとに、そのツリーのタレントポイントが1つ手に入る。レベル25で固有技、レベル50で%1$sキーのアビリティが解放される。%2$sキーを押してスキルをクリックすると、ツリーが開く。2つのツリーを深く進めると、シナジーが目覚める。",
+  "dimension.bloodmagic.dungeon": "血の魔術のダンジョン",
+  "structure.ars_elemental.starbuncle_shrine": "スターバンクルの祠",
+  "structure.embers.small_ruin": "小さな廃墟",
+  "structure.supplementaries.way_sign": "道しるべ"
+}

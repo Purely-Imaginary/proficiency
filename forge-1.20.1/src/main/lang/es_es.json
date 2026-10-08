@@ -1,0 +1,9 @@
+{
+  "item.proficiency.mace": "Maza",
+  "item.proficiency.mace.desc": "Entrena Mazas. Un golpe en caída aplasta: más fuerte cuanto más hayas caído.",
+  "proficiency.welcome.body": "Cuanto más haces algo, mejor te sale. Cada nivel de una habilidad te da un punto de talento para su árbol. En el 25 la habilidad gana un golpe característico; en el 50, una habilidad activa en %1$s. Pulsa %2$s y haz clic en una habilidad para abrir su árbol. Si avanzas lo bastante en dos árboles, se despierta una sinergia.",
+  "dimension.bloodmagic.dungeon": "Mazmorra de Blood Magic",
+  "structure.ars_elemental.starbuncle_shrine": "Santuario de Starbuncle",
+  "structure.embers.small_ruin": "Ruina pequeña",
+  "structure.supplementaries.way_sign": "Señal de camino"
+}

@@ -1,0 +1,9 @@
+{
+  "item.proficiency.mace": "Streitkolben",
+  "item.proficiency.mace.desc": "Trainiert Streitkolben. Ein Treffer im Fall zerschmettert: Je tiefer du stürzt, desto härter schlägt er zu.",
+  "proficiency.welcome.body": "Was du oft tust, kannst du bald besser. Jede Stufe in einer Fertigkeit bringt einen Talentpunkt für ihren Baum. Ab 25 gibt es einen Signaturzug, ab 50 eine Fähigkeit auf %1$s. Drücke %2$s und klicke eine Fertigkeit, um ihren Baum zu öffnen. Wer in zwei Bäumen weit genug ist, weckt eine Synergie.",
+  "dimension.bloodmagic.dungeon": "Blutmagie-Verlies",
+  "structure.ars_elemental.starbuncle_shrine": "Starbuncle-Schrein",
+  "structure.embers.small_ruin": "Kleine Ruine",
+  "structure.supplementaries.way_sign": "Wegweiser"
+}

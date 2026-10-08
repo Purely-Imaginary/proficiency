@@ -1,0 +1,167 @@
+// The Forge 1.20.1 jar for the Reclamation pack: core + this line's own Minecraft code. It cannot
+// share common/ (Minecraft 1.20.1 differs too much), but it compiles core's sources in, and it
+// takes the shared assets and lang files, with its own additions laid over the lang files.
+plugins {
+    id 'java-library'
+    id 'net.neoforged.moddev.legacyforge'
+}
+
+version = mod_version
+group = mod_group_id
+
+base {
+    archivesName = mod_id
+}
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+
+legacyForge {
+    version = "${forge_minecraft_version}-${forge_version}"
+
+    runs {
+        client {
+            client()
+        }
+        server {
+            server()
+            programArgument '--nogui'
+        }
+        gameTestServer {
+            type = 'gameTestServer'
+            systemProperty 'forge.enabledGameTestNamespaces', mod_id
+        }
+    }
+
+    mods {
+        "${mod_id}" {
+            sourceSet(sourceSets.main)
+        }
+    }
+}
+
+mixin {
+    add sourceSets.main, 'proficiency.refmap.json'
+    config 'proficiency.mixins.json'
+    config 'proficiency.client.mixins.json'
+}
+
+sourceSets.main.java.srcDir project(':core').file('src/main/java')
+
+// The shared assets (not common's data: 1.21 data files have another layout), and the lang files
+// merged by mergeLang below.
+def sharedResources = project(':common').file('src/main/resources')
+def mergedLang = layout.buildDirectory.dir('generated/lang')
+
+tasks.register('mergeLang') {
+    description = 'Lays forge-1.20.1/src/main/lang/<lang>.json over the shared lang files.'
+    def shared = new File(sharedResources, 'assets/proficiency/lang')
+    def overlays = file('src/main/lang')
+    inputs.dir(shared)
+    inputs.dir(overlays)
+    outputs.dir(mergedLang)
+    doLast {
+        def out = mergedLang.get().dir('assets/proficiency/lang').asFile
+        out.mkdirs()
+        def json = new groovy.json.JsonGenerator.Options().disableUnicodeEscaping().build()
+        shared.listFiles().findAll { it.name.endsWith('.json') }.sort().each { lang ->
+            def merged = new LinkedHashMap(new groovy.json.JsonSlurper().parse(lang, 'UTF-8'))
+            def overlay = new File(overlays, lang.name)
+            if (overlay.exists()) {
+                merged.putAll(new groovy.json.JsonSlurper().parse(overlay, 'UTF-8'))
+            }
+            new File(out, lang.name).setText(groovy.json.JsonOutput.prettyPrint(json.toJson(merged)) + '\n', 'UTF-8')
+        }
+    }
+}
+
+tasks.named('processResources', ProcessResources) {
+    dependsOn 'mergeLang'
+    from(sharedResources) {
+        include 'assets/**'
+        exclude 'assets/proficiency/lang/**'
+    }
+    from(mergedLang)
+}
+
+dependencies {
+    testImplementation "com.google.code.gson:gson:${gson_version}"
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+    compileOnly(annotationProcessor('io.github.llamalad7:mixinextras-common:0.4.1'))
+    implementation('io.github.llamalad7:mixinextras-forge:0.4.1')
+    jarJar('io.github.llamalad7:mixinextras-forge:0.4.1')
+
+    testImplementation platform('org.junit:junit-bom:5.11.3')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+// ModDevGradle only puts Minecraft on the main source set. These are plain JUnit tests over the
+// pure-Java half of the mod, so they just need the same classpath without booting the loader.
+sourceSets.test.compileClasspath += sourceSets.main.compileClasspath
+sourceSets.test.runtimeClasspath += sourceSets.main.runtimeClasspath
+
+// The golden test of the XP defaults lives in core's tests (it is the same cases for every line);
+// this line runs it against its own defaults file, which names the forge: tags.
+def xpGoldenDir = layout.buildDirectory.dir('generated/xpgolden')
+def copyXpGolden = tasks.register('copyXpGolden', Copy) {
+    from project(':core').file('src/test/java/dev/amman/proficiency/xp')
+    include 'XpDefaultsGoldenBase.java', 'TestSubject.java'
+    into xpGoldenDir.map { it.dir('dev/amman/proficiency/xp') }
+}
+sourceSets.test.java.srcDir xpGoldenDir
+tasks.named('compileTestJava') { dependsOn copyXpGolden }
+
+tasks.named('test') {
+    // ReclamationMaterialsTest reads the pack override and the pack's item id list from here.
+    inputs.dir('packs')
+    // The lang tests read this line's merged lang files.
+    dependsOn 'mergeLang'
+    systemProperty 'proficiency.langDir', mergedLang.get().dir('assets/proficiency/lang').asFile.absolutePath
+}
+
+tasks.withType(ProcessResources).configureEach {
+    var replaceProperties = [
+            minecraft_version      : forge_minecraft_version,
+            minecraft_version_range: forge_minecraft_version_range,
+            forge_version          : forge_version,
+            forge_version_range    : forge_version_range,
+            loader_version_range   : forge_loader_version_range,
+            mod_id                 : mod_id,
+            mod_name               : mod_name,
+            mod_license            : mod_license,
+            mod_version            : mod_version,
+            mod_authors            : mod_authors,
+            mod_description        : mod_description
+    ]
+    inputs.properties replaceProperties
+
+    filesMatching(['META-INF/mods.toml', 'pack.mcmeta']) {
+        expand replaceProperties
+    }
+}
+
+// The in-world tests are for runGameTestServer, not for anyone's server.
+tasks.named('jar') {
+    exclude 'dev/amman/proficiency/gametest/**'
+    // Forge 1.20.1 finds a mod's mixins through this manifest entry, not through mods.toml.
+    manifest.attributes('MixinConfigs': 'proficiency.mixins.json,proficiency.client.mixins.json')
+}
+
+// The shipped jar: reobfuscated to SRG names (what Forge 1.20.1 runs in production), with
+// MixinExtras nested, named for the loader and version.
+tasks.named('reobfJar') {
+    archiveClassifier = 'forge-1.20.1'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = 17
+    options.compilerArgs += ['-Xmaxerrs', '3000']
+}
+
+// Every GameTest run starts from a fresh world: planted structure starts from a previous run stay
+// in the chunks and make the discovery tests see a structure "before it was planted".
+tasks.matching { it.name == 'runGameTestServer' }.configureEach {
+    doFirst {
+        delete file('run/world')
+    }
+}

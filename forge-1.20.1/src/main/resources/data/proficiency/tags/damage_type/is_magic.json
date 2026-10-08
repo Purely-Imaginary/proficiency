@@ -1,0 +1,14 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:magic",
+    "minecraft:indirect_magic",
+    "minecraft:thorns",
+    "minecraft:dragon_breath",
+    "minecraft:wither",
+    "minecraft:wither_skull",
+    { "id": "#forge:is_magic", "required": false },
+    { "id": "#forge:is_poison", "required": false },
+    { "id": "#forge:is_wither", "required": false }
+  ]
+}

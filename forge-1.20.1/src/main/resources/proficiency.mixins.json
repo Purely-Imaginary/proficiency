@@ -1,0 +1,20 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "refmap": "proficiency.refmap.json",
+  "package": "dev.amman.proficiency.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "mixins": [
+    "LivingEntityDamageMixin",
+    "PlayerDamageMixin",
+    "ProtectionEnchantmentMixin",
+    "LivingEntityInvoker",
+    "EffectSourceMixin",
+    "DamageSourcesInvoker",
+    "AbstractArrowInvoker",
+    "FishingHookMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

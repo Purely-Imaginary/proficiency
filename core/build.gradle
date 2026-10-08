@@ -1,0 +1,38 @@
+// Pure Java: no Minecraft, no loader. Every loader project compiles these sources into its own jar
+// (with its own Minecraft's copies of the libraries below), so this project's job is to prove the
+// code needs nothing else, and to run the tests of the shared rules once.
+plugins {
+    id 'java-library'
+}
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+dependencies {
+    // Libraries Minecraft 1.20.1 and 1.21.1 both ship. Not Minecraft itself.
+    compileOnly "com.mojang:datafixerupper:${dfu_version}"
+    compileOnly "it.unimi.dsi:fastutil:${fastutil_version}"
+    compileOnly "org.jetbrains:annotations:${annotations_version}"
+    compileOnly "com.google.code.gson:gson:${gson_version}"
+
+    testImplementation "com.mojang:datafixerupper:${dfu_version}"
+    testImplementation "it.unimi.dsi:fastutil:${fastutil_version}"
+    testImplementation "org.jetbrains:annotations:${annotations_version}"
+    testImplementation "com.google.code.gson:gson:${gson_version}"
+    // The shared defaults file, as it sits in the NeoForge and Fabric jars.
+    testRuntimeOnly files(project(':common').file('src/main/resources'))
+    testImplementation platform("org.junit:junit-bom:${junit_version}")
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+// Forge 1.20.1 runs Java 17, so the shared code may use nothing newer.
+tasks.named('compileJava') {
+    options.release = 17
+}
+
+tasks.named('test') {
+    // The pure tests that check strings read the shared lang files.
+    systemProperty 'proficiency.langDir',
+            project(':common').file('src/main/resources/assets/proficiency/lang').absolutePath
+    inputs.dir(project(':common').file('src/main/resources/assets/proficiency/lang'))
+}

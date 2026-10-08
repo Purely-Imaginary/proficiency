@@ -1,0 +1,9 @@
+{
+  "dimension.bloodmagic.dungeon": "Loch Magii Krwi",
+  "structure.ars_elemental.starbuncle_shrine": "Kapliczka Starbuncle",
+  "structure.embers.small_ruin": "Małe ruiny",
+  "structure.supplementaries.way_sign": "Drogowskaz",
+  "item.proficiency.mace": "Buzdygan",
+  "item.proficiency.mace.desc": "Trenuje Buzdygany. Cios w locie w dół miażdży: im dłużej spadasz, tym mocniej.",
+  "proficiency.welcome.body": "Im częściej coś robisz, tym lepiej ci to wychodzi. Każdy poziom umiejętności daje punkt talentu do jej drzewka. Na poziomie 25 umiejętność zyskuje popisowy ruch, a na 50 zdolność pod klawiszem %1$s. Naciśnij %2$s i kliknij umiejętność, żeby otworzyć jej drzewko. Rozwiń dwa drzewka wystarczająco daleko, a obudzi się synergia."
+}

@@ -1,6 +1,6 @@
 """
 The design of every talent tree, in one place. `gen_talents.py` turns this into
-src/main/java/.../perk/TalentTable.java and the talent lines of en_us.json.
+core/src/main/java/.../perk/TalentTable.java and the talent lines of en_us.json.
 
 Edit here, then run:  python3 tools/gen_talents.py
 

@@ -19,8 +19,8 @@ import sys
 from PIL import Image, ImageDraw
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-JAVA = os.path.join(ROOT, "src/main/java/dev/amman/proficiency")
-OUT = os.path.join(ROOT, "src/main/resources/assets/proficiency/textures/gui/skill")
+JAVA = os.path.join(ROOT, "core/src/main/java/dev/amman/proficiency")
+OUT = os.path.join(ROOT, "common/src/main/resources/assets/proficiency/textures/gui/skill")
 
 
 def hexrgb(v):

@@ -1,0 +1,9 @@
+{
+  "item.proficiency.mace": "Mace",
+  "item.proficiency.mace.desc": "Trains Maces. A hit while falling smashes: harder the further you fell.",
+  "proficiency.welcome.body": "Doing a thing makes you better at it. Every level in a skill buys a talent point for that skill's tree. At 25 a skill gets a signature move; at 50 an ability on %1$s. Press %2$s, then click a skill to open its tree. Deep enough in two trees and a synergy wakes.",
+  "dimension.bloodmagic.dungeon": "Blood Magic Dungeon",
+  "structure.ars_elemental.starbuncle_shrine": "Starbuncle Shrine",
+  "structure.embers.small_ruin": "Small Ruin",
+  "structure.supplementaries.way_sign": "Way Sign"
+}

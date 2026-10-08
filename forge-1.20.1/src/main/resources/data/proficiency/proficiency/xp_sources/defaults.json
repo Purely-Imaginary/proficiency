@@ -1,0 +1,156 @@
+{
+  "_comment": "The XP rules the mod shipped with in 1.2.0, as data. A pack changes them by adding its own files under data/<namespace>/proficiency/xp_sources/. These priorities are negative on purpose: a pack rule at the default priority 0 beats every one of them. Tags named proficiency:builtin/* are answered by code, see the README.",
+
+  "break": [
+    {
+      "match": ["#minecraft:logs", "#minecraft:leaves"],
+      "skill": "woodcutting",
+      "xp": { "base": 0.5, "per_hardness": 0.3, "max": 5.0 },
+      "priority": -10
+    },
+    {
+      "match": ["#minecraft:crops", "#proficiency:builtin/crop_block"],
+      "skill": "farming",
+      "xp": 1.0,
+      "flags": ["crop"],
+      "priority": -20
+    },
+    {
+      "match": "#minecraft:mineable/pickaxe",
+      "skill": "mining",
+      "tool": "pickaxe",
+      "xp": { "base": 0.5, "per_hardness": 0.3, "max": 5.0 },
+      "priority": -30
+    },
+    {
+      "match": "#minecraft:mineable/shovel",
+      "skill": "excavation",
+      "tool": "shovel",
+      "xp": { "base": 0.5, "per_hardness": 0.3, "max": 5.0 },
+      "priority": -40
+    },
+    {
+      "match": "#minecraft:mineable/axe",
+      "skill": "woodcutting",
+      "xp": { "base": 0.5, "per_hardness": 0.3, "max": 5.0 },
+      "priority": -50
+    }
+  ],
+
+  "place": [
+    {
+      "match": ["#minecraft:crops", "#minecraft:saplings", "#proficiency:builtin/planting_block"],
+      "exclude": { "tags": ["minecraft:flowers"] },
+      "skill": "farming",
+      "xp": 0.5,
+      "flags": ["planting"],
+      "priority": -10
+    },
+    {
+      "match": ["create:*", "createaddition:*", "create_dragons_plus:*", "create_enchantment_industry:*",
+                "ae2:*", "arseng:*", "titanium:*", "functionalstorage:*", "merequester:*", "toms_storage:*"],
+      "skill": "engineering",
+      "xp": 2.0,
+      "flags": ["machine"],
+      "priority": -20
+    },
+    {
+      "match": ["handcrafted:*", "another_furniture:*", "supplementaries:*", "chipped:*",
+                "adorabuild_structures:*", "amendments:*", "immersivelanterns:*", "hearths:*",
+                "aurelj_paintings:*", "fastpaintings:*",
+                "#minecraft:candles", "#minecraft:wool_carpets", "#minecraft:beds", "#minecraft:banners",
+                "#minecraft:flower_pots", "#minecraft:signs", "#minecraft:flowers", "#minecraft:campfires"],
+      "skill": "decorating",
+      "xp": 1.0,
+      "flags": ["decor"],
+      "priority": -30
+    },
+    {
+      "match": ["#proficiency:builtin/decorative_shape", "#forge:glass", "#minecraft:fences",
+                "#minecraft:fence_gates", "#minecraft:doors", "#minecraft:trapdoors", "#minecraft:buttons",
+                "#minecraft:pressure_plates"],
+      "skill": "decorating",
+      "xp": 1.0,
+      "priority": -40
+    },
+    {
+      "match": ["#proficiency:builtin/split_block", "#minecraft:stairs", "#minecraft:slabs", "#minecraft:walls"],
+      "skill": "masonry",
+      "xp": 0.5,
+      "also": { "skill": "decorating", "xp": 0.5 },
+      "priority": -50
+    },
+    {
+      "match": "#proficiency:builtin/full_cube",
+      "skill": "masonry",
+      "xp": 1.0,
+      "priority": -60
+    },
+    {
+      "match": "*",
+      "skill": "decorating",
+      "xp": 1.0,
+      "priority": -70
+    }
+  ],
+
+  "craft": [
+    {
+      "match": ["create:*", "createaddition:*", "create_dragons_plus:*", "create_enchantment_industry:*",
+                "ae2:*", "arseng:*", "titanium:*", "functionalstorage:*", "merequester:*", "toms_storage:*"],
+      "skill": "engineering",
+      "xp": 2.0,
+      "flags": ["machine"]
+    }
+  ],
+
+  "cast": [
+    {
+      "match": ["ars_nouveau:*", "ars_additions:*", "arseng:*"],
+      "skill": "spellcasting",
+      "xp": 0.5
+    }
+  ],
+
+  "kill": [
+    {
+      "match": "*",
+      "exclude": { "mods": ["minecraft"] },
+      "skill": "beastslaying",
+      "xp": { "base": 1.0, "per_health": 0.25, "max": 60.0 },
+      "priority": -10
+    }
+  ],
+
+  "boss": [
+    { "match": "#proficiency:notable_bosses", "boss": true, "priority": -10 }
+  ],
+
+  "structure": [
+    { "match": "#proficiency:grand_structures", "flags": ["grand"], "priority": -10 }
+  ],
+
+  "biome": [
+    { "match": "*", "xp": 25.0, "priority": -10 }
+  ],
+
+  "dimension": [
+    { "match": "*", "xp": 150.0, "priority": -10 }
+  ],
+
+  "first_time": [
+    {
+      "match": ["#forge:ores/diamond", "#forge:ores/emerald", "#forge:ores/netherite_scrap", "minecraft:ancient_debris"],
+      "kind": "block",
+      "multiplier": 5.0,
+      "priority": -10
+    },
+    { "match": "#forge:ores", "kind": "block", "multiplier": 2.0, "priority": -20 },
+    { "match": "#proficiency:notable_bosses", "kind": "entity", "multiplier": 10.0, "priority": -10 },
+    { "match": "*", "kind": "entity", "min_health": 100, "multiplier": 5.0, "priority": -20 },
+    { "match": "*", "kind": "entity", "min_health": 40, "multiplier": 3.0, "priority": -30 },
+    { "match": "#proficiency:builtin/rarity_epic", "kind": "item", "multiplier": 5.0, "priority": -10 },
+    { "match": "#proficiency:builtin/rarity_rare", "kind": "item", "multiplier": 3.0, "priority": -20 },
+    { "match": "#proficiency:builtin/rarity_uncommon", "kind": "item", "multiplier": 2.0, "priority": -30 }
+  ]
+}

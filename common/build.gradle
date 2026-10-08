@@ -1,0 +1,44 @@
+// The Minecraft 1.21.1 code NeoForge and Fabric share, compiled here against vanilla Minecraft
+// (NeoForm, official names) to prove it needs no loader. The neoforge and fabric projects compile
+// these same sources into their jars. Loader specifics sit behind platform/Platform.
+plugins {
+    id 'java-library'
+    id 'net.neoforged.moddev'
+}
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+repositories {
+    maven { name = 'Fuzs'; url = 'https://raw.githubusercontent.com/Fuzss/modresources/main/maven/' }
+}
+
+neoForge {
+    neoFormVersion = neoform_version
+    accessTransformers.from(file('accesstransformer.cfg'))
+}
+
+sourceSets.main.java.srcDir project(':core').file('src/main/java')
+
+dependencies {
+    compileOnly 'org.spongepowered:mixin:0.8.5'
+    compileOnly 'io.github.llamalad7:mixinextras-common:0.4.1'
+    // NeoForge's ModConfigSpec without NeoForge: the class both loaders provide at runtime.
+    compileOnly "fuzs.forgeconfigapiport:forgeconfigapiport-common-neoforgeapi:${fcap_common_version}"
+
+    testImplementation "fuzs.forgeconfigapiport:forgeconfigapiport-common-neoforgeapi:${fcap_common_version}"
+    testRuntimeOnly 'com.electronwill.night-config:core:3.8.0'
+    testRuntimeOnly 'com.electronwill.night-config:toml:3.8.0'
+    testImplementation platform("org.junit:junit-bom:${junit_version}")
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+// ModDevGradle only puts Minecraft on the main source set. These are plain JUnit tests over the
+// shared code, so they just need the same classpath without booting a loader.
+sourceSets.test.compileClasspath += sourceSets.main.compileClasspath
+sourceSets.test.runtimeClasspath += sourceSets.main.runtimeClasspath
+
+// Nothing ships from here; the loader jars carry this code.
+tasks.named('jar') {
+    enabled = false
+}

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """List the structure and dimension ids of a modpack, with and without a display name.
 
-Run it against one or more modpack instance folders, read-only:
-    python3 tools/gen_structure_names.py <instance-dir> [<instance-dir> ...] [--lang src/main/resources/assets/proficiency/lang/en_us.json]
+Run it where the packs live (the machine that has the game packs), read-only:
+    python3 tools/gen_structure_names.py ~/pandowo ~/mcnowy [--lang common/src/main/resources/assets/proficiency/lang/en_us.json]
 
 Ids come from data/<ns>/worldgen/structure/**/*.json and data/<ns>/dimension/*.json inside
 mods/*.jar (nested jarjar jars too) and world/datapacks. A structure counts as named when the

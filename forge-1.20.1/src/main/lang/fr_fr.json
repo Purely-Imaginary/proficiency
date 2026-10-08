@@ -1,0 +1,9 @@
+{
+  "item.proficiency.mace": "Masse",
+  "item.proficiency.mace.desc": "Entraîne les Masses. Un coup en pleine chute fracasse : plus fort selon la hauteur.",
+  "proficiency.welcome.body": "Plus vous faites une chose, mieux vous la faites. Chaque niveau d'une compétence rapporte un point de talent pour son arbre. Au niveau 25, la compétence gagne un coup signature ; au 50, une capacité sur %1$s. Appuyez sur %2$s, puis cliquez sur une compétence pour ouvrir son arbre. Poussez assez loin deux arbres et une synergie s'éveille.",
+  "dimension.bloodmagic.dungeon": "Donjon de Blood Magic",
+  "structure.ars_elemental.starbuncle_shrine": "Sanctuaire de Starbuncle",
+  "structure.embers.small_ruin": "Petite ruine",
+  "structure.supplementaries.way_sign": "Panneau de route"
+}

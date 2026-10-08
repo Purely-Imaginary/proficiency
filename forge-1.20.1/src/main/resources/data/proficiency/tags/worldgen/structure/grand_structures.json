@@ -1,0 +1,17 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:ancient_city",
+    "minecraft:stronghold",
+    "minecraft:end_city",
+    "minecraft:mansion",
+    "minecraft:monument",
+    "minecraft:bastion_remnant",
+    "minecraft:fortress",
+    { "id": "cataclysm:ruined_citadel", "required": false },
+    { "id": "cataclysm:sunken_city", "required": false },
+    { "id": "cataclysm:acropolis", "required": false },
+    { "id": "cataclysm:cursed_pyramid", "required": false },
+    { "id": "twilightforest:final_castle", "required": false }
+  ]
+}

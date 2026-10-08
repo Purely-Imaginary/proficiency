@@ -6,8 +6,8 @@ sys.path.insert(0, HERE)
 import talents_spec as spec
 
 ROOT = os.path.dirname(HERE)
-JAVA = os.path.join(ROOT, "src/main/java/dev/amman/proficiency/perk/TalentTable.java")
-LANG = os.path.join(ROOT, "src/main/resources/assets/proficiency/lang/en_us.json")
+JAVA = os.path.join(ROOT, "core/src/main/java/dev/amman/proficiency/perk/TalentTable.java")
+LANG = os.path.join(ROOT, "common/src/main/resources/assets/proficiency/lang/en_us.json")
 FX = {"XP": "XP_RATE", "BON": "BONUS", "PC": "PROC_CHANCE", "PP": "PROC_POWER",
       "AD": "ABILITY_DURATION", "AC": "ABILITY_COOLDOWN", "DW": "DEATH_WARD", "TMP": "TEMPO"}
 

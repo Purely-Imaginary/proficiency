@@ -38,5 +38,5 @@ punctuation. `TextBreakTest` covers it.
    measures the strings of every language against the limits of the old layout, per site.
 3. `python3 tools/layout/make_sheets.py <dir>/shots <dir>/sheets 640` makes contact sheets, six languages each.
 
-The demo (client/LayoutDemo) is on the Forge 1.20.1 and NeoForge lines. It needs a private X display (Xvfb) and a throwaway instance. Do not use the real desktop.
+The demo (client/LayoutDemo) is on all three lines (shared code since the monorepo; Forge 1.20.1 keeps its own copy). It needs a private X display (Xvfb) and a throwaway instance. Do not use the real desktop.
 GUI sizes below 320 x 240 do not exist in the game, so the smallest setup is 960 x 720 at scale 3.

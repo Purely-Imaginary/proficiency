@@ -1,0 +1,15 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "refmap": "proficiency.refmap.json",
+  "package": "dev.amman.proficiency.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "client": [
+    "client.GameRendererMixin",
+    "client.LightTextureAccess",
+    "client.LightTextureMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}

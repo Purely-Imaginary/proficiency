@@ -377,16 +377,21 @@ class MasteryTest {
         PlayerSkills base = new PlayerSkills();
         Buffer buffer = new Buffer();
         base.write(buffer);
-        // Replace the trailing mastery block (34 skills of varint + float) with hostile values.
+        // Replace the mastery block (34 skills of varint + float) with hostile values. The rested
+        // block (34 floats and varints) follows it and is kept as it was.
         Object[] all = buffer.queue.toArray();
         buffer.queue.clear();
         int mastery = Skill.VALUES.length * 2;
-        for (int i = 0; i < all.length - mastery; i++) {
+        int rested = Skill.VALUES.length * 2;
+        for (int i = 0; i < all.length - mastery - rested; i++) {
             buffer.queue.add(all[i]);
         }
         for (int i = 0; i < Skill.VALUES.length; i++) {
             buffer.queue.add(stars);
             buffer.queue.add(overflow);
+        }
+        for (int i = all.length - rested; i < all.length; i++) {
+            buffer.queue.add(all[i]);
         }
         return buffer;
     }
@@ -396,5 +401,65 @@ class MasteryTest {
         PlayerSkills read = PlayerSkills.read(bufferWith(null, 99, -5f));
         assertEquals(Mastery.MAX_STARS, read.stars(S));
         assertEquals(0f, read.overflow(S));
+    }
+
+    private static void installCap(int cap) {
+        SkillTuning.install(new SkillTuning() {
+            @Override public double curveFloor() { return DEFAULTS.curveFloor(); }
+            @Override public double curveBase() { return DEFAULTS.curveBase(); }
+            @Override public double curveExponent() { return DEFAULTS.curveExponent(); }
+            @Override public boolean enabled(Skill skill) { return true; }
+            @Override public double maxBonus(Skill skill) { return DEFAULTS.maxBonus(skill); }
+            @Override public boolean procsEnabled() { return true; }
+            @Override public int procUnlockLevel() { return 25; }
+            @Override public double procFloor() { return 0.05; }
+            @Override public double procChance(Skill skill) { return DEFAULTS.procChance(skill); }
+            @Override public int masteryMaxStars() { return cap; }
+        });
+    }
+
+    @Test
+    void withStarsOffALevel100BarReadsFullNotEmpty() {
+        installCap(0);
+        PlayerSkills skills = maxed();
+        assertEquals(1.0f, skills.barProgress(S), "1.2.0 showed a full bar at 100; so must a switched-off feature");
+        assertEquals(1.0f, skills.starProgress(S));
+    }
+
+    @Test
+    void shownStarsNeverExceedTheLoweredCap() {
+        installCap(3);
+        assertEquals(3, Mastery.shownStars(5), "a lowered cap must not show 5/3");
+        assertEquals(2, Mastery.shownStars(2));
+        assertEquals(0, Mastery.shownStars(-1));
+        installCap(0);
+        assertEquals(5, Mastery.shownStars(5), "off: earned stars still show, out of five");
+    }
+
+    @Test
+    void anOpStarCountIsClampedToTheCap() {
+        installCap(3);
+        assertEquals(3, Mastery.clampOpStars(5));
+        assertEquals(0, Mastery.clampOpStars(0));
+        assertEquals(0, Mastery.clampOpStars(-4));
+        installCap(0);
+        assertEquals(0, Mastery.clampOpStars(5));
+    }
+
+    @Test
+    void theResultSaysHowMuchWasBankedPastTheLastStar() {
+        installCap(1);
+        PlayerSkills skills = maxed();
+        float cost = Mastery.starCost(1);
+        Mastery.Result first = skills.addXpMastery(S, cost + 400f);
+        assertEquals(1, first.stars());
+        assertEquals(cost, first.bankedOf(cost + 400f), 1e-2f, "the 400 over the last star was thrown away");
+        Mastery.Result after = skills.addXpMastery(S, 250f);
+        assertEquals(0f, after.bankedOf(250f), "capped XP is not banked");
+        installCap(5);
+        PlayerSkills fresh = maxed();
+        assertEquals(100f, fresh.addXpMastery(S, 100f).bankedOf(100f), 1e-3f, "below the cap all of it stays");
+        PlayerSkills climbing = new PlayerSkills();
+        assertEquals(7f, climbing.addXpMastery(S, 7f).bankedOf(7f), 1e-3f, "so does XP on the way up");
     }
 }

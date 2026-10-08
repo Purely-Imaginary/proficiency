@@ -105,6 +105,10 @@ for l in LANGS:
     check('recap.title', l, fmt(l, 'proficiency.recap.title'), OLD['recap_text'], '')
     check('recap.streak', l, fmt(l, 'proficiency.recap.streak', 31), OLD['recap_text'] - 12, '')
     check('recap.more', l, fmt(l, 'proficiency.recap.more', 12), OLD['recap_text'], '')
+    check('recap.rested (wraps to 3 lines)', l, fmt(l, 'proficiency.recap.rested', 1234, 12), OLD['recap_text'] * 3, '')
+    check('tooltip.rested', l, fmt(l, 'proficiency.tooltip.rested', 1234), 320 - 8 - 12 - 4, '')
+    check('tooltip.rusty (wraps to 2 lines)', l, fmt(l, 'proficiency.tooltip.rusty', 12), (320 - 8 - 12 - 4) * 2, '')
+    check('toast.teaching (action bar)', l, fmt(l, 'proficiency.teaching.paid', '12.5'), 426 * 0.9, '')
     for t in ('biomes', 'structures', 'dimensions', 'skills'):
         check('journal.tab label', l, D[l]['proficiency.journal.tab.' + t], OLD['tab'], t)
     check('journal.button', l, D[l]['proficiency.journal.button'], 56, '')

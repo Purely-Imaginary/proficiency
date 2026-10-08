@@ -295,7 +295,7 @@ final class LayoutDemo {
             for (int i = 0; i < 8; i++) {
                 rows.add(new DeathRecapPayload.Row(by.get(i).ordinal(), 0.9f - i * 0.1f, i == 0 ? 0.2f : 0f));
             }
-            DeathRecapHud.accept(new DeathRecapPayload(rows, 6, 30, 31));
+            DeathRecapHud.accept(new DeathRecapPayload(rows, 6, 30, 31, 640, 7));
         });
         add("recap wait", 1500, () -> {
         });

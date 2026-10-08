@@ -173,10 +173,14 @@ class HudEffectsTest {
         buf.writeVarInt(0);
         buf.writeVarInt(7);
         buf.writeVarInt(7);
+        buf.writeVarInt(90);
+        buf.writeVarInt(3);
         DeathRecapPayload decoded = DeathRecapPayload.STREAM_CODEC.decode(buf);
         assertEquals(0, buf.readableBytes(), "every row is read, so the tail is not shifted");
         assertEquals(DeathRecapPayload.MAX_ROWS, decoded.rows().size());
         assertEquals(7, decoded.streakStacks());
+        assertEquals(90, decoded.restedXp());
+        assertEquals(3, decoded.restedSkills());
 
         FriendlyByteBuf negative = new FriendlyByteBuf(Unpooled.buffer());
         negative.writeVarInt(-1);

@@ -1,6 +1,5 @@
 package dev.amman.proficiency.skill;
 
-import dev.amman.proficiency.ProficiencyAttachments;
 import dev.amman.proficiency.config.ProficiencyConfig;
 import dev.amman.proficiency.telemetry.Telemetry;
 import dev.amman.proficiency.telemetry.TelemetryHub;
@@ -35,6 +34,13 @@ public final class TelemetryService {
         }
         data().grant(player.getUUID(), player.getGameProfile().getName(), skill, source, base, finalXp,
                 level, System.currentTimeMillis());
+    }
+
+    /** The extra XP a grant gained from the rested pool: its own telemetry kind. */
+    public static void rested(ServerPlayer player, Skill skill, double xp) {
+        if (ProficiencyConfig.telemetryEnabled()) {
+            data().rested(player.getUUID(), player.getGameProfile().getName(), skill, xp);
+        }
     }
 
     public static void levelUps(ServerPlayer player, Skill skill, int count, int level) {
@@ -81,9 +87,11 @@ public final class TelemetryService {
         long now = System.currentTimeMillis();
         // Real elapsed time, so a lagging server does not under-count; clamped against a stalled clock.
         long elapsed = lastTickMs == 0 ? 1000 : Math.max(0, Math.min(5000, now - lastTickMs));
+        // At the controls means real input (moving, turning, earning XP from play), not the
+        // survival streak's "any XP lately": passive trickles would keep an AFK player "active".
         boolean active = player.isAlive() && !player.isSpectator()
-                && ProficiencyAttachments.of(player).isActive(player.level().getGameTime(),
-                        ProficiencyConfig.streakActiveWindowTicks());
+                && data().activeNow(player.getUUID(), player.getX(), player.getY(), player.getZ(),
+                        player.getYRot(), player.getXRot(), now);
         data().tick(player.getUUID(), player.getGameProfile().getName(), active, elapsed, now);
     }
 
@@ -94,10 +102,12 @@ public final class TelemetryService {
         if (!ProficiencyConfig.telemetryEnabled()) {
             return;
         }
-        if (!TelemetryHub.running()) {
-            TelemetryHub.start(server.getWorldPath(LevelResource.ROOT).resolve("proficiency")
-                    .resolve("telemetry"), ProficiencyConfig.telemetryRetentionDays(),
-                    LocalDate.now(), now);
+        java.nio.file.Path folder = server.getWorldPath(LevelResource.ROOT).resolve("proficiency")
+                .resolve("telemetry");
+        // Also reopen when the folder is another world's: a single-player JVM that crashed or never
+        // stopped would otherwise keep writing the old world's counts into the new one.
+        if (!TelemetryHub.runningOn(folder)) {
+            TelemetryHub.start(folder, ProficiencyConfig.telemetryRetentionDays(), LocalDate.now(), now);
         }
         TelemetryHub.flushIfDue(now, LocalDate.now());
     }

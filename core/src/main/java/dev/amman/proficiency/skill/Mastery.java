@@ -31,6 +31,19 @@ public final class Mastery {
         return cap > 0 ? cap : MAX_STARS;
     }
 
+    /**
+     * Earned stars as they are shown: never above {@link #lastStar()}. A server that lowers the cap
+     * after players earned more stars would otherwise show "5/3"; the stored count is left alone.
+     */
+    public static int shownStars(int earned) {
+        return Math.max(0, Math.min(earned, lastStar()));
+    }
+
+    /** What an operator's star count becomes: never below 0 and never above the configured cap. */
+    public static int clampOpStars(int requested) {
+        return Math.max(0, Math.min(requested, maxStars()));
+    }
+
     /** The cost of star 1. */
     public static float starBase() {
         double base = SkillMath.xpToNext(SkillMath.MAX_LEVEL - 1) * SkillTuning.current().masteryStarFactor();
@@ -51,8 +64,20 @@ public final class Mastery {
         return total;
     }
 
-    /** What one XP grant did at level 100: stars it earned, and whether it moved the bar at all. */
-    public record Result(int levels, int stars) {
-        public static final Result NONE = new Result(0, 0);
+    /**
+     * What one XP grant did: levels and stars it earned, and how much of it was banked. Past the
+     * last star the rest of a grant is dropped, so {@code banked} can be less than the grant.
+     */
+    public record Result(int levels, int stars, float banked) {
+        public static final Result NONE = new Result(0, 0, 0f);
+
+        public Result(int levels, int stars) {
+            this(levels, stars, Float.NaN);
+        }
+
+        /** The XP that stayed, given what was paid: the whole grant unless the result says less. */
+        public float bankedOf(float paid) {
+            return Float.isNaN(banked) ? paid : Math.max(0f, Math.min(paid, banked));
+        }
     }
 }

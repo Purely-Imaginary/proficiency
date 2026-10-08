@@ -13,6 +13,10 @@ public final class SkillPalette {
     public static final int MAXED = 0xFFF2D98A;
     /** The HUD bar of a level 100 skill: progress toward the next Mastery star, apart from every category accent. */
     public static final int STAR_BAR = 0xFF8FE3F0;
+    /** Rested XP: the blue part of a bar that shows how far the pool reaches. */
+    public static final int RESTED = 0xFF4F86FF;
+    /** The rested segment of a bar: RESTED blended 20% onto TRACK, so it reads as a faint hint, not as progress. */
+    public static final int RESTED_BAR = 0xFF2C3B59;
 
     private SkillPalette() {
     }

@@ -13,7 +13,7 @@ The language decides how long a text is, so nothing is cut at a fixed pixel coun
 | Talent tree grid | window | the roomiest of four grids that fits; below that the whole screen shrinks |
 | Skills panel columns | widest skill name | wider panel; one scrolling column when two do not fit; whole rows only above the footer |
 | Skills panel footer | panel width | a text pair that does not fit side by side goes on two lines |
-| Death recap | longest name, up to 60% of the screen | wider panel, wrapped lines, fewer rows plus "+N more" when the window is short |
+| Death recap | longest name, up to 60% of the screen | wider panel, wrapped lines (the survival line and the rested XP line each up to 3), fewer rows plus "+N more" when the window is short |
 | XP feed | to the right edge | the source is cut, the numbers are not; the factor line wraps to 2 |
 | Banner | window | kicker and XP line wrap; a title shrinks to 1.4x, then goes on two lines |
 | Ability wheel | the disc | each centre line is cut to the chord at its height; slots shrink on a crowded ring |
@@ -21,6 +21,8 @@ The language decides how long a text is, so nothing is cut at a fixed pixel coun
 | Config screen (Forge) | 240 to 400 px | rows widen to the longest label |
 | Toast | 160 px | widens |
 | Tooltips of the mod | window | wrapped, and drawn smaller if still taller than the screen |
+| Rested XP tooltip lines (`Rested: N XP`, `Rusty`) | the panel tooltip | wrapped like the rest of the tooltip |
+| Teacher toast (action bar) | window | one short line; the longer login line goes to chat, which wraps |
 | Item tooltips of the mod | 240 px | wrapped |
 | Action bar messages of the mod wider than the window | window | sent to the chat, which wraps |
 

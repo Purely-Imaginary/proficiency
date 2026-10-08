@@ -51,6 +51,12 @@ public final class ProficiencyConfig {
     public static final ForgeConfigSpec.DoubleValue CAMARADERIE_BONUS;
     public static final ForgeConfigSpec.DoubleValue SOCIAL_SHARE;
 
+    public static final ForgeConfigSpec.DoubleValue RESTED_CAP_FACTOR;
+    public static final ForgeConfigSpec.DoubleValue RESTED_FULL_HOURS;
+    public static final ForgeConfigSpec.DoubleValue RESTED_EXTRA;
+    public static final ForgeConfigSpec.DoubleValue TEACH_FACTOR;
+    public static final ForgeConfigSpec.DoubleValue TEACHER_SHARE;
+
     public static final ForgeConfigSpec.DoubleValue NIGHT_SHARE;
     public static final ForgeConfigSpec.DoubleValue NIGHT_TRICKLE_XP;
 
@@ -253,13 +259,42 @@ public final class ProficiencyConfig {
         MENTOR_GAP = b
                 .comment("How many levels ahead someone must be to count as your mentor.")
                 .defineInRange("mentorLevelGap", 20, 1, 100);
-        MENTOR_BONUS = b.defineInRange("mentorBonus", 0.50, 0.0, 10.0);
+        MENTOR_BONUS = b
+                .comment("The XP bonus for working near a mentor. It was 0.50 before rested XP and",
+                        "teaching; it is 0.25 now because a student also gets rested XP from a teacher.",
+                        "An existing config file keeps its old value until someone edits it.")
+                .defineInRange("mentorBonus", 0.25, 0.0, 10.0);
         CAMARADERIE_BONUS = b.defineInRange("camaraderieBonus", 0.15, 0.0, 10.0);
         SOCIAL_SHARE = b
                 .comment("Social skill XP, as a share of the extra XP the company bonus added to a",
                         "grant. 0.5 with camaraderie +15% pays Social about 6.5% of what you earn",
                         "near others. Grants with no company bonus pay Social nothing.")
                 .defineInRange("socialShare", 0.5, 0.0, 10.0);
+        b.pop();
+
+        b.comment("Rested XP: a pool per skill that fills while you are active and away from that",
+                        "skill, and is spent as a bonus on later XP in it. Teaching, in Social, fills a",
+                        "student's pool faster. See docs/RESTED-AND-TEACHING.md.")
+                .push("rested");
+        RESTED_CAP_FACTOR = b
+                .comment("The pool holds this many times what the skill's current level costs.",
+                        "0 switches rested XP and teaching off.")
+                .defineInRange("capFactor", dev.amman.proficiency.skill.RestedMath.DEFAULT_CAP_FACTOR, 0.0, 10.0);
+        RESTED_FULL_HOURS = b
+                .comment("Active hours (not AFK) a skill must rest to fill its empty pool.")
+                .defineInRange("fullHours", dev.amman.proficiency.skill.RestedMath.DEFAULT_FULL_HOURS, 0.1, 1000.0);
+        RESTED_EXTRA = b
+                .comment("Each grant in the skill gains this times itself from the pool, until the",
+                        "pool is empty. 1.0 doubles it. It adds to the survival bonus, it does not multiply it.")
+                .defineInRange("extra", dev.amman.proficiency.skill.RestedMath.DEFAULT_EXTRA, 0.0, 10.0);
+        TEACH_FACTOR = b
+                .comment("A teacher near a student fills the student's pool this many times faster",
+                        "than resting does.")
+                .defineInRange("teachFactor", dev.amman.proficiency.skill.RestedMath.DEFAULT_TEACH_FACTOR, 0.0, 20.0);
+        TEACHER_SHARE = b
+                .comment("The share of the XP a student spends from a teacher's part of the pool that",
+                        "the teacher earns as Social XP (before Social's own multipliers).")
+                .defineInRange("teacherShare", dev.amman.proficiency.skill.RestedMath.DEFAULT_TEACHER_SHARE, 0.0, 5.0);
         b.pop();
 
         b.comment("Nightwalker: being active in the dark. It has no source of its own: it earns a",
@@ -467,6 +502,31 @@ public final class ProficiencyConfig {
         public int masteryMaxStars() {
             return ProficiencyConfig.masteryMaxStars();
         }
+
+        @Override
+        public double restedCapFactor() {
+            return ProficiencyConfig.restedCapFactor();
+        }
+
+        @Override
+        public double restedFullHours() {
+            return ProficiencyConfig.restedFullHours();
+        }
+
+        @Override
+        public double restedExtra() {
+            return ProficiencyConfig.restedExtra();
+        }
+
+        @Override
+        public double restedTeachFactor() {
+            return ProficiencyConfig.teachFactor();
+        }
+
+        @Override
+        public double restedTeacherShare() {
+            return ProficiencyConfig.teacherShare();
+        }
     }
 
     private ProficiencyConfig() {
@@ -618,7 +678,27 @@ public final class ProficiencyConfig {
     }
 
     public static double mentorBonus() {
-        return safe(MENTOR_BONUS, 0.50);
+        return safe(MENTOR_BONUS, 0.25);
+    }
+
+    public static double restedCapFactor() {
+        return safe(RESTED_CAP_FACTOR, dev.amman.proficiency.skill.RestedMath.DEFAULT_CAP_FACTOR);
+    }
+
+    public static double restedFullHours() {
+        return safe(RESTED_FULL_HOURS, dev.amman.proficiency.skill.RestedMath.DEFAULT_FULL_HOURS);
+    }
+
+    public static double restedExtra() {
+        return safe(RESTED_EXTRA, dev.amman.proficiency.skill.RestedMath.DEFAULT_EXTRA);
+    }
+
+    public static double teachFactor() {
+        return safe(TEACH_FACTOR, dev.amman.proficiency.skill.RestedMath.DEFAULT_TEACH_FACTOR);
+    }
+
+    public static double teacherShare() {
+        return safe(TEACHER_SHARE, dev.amman.proficiency.skill.RestedMath.DEFAULT_TEACHER_SHARE);
     }
 
     public static double camaraderieBonus() {

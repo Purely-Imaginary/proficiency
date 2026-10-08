@@ -35,6 +35,31 @@ public interface SkillTuning {
         return Mastery.MAX_STARS;
     }
 
+    /** Rested XP: the pool holds this many times the current level's cost. 0 switches rested XP off. */
+    default double restedCapFactor() {
+        return RestedMath.DEFAULT_CAP_FACTOR;
+    }
+
+    /** Rested XP: active hours a resting skill needs to fill its pool from empty. */
+    default double restedFullHours() {
+        return RestedMath.DEFAULT_FULL_HOURS;
+    }
+
+    /** Rested XP: a grant gains this times itself from the pool (1.0 doubles it). */
+    default double restedExtra() {
+        return RestedMath.DEFAULT_EXTRA;
+    }
+
+    /** Teaching: how many times the idle rate a teacher fills a student's pool. */
+    default double restedTeachFactor() {
+        return RestedMath.DEFAULT_TEACH_FACTOR;
+    }
+
+    /** Teaching: the share of the XP a student spends that the teacher earns as Social XP. */
+    default double restedTeacherShare() {
+        return RestedMath.DEFAULT_TEACHER_SHARE;
+    }
+
     /** The fallbacks of the server config, number for number. */
     SkillTuning DEFAULTS = new SkillTuning() {
         @Override

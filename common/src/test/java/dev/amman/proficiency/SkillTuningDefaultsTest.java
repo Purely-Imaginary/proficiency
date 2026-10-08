@@ -25,6 +25,11 @@ class SkillTuningDefaultsTest {
         assertEquals(ProficiencyConfig.procsEnabled(), d.procsEnabled());
         assertEquals(ProficiencyConfig.procUnlockLevel(), d.procUnlockLevel());
         assertEquals(ProficiencyConfig.procFloor(), d.procFloor());
+        assertEquals(ProficiencyConfig.restedCapFactor(), d.restedCapFactor());
+        assertEquals(ProficiencyConfig.restedFullHours(), d.restedFullHours());
+        assertEquals(ProficiencyConfig.restedExtra(), d.restedExtra());
+        assertEquals(ProficiencyConfig.teachFactor(), d.restedTeachFactor());
+        assertEquals(ProficiencyConfig.teacherShare(), d.restedTeacherShare());
         for (Skill skill : Skill.VALUES) {
             assertEquals(ProficiencyConfig.enabled(skill), d.enabled(skill), skill.id());
             assertEquals(ProficiencyConfig.maxBonus(skill), d.maxBonus(skill), skill.id());

@@ -88,6 +88,13 @@ public final class SkillCommand {
                                         .then(Commands.argument("stars",
                                                         IntegerArgumentType.integer(0, Mastery.MAX_STARS))
                                                 .executes(SkillCommand::setStars)))))
+                .then(Commands.literal("rested")
+                        .requires(source -> source.hasPermission(2))
+                        .then(Commands.argument("player", EntityArgument.player())
+                                .then(Commands.argument("skill", StringArgumentType.word())
+                                        .suggests(SKILL_SUGGESTIONS)
+                                        .then(Commands.argument("xp", FloatArgumentType.floatArg(0.0f))
+                                                .executes(SkillCommand::setRested)))))
                 .then(Commands.literal("addxp")
                         .requires(source -> source.hasPermission(2))
                         .then(Commands.argument("player", EntityArgument.player())
@@ -413,17 +420,32 @@ public final class SkillCommand {
     private static int setStars(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         ServerPlayer target = EntityArgument.getPlayer(context, "player");
         Skill skill = requireSkill(context);
-        int stars = IntegerArgumentType.getInteger(context, "stars");
+        // Never above the configured cap, and 0 only empties the bar: it must not promote a skill.
+        int stars = Mastery.clampOpStars(IntegerArgumentType.getInteger(context, "stars"));
 
         PlayerSkills skills = ProficiencyAttachments.of(target);
-        if (skills.level(skill) < SkillMath.MAX_LEVEL) {
+        if (stars > 0 && skills.level(skill) < SkillMath.MAX_LEVEL) {
             skills.setLevel(skill, SkillMath.MAX_LEVEL);
         }
         skills.setStars(skill, stars);
         ProficiencyNetwork.sendFullSync(target);
         context.getSource().sendSuccess(() -> Component.translatable("proficiency.command.stars",
                 target.getDisplayName(), Component.translatable(skill.translationKey()), stars,
-                Mastery.MAX_STARS), true);
+                Mastery.lastStar()), true);
+        return 1;
+    }
+
+    /** Op: sets a skill's rested pool (idle rest), cut to its cap. 0 empties it. */
+    private static int setRested(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer target = EntityArgument.getPlayer(context, "player");
+        Skill skill = requireSkill(context);
+        float xp = FloatArgumentType.getFloat(context, "xp");
+        PlayerSkills skills = ProficiencyAttachments.of(target);
+        skills.setRested(skill, xp);
+        ProficiencyNetwork.sendFullSync(target);
+        int now = Math.round(skills.rested(skill));
+        context.getSource().sendSuccess(() -> Component.translatable("proficiency.command.rested",
+                target.getDisplayName(), Component.translatable(skill.translationKey()), now), true);
         return 1;
     }
 

@@ -18,6 +18,8 @@ import org.jetbrains.annotations.Nullable;
  */
 public final class SkillService {
 
+    static final String COMMAND_SOURCE = "proficiency.xplog.source.command";
+
     private SkillService() {
     }
 
@@ -146,7 +148,20 @@ public final class SkillService {
         if (!Float.isFinite(amount) || amount <= 0) {
             return 0f;
         }
-        skills.noteActive(serverPlayer.level().getGameTime());
+        // An operator's /skills addxp is not play: it must not look like the player is active, or
+        // count as using the skill, or spend rested XP.
+        float restedExtra = 0f;
+        float beforeRested = amount;
+        // A teaching payout is not play either: it can arrive while the teacher is AFK.
+        boolean play = !COMMAND_SOURCE.equals(source) && !TeachingService.SOURCE.equals(source);
+        if (play) {
+            skills.noteActive(serverPlayer.level().getGameTime());
+            skills.noteUsed(skill, serverPlayer.level().getGameTime(), RestedMath.today());
+            // Rested XP: the pool pays extra on top of the grant, added to the survival bonus and
+            // not multiplied by it. The extra is part of the XP the player gets.
+            restedExtra = RestedService.spend(serverPlayer, skills, skill, amount, streak);
+            amount += restedExtra;
+        }
 
         // Every factor that is not 1.0: the tree's log tooltip, the feed's second line, the CSV.
         java.util.List<XpFactors.Factor> factors = new java.util.ArrayList<>();
@@ -158,6 +173,9 @@ public final class SkillService {
         XpFactors.add(factors, XpFactors.INSPIRED, inspired);
         XpFactors.add(factors, XpFactors.STREAK, streak);
         XpFactors.add(factors, XpFactors.TIER, tier);
+        if (restedExtra > 0f) {
+            XpFactors.add(factors, XpFactors.RESTED, amount / beforeRested);
+        }
         // What the player actually got, after every multiplier, which is the number worth showing.
         XP_LOGS.computeIfAbsent(serverPlayer.getUUID(), id -> new XpLog())
                 .add(skill.ordinal(), source, amount, (float) baseAmount, XpFactors.encode(factors),
@@ -174,7 +192,17 @@ public final class SkillService {
 
         Mastery.Result result = skills.addXpMastery(skill, amount);
         int gained = result.levels();
-        TelemetryService.grant(serverPlayer, skill, source, baseAmount, amount, skills.level(skill));
+        // Telemetry records what was banked: XP past the last star is thrown away, and counting it
+        // would show a maxed skill as earning XP it never kept.
+        float banked = result.bankedOf(amount);
+        // The rested extra is its own telemetry kind, so the balance report can show how much of the
+        // XP came from resting; the grant it rode on keeps the rest.
+        float restedBanked = restedExtra > 0f ? banked * (restedExtra / amount) : 0f;
+        TelemetryService.grant(serverPlayer, skill, source, baseAmount * (banked / amount),
+                banked - restedBanked, skills.level(skill));
+        if (restedBanked > 0f) {
+            TelemetryService.rested(serverPlayer, skill, restedBanked);
+        }
         if (gained > 0) {
             TelemetryService.levelUps(serverPlayer, skill, gained, skills.level(skill));
             onLevelUp(serverPlayer, skill, skills.level(skill) - gained, skills.level(skill));
@@ -184,7 +212,8 @@ public final class SkillService {
             onStars(serverPlayer, skill, skills.stars(skill) - result.stars(), skills.stars(skill), gained > 0);
         }
         // Social's only source: a share of what company just added. It ignores its own grants.
-        SocialService.onGrant(serverPlayer, skill, source, amount, company);
+        // It sees the grant without the rested extra: resting must not pay Social.
+        SocialService.onGrant(serverPlayer, skill, source, beforeRested, company);
         // Nightwalker's only share source: a part of any grant earned in the dark.
         NightwalkerService.onGrant(serverPlayer, skill, source, baseAmount, tier);
         return amount;
@@ -254,6 +283,7 @@ public final class SkillService {
         XpFeedRecorder.stop(player);
         SocialService.forget(player);
         NightwalkerService.forget(player);
+        RestedService.forget(player);
     }
 
     /**
@@ -316,13 +346,16 @@ public final class SkillService {
     }
 
     /**
-     * A Mastery star: a lighter version of the level-up (a quiet chime, a few sparks, the HUD's
-     * small star burst) and a chat line to the whole server for every star, all gated by the same
-     * announce switch as the milestone lines. The fifth star is the grand master line.
+     * A Mastery star: a lighter version of the level-up (a quiet chime and a few sparks for this
+     * player, the HUD's small star burst) and a chat line to the whole server for every star. Only
+     * the chat lines are gated by the announce switch, as the milestone lines are; the chime and
+     * sparks are private feedback and play regardless, like the level-up's own. The fifth star is
+     * the grand master line. {@code levelUpSent} says {@link #onLevelUp} already ran this tick: it
+     * synced the player and sent the level-up moment, so a star adds neither.
      */
     static void onStars(ServerPlayer player, Skill skill, int from, int to, boolean levelUpSent) {
-        ProficiencyNetwork.sendFullSync(player);
         if (!levelUpSent) {
+            ProficiencyNetwork.sendFullSync(player);
             ProficiencyNetwork.sendStar(player, skill, to);
         }
         player.playNotifySound(SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.PLAYERS, 0.8f, 1.4f);

@@ -19,6 +19,8 @@ public final class XpFactors {
     public static final String OVERFLOW = "overflow";
     public static final String INSPIRED = "inspired";
     public static final String STREAK = "streak";
+    /** Rested XP spent on this grant: the grant with the extra, over the grant without it. */
+    public static final String RESTED = "rested";
     /** The first-time tier scaling. */
     public static final String TIER = "tier";
 

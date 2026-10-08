@@ -28,7 +28,7 @@ public final class ProficiencyNetwork {
      * running frenzies and the death recap packet exists. Version 4: the proc effect packet. A mismatched pair must fail at
      * negotiation, not in readUtf.
      */
-    private static final String PROTOCOL = "5";
+    private static final String PROTOCOL = "6";
 
     /**
      * Accepts a peer without the channel. Do not read this as "the mod is optional on the

@@ -70,6 +70,11 @@ public final class DeathRecapHud {
     private static List<String> moreLines = List.of();
     private static List<String> streakLines = List.of();
     private static boolean hasStreak;
+    /** The rested XP the death emptied: one blue line under the streak (protocol 6). */
+    private static String restedText = "";
+    private static List<String> restedLines = List.of();
+    private static boolean hasRested;
+    private static final int RESTED_BLUE = 0x6FB8FF;
     private static boolean pending;
     private static long start = Long.MIN_VALUE / 2;
 
@@ -102,6 +107,9 @@ public final class DeathRecapHud {
         streakPercent = payload.streakPercent();
         streakText = hasStreak
                 ? Component.translatable("proficiency.recap.streak", payload.streakPercent()).getString() : "";
+        hasRested = payload.restedXp() > 0;
+        restedText = hasRested ? Component.translatable("proficiency.recap.rested", payload.restedXp(),
+                payload.restedSkills()).getString() : "";
         laidOutFor = -1;
         laidOutHeight = -1;
         pending = true;
@@ -142,10 +150,12 @@ public final class DeathRecapHud {
         titleLines = TextFit.wrapLimited(font, title, text, 2, cut);
         streakLines = streakText.isEmpty() ? List.of()
                 : TextFit.wrapLimited(font, streakText, text - StreakBadge.WIDTH - 4, 3, cut);
+        restedLines = restedText.isEmpty() ? List.of() : TextFit.wrapLimited(font, restedText, text, 3, cut);
         // The panel stays above the hotbar and the hearts (about 44 pixels from the bottom). A
         // window too short for every row shows fewer and counts the rest into "+N more".
         int titleHeight = 5 + titleLines.size() * 9 + 4;
-        int streakHeight = hasStreak ? Math.max(ROW, streakLines.size() * 9) + 6 : 0;
+        int streakHeight = (hasStreak ? Math.max(ROW, streakLines.size() * 9) + 6 : 0)
+                + (hasRested ? restedLines.size() * 9 + 6 : 0);
         panelTop = topFor(guiHeight);
         int top = panelTop;
         int room = guiHeight - 44 - top - titleHeight - streakHeight - 4;
@@ -243,7 +253,8 @@ public final class DeathRecapHud {
         boolean more = !moreLines.isEmpty();
         int titleHeight = 5 + titleLines.size() * 9 + 4;
         int height = titleHeight + rows * ROW + (more ? moreLines.size() * 9 + 3 : 0)
-                + (hasStreak ? Math.max(ROW, streakLines.size() * 9) + 6 : 0) + 4;
+                + (hasStreak ? Math.max(ROW, streakLines.size() * 9) + 6 : 0)
+                + (hasRested ? restedLines.size() * 9 + 6 : 0) + 4;
         int width = panelWidth;
         int x = graphics.guiWidth() - width - RIGHT_MARGIN;
         int y = panelTop;
@@ -314,6 +325,15 @@ public final class DeathRecapHud {
                 graphics.drawString(font, line, x + 6 + StreakBadge.WIDTH + 4, streakY,
                         (alpha << 24) | StreakBadge.GOLD, true);
                 streakY += 9;
+            }
+            rowY += Math.max(ROW, streakLines.size() * 9) + 3;
+        }
+        if (hasRested) {
+            rowY += 3;
+            graphics.fill(x + 6, rowY - 2, x + width - 6, rowY - 1, (alpha / 5 << 24) | 0xFFFFFF);
+            for (String line : restedLines) {
+                graphics.drawString(font, line, x + 6, rowY, (alpha << 24) | RESTED_BLUE, true);
+                rowY += 9;
             }
         }
     }

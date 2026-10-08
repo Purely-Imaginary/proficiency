@@ -71,7 +71,13 @@ public final class PlayerSkills {
                             .forGetter(skills -> Map.copyOf(skills.buildFirst)),
                     Codec.unboundedMap(Codec.STRING, MasteryState.CODEC)
                             .optionalFieldOf("mastery", Map.of())
-                            .forGetter(PlayerSkills::masteryMap)
+                            .forGetter(PlayerSkills::masteryMap),
+                    Codec.unboundedMap(Codec.STRING, RestedPool.State.CODEC)
+                            .optionalFieldOf("rested", Map.of())
+                            .forGetter(PlayerSkills::restedMap),
+                    Codec.unboundedMap(Codec.STRING, Codec.LONG)
+                            .optionalFieldOf("usedDay", Map.of())
+                            .forGetter(PlayerSkills::usedDayMap)
             ).apply(instance, PlayerSkills::fromParts));
 
     /**
@@ -107,6 +113,15 @@ public final class PlayerSkills {
             buf.writeVarInt(skills.stars[skill.ordinal()]);
             buf.writeFloat(skills.overflow[skill.ordinal()]);
         }
+        // Rested XP (protocol 6): the pool per skill, and the whole real days since each skill was
+        // last used (0 when never), for the tooltip's Rusty line.
+        long today = RestedMath.today();
+        for (Skill skill : Skill.VALUES) {
+            int index = skill.ordinal();
+            buf.writeFloat(skills.rested[index] == null ? 0f : skills.rested[index].total());
+            buf.writeVarInt(skills.usedDay[index] > 0
+                    ? RestedMath.daysSince(skills.usedDay[index], today) : skills.idleDays[index]);
+        }
     }
 
     /** Reads what {@link #write} wrote. */
@@ -135,6 +150,12 @@ public final class PlayerSkills {
             skills.stars[skill.ordinal()] = Math.max(0, Math.min(Mastery.MAX_STARS, buf.readVarInt()));
             skills.overflow[skill.ordinal()] = sane(buf.readFloat());
         }
+        for (Skill skill : Skill.VALUES) {
+            int index = skill.ordinal();
+            float pool = sane(buf.readFloat());
+            skills.rested[index] = pool > 0f ? RestedPool.ofTotal(pool) : null;
+            skills.idleDays[index] = Math.max(0, buf.readVarInt());
+        }
         return skills;
     }
 
@@ -147,6 +168,26 @@ public final class PlayerSkills {
      */
     private final int[] stars = new int[Skill.VALUES.length];
     private final float[] overflow = new float[Skill.VALUES.length];
+
+    /**
+     * Rested XP per skill (null when empty). Saved in full, teachers included; the client gets only
+     * the total. See {@link RestedPool} and docs/RESTED-AND-TEACHING.md.
+     */
+    private final RestedPool[] rested = new RestedPool[Skill.VALUES.length];
+    /** The real day (epoch day) each skill last earned XP, 0 when unknown. Saved, for the Rusty line. */
+    private final long[] usedDay = new long[Skill.VALUES.length];
+    /** On the client: days unused, as the server sent them. The server reads {@link #usedDay}. */
+    private final int[] idleDays = new int[Skill.VALUES.length];
+    /** Game time each skill last earned XP. Not saved: a relog counts as a rest. */
+    private final transient long[] usedAt = newUsedAt();
+    /** The pool each skill's client copy last saw, so a slow fill syncs in steps and not every second. */
+    private final transient float[] restedSent = new float[Skill.VALUES.length];
+
+    private static long[] newUsedAt() {
+        long[] at = new long[Skill.VALUES.length];
+        java.util.Arrays.fill(at, Long.MIN_VALUE);
+        return at;
+    }
 
     /**
      * Talent key to rank, e.g. {@code woodcutting/precision -> 3}. Only non-zero ranks are kept.
@@ -195,6 +236,8 @@ public final class PlayerSkills {
 
     /** Game time of the last XP grant, which is what "active" means. A relog has to earn it again. */
     private transient long lastActiveAt = Long.MIN_VALUE;
+    /** XP the last {@link #addXpMastery} threw away past the last star; scratch for its Result. */
+    private transient float droppedXp;
 
     /** Not serialised: set when something changed and the client has not been told yet. */
     private transient boolean dirty;
@@ -227,7 +270,9 @@ public final class PlayerSkills {
     public float starProgress(Skill skill) {
         int earned = stars[skill.ordinal()];
         int cap = Mastery.maxStars();
-        if (cap > 0 ? earned >= cap : earned > 0) {
+        // With stars switched off there is nothing to chase, so a level 100 bar reads full, as it
+        // did before Mastery existed; so does a skill that holds every star the cap allows.
+        if (cap <= 0 || earned >= cap) {
             return 1.0f;
         }
         float fraction = overflow[skill.ordinal()] / Mastery.starCost(earned + 1);
@@ -519,6 +564,207 @@ public final class PlayerSkills {
         return lost;
     }
 
+    // ---- Rested XP -----------------------------------------------------------------------------
+
+    /** The skill's rested pool, 0 when empty. */
+    public float rested(Skill skill) {
+        RestedPool pool = rested[skill.ordinal()];
+        return pool == null ? 0f : pool.total();
+    }
+
+    /** The taught parts of the pool, for the teacher credit and for tests. */
+    public java.util.List<RestedPool.Part> restedTaught(Skill skill) {
+        RestedPool pool = rested[skill.ordinal()];
+        return pool == null ? java.util.List.of() : pool.taught();
+    }
+
+    /** How far the pool reaches along the bar in front of the player, 0 to 1. */
+    public float restedReach(Skill skill) {
+        return RestedMath.reach(rested(skill), levels[skill.ordinal()], stars[skill.ordinal()]);
+    }
+
+    /** What the pool may hold at this skill's level and stars. */
+    public float restedCap(Skill skill) {
+        return RestedMath.cap(levels[skill.ordinal()], stars[skill.ordinal()]);
+    }
+
+    private RestedPool poolFor(int index) {
+        if (rested[index] == null) {
+            rested[index] = new RestedPool();
+        }
+        return rested[index];
+    }
+
+    private void trimPool(int index) {
+        RestedPool pool = rested[index];
+        if (pool != null && pool.isEmpty()) {
+            rested[index] = null;
+        }
+    }
+
+    /**
+     * Marks the player dirty when a pool moved far enough for the client to care (2% of the bar in
+     * front of the player), or when it went to or from empty. A fill every second must not mean a
+     * sync every second.
+     */
+    private void restedMoved(int index) {
+        float now = rested[index] == null ? 0f : rested[index].total();
+        float need = RestedMath.need(levels[index], stars[index]);
+        float step = Math.max(1f, need * 0.02f);
+        float then = restedSent[index];
+        if (Math.abs(now - then) >= step || (now <= 0f) != (then <= 0f)) {
+            restedSent[index] = now;
+            dirty = true;
+        }
+    }
+
+    /** Rest while idle. Returns the XP added; never past the cap. */
+    public float fillRested(Skill skill, float amount) {
+        int index = skill.ordinal();
+        float cap = restedCap(skill);
+        if (!(cap > 0f) || !(amount > 0f)) {
+            return 0f;
+        }
+        float added = poolFor(index).fillIdle(amount, cap);
+        trimPool(index);
+        if (added > 0f) {
+            restedMoved(index);
+        }
+        return added;
+    }
+
+    /** Op and test tool: replaces the skill's pool with this much idle rest, cut to the cap. */
+    public void setRested(Skill skill, float xp) {
+        int index = skill.ordinal();
+        rested[index] = null;
+        if (xp > 0f) {
+            fillRested(skill, xp);
+        }
+        restedSent[index] = -1f;
+        dirty = true;
+    }
+
+    /** XP a teacher filled, remembered against the teacher. Returns the XP added. */
+    public float fillRestedTaught(Skill skill, java.util.UUID teacher, float amount) {
+        int index = skill.ordinal();
+        float cap = restedCap(skill);
+        if (!(cap > 0f) || !(amount > 0f)) {
+            return 0f;
+        }
+        float added = poolFor(index).fillTaught(teacher, amount, cap);
+        trimPool(index);
+        if (added > 0f) {
+            restedMoved(index);
+        }
+        return added;
+    }
+
+    /** Takes up to {@code want} from the pool. The result names the teachers whose part was used. */
+    public RestedPool.Spent spendRested(Skill skill, float want) {
+        int index = skill.ordinal();
+        RestedPool pool = rested[index];
+        if (pool == null || !(want > 0f)) {
+            return RestedPool.Spent.NONE;
+        }
+        RestedPool.Spent spent = pool.spend(want);
+        trimPool(index);
+        if (spent.total() > 0f) {
+            dirty = true;
+            restedSent[index] = rested(skill);
+        }
+        return spent;
+    }
+
+    /** Cuts every pool to what its skill's level allows, after a level change or a lowered cap. */
+    public void trimRested() {
+        for (Skill skill : Skill.VALUES) {
+            int index = skill.ordinal();
+            if (rested[index] != null && RestedMath.enabled()) {
+                rested[index].clampTo(restedCap(skill));
+                trimPool(index);
+                restedMoved(index);
+            }
+        }
+    }
+
+    /**
+     * A death: every skill's pool is emptied, taught parts included. Returns the XP lost per skill
+     * that had any.
+     */
+    public Map<Skill, Float> loseRested() {
+        Map<Skill, Float> lost = new EnumMap<>(Skill.class);
+        for (Skill skill : Skill.VALUES) {
+            int index = skill.ordinal();
+            if (rested[index] != null) {
+                float gone = rested[index].clear();
+                rested[index] = null;
+                if (gone > 0f) {
+                    lost.put(skill, gone);
+                }
+            }
+        }
+        if (!lost.isEmpty()) {
+            java.util.Arrays.fill(restedSent, 0f);
+            dirty = true;
+        }
+        return lost;
+    }
+
+    /** A skill just earned XP: it is in use now, and was used today. */
+    public void noteUsed(Skill skill, long gameTime, long today) {
+        int index = skill.ordinal();
+        usedAt[index] = gameTime;
+        usedDay[index] = today;
+    }
+
+    /** Game time the skill last earned XP this session, or Long.MIN_VALUE. */
+    public long usedAt(Skill skill) {
+        return usedAt[skill.ordinal()];
+    }
+
+    /** Whole real days the skill has gone unused; 0 when it is in use or the day is unknown. */
+    public int daysIdle(Skill skill) {
+        int index = skill.ordinal();
+        return usedDay[index] > 0 ? RestedMath.daysSince(usedDay[index], RestedMath.today()) : idleDays[index];
+    }
+
+    /**
+     * Stamps skills that have levels but no recorded day (a save from before rested XP) with today,
+     * so an old world does not open with every skill rusty. Returns true when it stamped any.
+     */
+    public boolean stampUnusedDays(long today) {
+        boolean any = false;
+        for (Skill skill : Skill.VALUES) {
+            int index = skill.ordinal();
+            if (usedDay[index] <= 0 && (levels[index] > 0 || xp[index] > 0f)) {
+                usedDay[index] = today;
+                any = true;
+            }
+        }
+        return any;
+    }
+
+    private Map<String, RestedPool.State> restedMap() {
+        Map<String, RestedPool.State> map = new HashMap<>();
+        for (Skill skill : Skill.VALUES) {
+            RestedPool pool = rested[skill.ordinal()];
+            if (pool != null && !pool.isEmpty()) {
+                map.put(skill.id(), pool.toState());
+            }
+        }
+        return map;
+    }
+
+    private Map<String, Long> usedDayMap() {
+        Map<String, Long> map = new HashMap<>();
+        for (Skill skill : Skill.VALUES) {
+            if (usedDay[skill.ordinal()] > 0) {
+                map.put(skill.id(), usedDay[skill.ordinal()]);
+            }
+        }
+        return map;
+    }
+
     public boolean isDirty() {
         return dirty;
     }
@@ -569,18 +815,25 @@ public final class PlayerSkills {
                 gained++;
             }
             if (levels[index] < SkillMath.MAX_LEVEL) {
-                return new Mastery.Result(gained, 0);
+                return new Mastery.Result(gained, 0, amount);
             }
             carry = xp[index];
             xp[index] = 0;
         }
-        return new Mastery.Result(gained, feedOverflow(index, carry));
+        droppedXp = 0f;
+        int earned = feedOverflow(index, carry);
+        // Everything that went into the level climb stayed; only the overflow's leftovers drop.
+        return new Mastery.Result(gained, earned, Math.max(0f, amount - droppedXp));
     }
 
-    /** Puts XP in the overflow bar and returns the stars it earned. */
+    /** Puts XP in the overflow bar and returns the stars it earned; sets {@link #droppedXp}. */
     private int feedOverflow(int index, float amount) {
         int cap = Mastery.maxStars();
-        if (amount <= 0 || stars[index] >= cap) {
+        if (amount <= 0) {
+            return 0;
+        }
+        if (stars[index] >= cap) {
+            droppedXp = amount;
             return 0;
         }
         overflow[index] += amount;
@@ -592,6 +845,7 @@ public final class PlayerSkills {
             earned++;
         }
         if (stars[index] >= cap) {
+            droppedXp = overflow[index];
             overflow[index] = 0f;
         }
         return earned;
@@ -605,6 +859,7 @@ public final class PlayerSkills {
         if (levels[skill.ordinal()] < SkillMath.MAX_LEVEL) {
             stars[skill.ordinal()] = 0;
         }
+        trimRested();
         dirty = true;
     }
 
@@ -621,6 +876,11 @@ public final class PlayerSkills {
         // so a cooldown left running is one they cannot even clear by using the ability again.
         java.util.Arrays.fill(cooldownUntil, 0L);
         java.util.Arrays.fill(frenzyUntil, 0L);
+        java.util.Arrays.fill(rested, null);
+        java.util.Arrays.fill(usedDay, 0L);
+        java.util.Arrays.fill(idleDays, 0);
+        java.util.Arrays.fill(usedAt, Long.MIN_VALUE);
+        java.util.Arrays.fill(restedSent, 0f);
         streakTicks = 0;
         dirty = true;
     }
@@ -808,6 +1068,13 @@ public final class PlayerSkills {
         this.buildFirst.clear();
         this.buildFirst.putAll(other.buildFirst);
         this.streakTicks = other.streakTicks;
+        for (int i = 0; i < rested.length; i++) {
+            this.rested[i] = other.rested[i] == null ? null : other.rested[i].copy();
+        }
+        System.arraycopy(other.usedDay, 0, this.usedDay, 0, usedDay.length);
+        System.arraycopy(other.idleDays, 0, this.idleDays, 0, idleDays.length);
+        System.arraycopy(other.usedAt, 0, this.usedAt, 0, usedAt.length);
+        java.util.Arrays.fill(restedSent, 0f);
         dirty = true;
     }
 
@@ -825,7 +1092,8 @@ public final class PlayerSkills {
     private static PlayerSkills fromParts(Map<String, SkillState> map, Map<String, Integer> talents,
             List<String> paid,
             Map<String, Long> cooldowns, List<String> visited, boolean onboarded, long streak, boolean xpFeed,
-            long buildDay, Map<String, Integer> buildFirst, Map<String, MasteryState> mastery) {
+            long buildDay, Map<String, Integer> buildFirst, Map<String, MasteryState> mastery,
+            Map<String, RestedPool.State> rested, Map<String, Long> usedDay) {
         PlayerSkills skills = new PlayerSkills();
         skills.buildDay = buildDay;
         buildFirst.forEach((id, n) -> skills.buildFirst.put(id, Math.max(0, n)));
@@ -863,6 +1131,25 @@ public final class PlayerSkills {
             if (skill != null && skills.levels[skill.ordinal()] >= SkillMath.MAX_LEVEL) {
                 skills.stars[skill.ordinal()] = Math.max(0, Math.min(Mastery.MAX_STARS, state.stars()));
                 skills.overflow[skill.ordinal()] = sane(state.overflow());
+            }
+        });
+        // Rested XP comes last: its cap depends on the level and the stars loaded above. A cap of 0
+        // means the feature is off (or the skill is done), and then the pool is kept as it was.
+        rested.forEach((id, state) -> {
+            Skill skill = Skill.byId(id);
+            if (skill != null) {
+                float cap = skills.restedCap(skill);
+                RestedPool pool = RestedPool.fromState(state, cap > 0f ? cap : Float.MAX_VALUE);
+                if (!pool.isEmpty()) {
+                    skills.rested[skill.ordinal()] = pool;
+                    skills.restedSent[skill.ordinal()] = pool.total();
+                }
+            }
+        });
+        usedDay.forEach((id, day) -> {
+            Skill skill = Skill.byId(id);
+            if (skill != null && day != null && day > 0) {
+                skills.usedDay[skill.ordinal()] = day;
             }
         });
         return skills;

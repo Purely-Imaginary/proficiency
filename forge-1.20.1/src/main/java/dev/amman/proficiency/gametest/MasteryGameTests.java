@@ -51,6 +51,34 @@ public final class MasteryGameTests {
         helper.succeed();
     }
 
+    /** Telemetry counts what Mastery kept: XP thrown away past the last star is not "earned". */
+    @GameTest(template = "empty")
+    public static void cappedXpIsNotCountedByTelemetry(GameTestHelper helper) {
+        ServerPlayer player = MockPlayers.make(helper);
+        maxed(player, Skill.SWORDS);
+        SkillService.grant(player, Skill.SWORDS, Mastery.totalCost(Mastery.MAX_STARS) * 2.0, "block.minecraft.stone");
+        dev.amman.proficiency.telemetry.TelemetryHub.data().drain(0L, "");
+        SkillService.grant(player, Skill.SWORDS, 1000.0, "block.minecraft.stone");
+        java.util.List<String> lines = dev.amman.proficiency.telemetry.TelemetryHub.data().drain(1L, "");
+        boolean counted = lines.stream().anyMatch(l -> l.contains("\"type\":\"xp\"") && l.contains("\"skill\":\"swords\"")
+                && !l.contains("\"xp\":0}"));
+        helper.assertTrue(!counted, "a grant at five stars was counted as earned XP: " + lines);
+        helper.succeed();
+    }
+
+    /** An operator's addxp is not play: it must not make the player look active for the survival streak. */
+    @GameTest(template = "empty")
+    public static void aCommandGrantDoesNotMarkThePlayerActive(GameTestHelper helper) {
+        ServerPlayer player = MockPlayers.make(helper);
+        PlayerSkills skills = ProficiencyAttachments.of(player);
+        long now = player.level().getGameTime();
+        SkillService.grant(player, Skill.MINING, 10.0, "proficiency.xplog.source.command");
+        helper.assertTrue(!skills.isActive(now, 1200), "an addxp command marked the player active");
+        SkillService.grant(player, Skill.MINING, 10.0, "block.minecraft.stone");
+        helper.assertTrue(skills.isActive(now, 1200), "a real grant did not mark the player active");
+        helper.succeed();
+    }
+
     @GameTest(template = "empty")
     public static void starsStopAtFiveAndTheBarStaysEmpty(GameTestHelper helper) {
         ServerPlayer player = MockPlayers.make(helper);

@@ -29,6 +29,15 @@ public final class Telemetry {
     /** A skill counts as "in use" for this long after it last paid XP (active-time attribution). */
     public static final long ENGAGED_MS = 60_000L;
 
+    /**
+     * A grant that follows a long quiet spell (more than {@link #ENGAGED_MS}) only opens a short
+     * window, so a skill that pays once in a while is not credited a full minute per payout.
+     */
+    public static final long SOLO_MS = 10_000L;
+
+    /** A player counts as at the controls for this long after they last moved, turned or earned real XP. */
+    public static final long INPUT_GRACE_MS = 60_000L;
+
     public static final String KIND_BLOCK = "block";
     public static final String KIND_MOB = "mob";
     public static final String KIND_ITEM = "item";
@@ -41,14 +50,38 @@ public final class Telemetry {
     public static final String KIND_ROLE = "role";
     public static final String KIND_ACTION = "action";
     public static final String KIND_COMMAND = "command";
+    /** The extra XP a grant gained from the player's rested pool. Not a source: a bonus on top of one. */
+    public static final String KIND_RESTED = "rested";
+    /** Social XP a teacher was paid for what a student spent of the pool the teacher filled. */
+    public static final String KIND_TEACHING = "teaching";
     public static final String KIND_OTHER = "other";
 
     private static final String SOURCE = "proficiency.xplog.source.";
 
+    /** Kinds that pay with no one at the controls (or are an operator's), so they prove no activity. */
+    static boolean isPassive(String kind) {
+        return KIND_SHARE.equals(kind) || KIND_MOVEMENT.equals(kind) || KIND_COMMAND.equals(kind)
+                || KIND_TEACHING.equals(kind);
+    }
+
+    /**
+     * As {@link #kind(String)}, knowing the skill. Endurance and Blocking are paid for the hits a
+     * player takes, and the source they log is the attacker's mob id; that is damage taken, not a
+     * mob kill, so it must not read as the "mob" kind.
+     */
+    public static String kind(Skill skill, String source) {
+        if (source != null && source.startsWith("entity.")
+                && (skill == Skill.ENDURANCE || skill == Skill.BLOCKING)) {
+            return KIND_DAMAGE;
+        }
+        return kind(source);
+    }
+
     /** What an XP log source string stands for, as a short stable label. Allocation free. */
     public static String kind(String source) {
         if (source == null || source.isEmpty()) {
-            return KIND_OTHER;
+            // A grant that names no source (a spell cast, a redstone part) is a plain action.
+            return KIND_ACTION;
         }
         if (source.startsWith("first|")) {
             return KIND_FIRST;
@@ -81,6 +114,9 @@ public final class Telemetry {
             if (source.startsWith("command", at)) {
                 return KIND_COMMAND;
             }
+            if (source.startsWith("teaching", at)) {
+                return KIND_TEACHING;
+            }
             if (source.startsWith("company", at) || source.startsWith("convoy", at)
                     || source.startsWith("darkness", at) || source.startsWith("night_out", at)) {
                 return KIND_SHARE;
@@ -104,6 +140,7 @@ public final class Telemetry {
         final Map<String, KindAgg> kinds = new HashMap<>(8);
         long engagedMs;
         long lastGrantMs = Long.MIN_VALUE;
+        long engagedUntilMs = Long.MIN_VALUE;
         int levelUps;
         int level = -1;
         int deaths;
@@ -116,6 +153,10 @@ public final class Telemetry {
         boolean empty() {
             return kinds.isEmpty() && engagedMs == 0 && levelUps == 0 && deaths == 0 && procs == 0
                     && rolls == 0;
+        }
+
+        boolean timingLive(long nowMs) {
+            return engagedUntilMs != Long.MIN_VALUE && nowMs - engagedUntilMs <= ENGAGED_MS;
         }
     }
 
@@ -134,10 +175,32 @@ public final class Telemetry {
 
     private final Map<UUID, PlayerAgg> players = new HashMap<>();
 
+    /**
+     * What a drain must not forget: per player and skill the last grant, the engaged-until clock and
+     * the last known level. Without it every flush would cut the minute a skill was still "in use"
+     * and a quiet skill's next row would claim level 0.
+     */
+    private final Map<UUID, long[][]> carry = new HashMap<>();
+
+    /** Per player: last position and look seen by {@link #activeNow}, and when it last changed. */
+    private final Map<UUID, double[]> inputs = new HashMap<>();
+
     private PlayerAgg player(UUID id, String name) {
         PlayerAgg agg = players.get(id);
         if (agg == null) {
             agg = new PlayerAgg(name);
+            long[][] kept = carry.get(id);
+            if (kept != null) {
+                for (int i = 0; i < kept.length; i++) {
+                    if (kept[i] != null) {
+                        SkillAgg s = new SkillAgg();
+                        s.lastGrantMs = kept[i][0];
+                        s.engagedUntilMs = kept[i][1];
+                        s.level = (int) kept[i][2];
+                        agg.skills[i] = s;
+                    }
+                }
+            }
             players.put(id, agg);
         } else if (!agg.name.equals(name)) {
             agg.name = name;
@@ -158,7 +221,7 @@ public final class Telemetry {
     public synchronized void grant(UUID id, String name, Skill skill, String source, double base,
             double finalXp, int level, long nowMs) {
         SkillAgg agg = skill(player(id, name), skill);
-        String kind = kind(source);
+        String kind = kind(skill, source);
         KindAgg bucket = agg.kinds.get(kind);
         if (bucket == null) {
             bucket = new KindAgg();
@@ -167,8 +230,66 @@ public final class Telemetry {
         bucket.grants++;
         bucket.base += base;
         bucket.fin += finalXp;
-        agg.lastGrantMs = nowMs;
         agg.level = level;
+        // An operator's /skills addxp is not play: it must not open the "in use" window.
+        if (!KIND_COMMAND.equals(kind)) {
+            long gap = agg.lastGrantMs == Long.MIN_VALUE ? Long.MAX_VALUE : nowMs - agg.lastGrantMs;
+            agg.engagedUntilMs = nowMs + (gap <= ENGAGED_MS ? ENGAGED_MS : SOLO_MS);
+            agg.lastGrantMs = nowMs;
+        }
+        // Real play (not a trickle that pays on its own) also proves someone is at the controls.
+        if (!isPassive(kind)) {
+            inputs.computeIfAbsent(id, k -> new double[6])[5] = nowMs;
+        }
+    }
+
+    /**
+     * XP a grant gained from the rested pool, recorded as its own kind so the balance report can
+     * show it. It adds to the XP total but is not a grant: it counts no grant and opens no
+     * "in use" window, since the grant it rode on already did.
+     */
+    public synchronized void rested(UUID id, String name, Skill skill, double finalXp) {
+        if (!(finalXp > 0) || Double.isInfinite(finalXp)) {
+            return;
+        }
+        SkillAgg agg = skill(player(id, name), skill);
+        KindAgg bucket = agg.kinds.computeIfAbsent(KIND_RESTED, k -> new KindAgg());
+        bucket.fin += finalXp;
+    }
+
+    /**
+     * Whether the player is at the controls: they moved more than a block, turned, or earned XP
+     * from real play within {@link #INPUT_GRACE_MS}. Passive trickles (company, darkness, night
+     * out, sprinting into a wall) deliberately do not count, so an AFK player is not "active".
+     */
+    public synchronized boolean activeNow(UUID id, double x, double y, double z, float yaw, float pitch,
+            long nowMs) {
+        double[] in = inputs.get(id);
+        if (in == null) {
+            in = new double[6];
+            inputs.put(id, in);
+            in[0] = x;
+            in[1] = y;
+            in[2] = z;
+            in[3] = yaw;
+            in[4] = pitch;
+            in[5] = nowMs;
+            return true;
+        }
+        double dx = x - in[0];
+        double dy = y - in[1];
+        double dz = z - in[2];
+        boolean moved = dx * dx + dy * dy + dz * dz > 1.0;
+        boolean turned = Math.abs(yaw - in[3]) > 0.5 || Math.abs(pitch - in[4]) > 0.5;
+        if (moved || turned) {
+            in[0] = x;
+            in[1] = y;
+            in[2] = z;
+            in[3] = yaw;
+            in[4] = pitch;
+            in[5] = Math.max(in[5], nowMs);
+        }
+        return nowMs - in[5] <= INPUT_GRACE_MS;
     }
 
     public synchronized void levelUps(UUID id, String name, Skill skill, int count, int level) {
@@ -181,7 +302,9 @@ public final class Telemetry {
     public synchronized void roll(UUID id, String name, Skill skill, double chance, boolean hit) {
         SkillAgg agg = skill(player(id, name), skill);
         agg.rolls++;
-        agg.chanceSum += chance;
+        // Perks and talents can push a chance past 1 (Tidecaller x2, Charger, Deep Delver); a roll
+        // cannot be more certain than certain, and the report's p*(1-p) goes negative above 1.
+        agg.chanceSum += Double.isFinite(chance) ? Math.max(0.0, Math.min(1.0, chance)) : 0.0;
         if (hit) {
             agg.rollHits++;
         }
@@ -226,10 +349,17 @@ public final class Telemetry {
         }
         agg.activeMs += elapsedMs;
         for (SkillAgg s : agg.skills) {
-            if (s != null && s.lastGrantMs != Long.MIN_VALUE && nowMs - s.lastGrantMs <= ENGAGED_MS) {
+            if (s != null && s.engagedUntilMs != Long.MIN_VALUE && nowMs <= s.engagedUntilMs) {
                 s.engagedMs += elapsedMs;
             }
         }
+    }
+
+    /** Forgets everything, counters and carried timing alike (a new session must not inherit the last one). */
+    public synchronized void reset() {
+        players.clear();
+        carry.clear();
+        inputs.clear();
     }
 
     /** Whether anything was counted since the last drain. */
@@ -266,9 +396,13 @@ public final class Telemetry {
                             + kind.getKey() + "\",\"n\":" + k.grants + ",\"base\":" + num(k.base)
                             + ",\"xp\":" + num(k.fin) + "}");
                 }
-                int level = Math.max(0, s.level);
-                lines.add(head + ",\"type\":\"skill\",\"skill\":\"" + skill.id() + "\",\"level\":"
-                        + level + ",\"need\":" + num(level >= SkillMath.MAX_LEVEL ? 0 : SkillMath.xpToNext(level))
+                // A window that saw no grant has no level to report; the report keeps the last known one.
+                String levelFields = "";
+                if (s.level >= 0) {
+                    levelFields = ",\"level\":" + s.level + ",\"need\":"
+                            + num(s.level >= SkillMath.MAX_LEVEL ? 0 : SkillMath.xpToNext(s.level));
+                }
+                lines.add(head + ",\"type\":\"skill\",\"skill\":\"" + skill.id() + "\"" + levelFields
                         + ",\"active_s\":" + num(s.engagedMs / 1000.0)
                         + ",\"levelups\":" + s.levelUps + ",\"procs\":" + s.procs
                         + ",\"rolls\":" + s.rolls + ",\"roll_hits\":" + s.rollHits
@@ -276,7 +410,25 @@ public final class Telemetry {
                         + ",\"xp_lost\":" + num(s.xpLost) + "}");
             }
         }
-        // Counters restart at zero. A skill that stays quiet has no row until it earns again.
+        // Counters restart at zero. A skill that stays quiet has no row until it earns again, but
+        // its timing and level carry over so a flush does not cut a running "in use" window.
+        carry.clear();
+        for (Map.Entry<UUID, PlayerAgg> entry : players.entrySet()) {
+            long[][] kept = null;
+            for (Skill skill : Skill.VALUES) {
+                SkillAgg s = entry.getValue().skills[skill.ordinal()];
+                if (s == null || (s.level < 0 && !s.timingLive(nowMs))) {
+                    continue;
+                }
+                if (kept == null) {
+                    kept = new long[Skill.VALUES.length][];
+                }
+                kept[skill.ordinal()] = new long[] {s.lastGrantMs, s.engagedUntilMs, s.level};
+            }
+            if (kept != null) {
+                carry.put(entry.getKey(), kept);
+            }
+        }
         players.clear();
         return lines;
     }

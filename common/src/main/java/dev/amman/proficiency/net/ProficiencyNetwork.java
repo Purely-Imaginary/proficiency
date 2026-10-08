@@ -21,7 +21,7 @@ public final class ProficiencyNetwork {
      * running frenzies and the death recap packet exists. Version 4: the proc effect packet. Version 5: Mastery stars (the sync packet
      * carries stars and the overflow bar, the level-up packet a star count).
      */
-    public static final int PROTOCOL = 5;
+    public static final int PROTOCOL = 6;
 
     /** Client side, on the client thread: the server's numbers replace ours. */
     public static void onSync(SyncSkillsPayload payload, Player player) {

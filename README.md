@@ -26,8 +26,16 @@ One codebase builds three jars:
 - **An active ability per skill** from level 50. Tap the ability key for the held item's ability,
   hold it for a wheel with every ability you have unlocked.
 - **Mastery stars.** After level 100 a skill's XP fills an overflow bar that earns up to five
-  gold stars, shown next to the skill name. Stars are cosmetic. A death empties the bar and never
+  gold stars, shown next to the skill name. Stars are cosmetic. A death cuts the bar and never
   takes a star.
+- **Rested XP.** A skill you have not used for a while rests. Its rested pool fills while you are
+  active and away from that skill (up to 1.5 levels' worth, full after about 9 active hours), and
+  every grant in that skill pays double until the pool is spent. The HUD bar and the skills panel
+  show the pool as a faint blue segment. **A death empties every rested pool.**
+- **Teaching, inside Social.** A player near you who is at least 20 levels above you in a skill and
+  is using it fills your rested pool in that skill 3 times as fast. When you spend what they put in,
+  they earn Social XP. Three new Social talents (Quick Study, Wide Classroom, Teacher's Pride) tune
+  it. The mentor XP bonus is +25% now, not +50%, so a student near a teacher is not paid twice.
 - **Survival bonus.** +1% skill XP per active hour alive, up to +50%. A death wipes the bonus and
   the XP bars, never your levels or talents.
 - **Discovery.** Banners for new biomes, dimensions and structures, a one-time bonus for every new
@@ -68,8 +76,12 @@ in [CHANGELOG.md](CHANGELOG.md).
 ## Install
 
 Put the jar for your loader in the `mods/` folder of the **server and every client**. The mod
-registers items, so a client without it cannot join a server that has it. Version 1.3.0 speaks
-network protocol 5: a 1.2.0 or older client cannot join a 1.3.0 server, so update both sides.
+registers items, so a client without it cannot join a server that has it. Version 1.4.0 speaks
+network protocol 6: a 1.3.0 or older client cannot join a 1.4.0 server, so update the server, the
+clients and any modpack together.
+
+An existing server keeps its saved `mentorBonus = 0.5`. The new default is 0.25: set it by hand in
+`config/proficiency-server.toml` if you want the new balance.
 
 Default keys on NeoForge and Fabric: **K** opens the skills panel, **G** uses an ability (hold it
 for the wheel). On Forge 1.20.1 the keys are **I** and **`** (backtick), because K and G are taken
@@ -89,6 +101,7 @@ in the Reclamation pack. All of them can be rebound under Controls.
 | `/proficiency set <player> <skill> <level>` | op |
 | `/proficiency addxp <player> <skill> <amount>` | op |
 | `/proficiency stars <player> <skill> <0-5>` | op, sets a skill to level 100 with that many stars |
+| `/proficiency rested <player> <skill> <xp>` | op, sets a skill's rested pool (0 empties it) |
 | `/proficiency xpsources <id>` | op, which XP rule matched a block, item, mob, structure or biome and why |
 | `/proficiency xpaudit <mod>` | op, a mod's ores, logs, crops and mobs that pay nothing or the wrong skill |
 | `/proficiency reset <player>` | op |
@@ -100,7 +113,8 @@ in the Reclamation pack. All of them can be rebound under Controls.
   (`placedBlocksPayXp`, `spawnerMobXp`, `artificialMobXp`), the kill bonus (`killBonusBase`,
   `killBonusHealthDivisor`, `killBonusCap`, `killBonusBossMultiplier`), Mastery stars
   (`masteryStarFactor`, `masteryMaxStars`, 0 turns them off) and telemetry (`telemetry.enabled`,
-  `telemetry.retentionDays`).
+  `telemetry.retentionDays`) and rested XP and teaching (`rested.capFactor`, 0 turns it off,
+  `rested.fullHours`, `rested.extra`, `rested.teachFactor`, `rested.teacherShare`).
 - `config/proficiency-client.toml`, per player: banners, the XP feed position, the XP dots, every
   visual effect, and `tooltip.alwaysDetailed` (always show the Shift layer).
 

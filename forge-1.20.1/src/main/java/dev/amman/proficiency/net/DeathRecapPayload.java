@@ -19,8 +19,11 @@ import java.util.Map;
  * @param more how many more bars were lost than {@code rows} lists, for the "+N more" line
  * @param streakStacks stacks the death took (0 when there was no streak)
  * @param streakPercent the bonus those stacks were worth, in whole percent
+ * @param restedXp the rested XP the death emptied, in whole XP, summed over every skill (protocol 6)
+ * @param restedSkills how many skills had any rested XP to lose
  */
-public record DeathRecapPayload(List<Row> rows, int more, int streakStacks, int streakPercent) {
+public record DeathRecapPayload(List<Row> rows, int more, int streakStacks, int streakPercent,
+        int restedXp, int restedSkills) {
 
     public static final String ID = "death_recap";
 
@@ -29,6 +32,11 @@ public record DeathRecapPayload(List<Row> rows, int more, int streakStacks, int 
 
     /** Most rows a decoder will read at all; more than this is a broken packet, not a long list. */
     private static final int HARD_LIMIT = 64;
+
+    /** A death that lost no rested XP, as before protocol 6. */
+    public DeathRecapPayload(List<Row> rows, int more, int streakStacks, int streakPercent) {
+        this(rows, more, streakStacks, streakPercent, 0, 0);
+    }
 
     /** One wiped bar. {@code before} and {@code after} are fills from 0 to 1. */
     public record Row(int skillOrdinal, float before, float after) {
@@ -45,6 +53,8 @@ public record DeathRecapPayload(List<Row> rows, int more, int streakStacks, int 
                 buf.writeVarInt(payload.more());
                 buf.writeVarInt(payload.streakStacks());
                 buf.writeVarInt(payload.streakPercent());
+                buf.writeVarInt(payload.restedXp());
+                buf.writeVarInt(payload.restedSkills());
             },
             buf -> {
                 int count = buf.readVarInt();
@@ -61,15 +71,25 @@ public record DeathRecapPayload(List<Row> rows, int more, int streakStacks, int 
                     }
                 }
                 return new DeathRecapPayload(rows, Math.max(0, buf.readVarInt()), buf.readVarInt(),
-                        buf.readVarInt());
+                        buf.readVarInt(), Math.max(0, buf.readVarInt()), Math.max(0, buf.readVarInt()));
             });
+
+    /** As {@link #of(Map, float[], PlayerSkills, int, int, Map)}, for a death with no rested XP to lose. */
+    public static DeathRecapPayload of(Map<Skill, Float> lost, float[] before, PlayerSkills after,
+            int streakStacks, int streakPercent) {
+        return of(lost, before, after, streakStacks, streakPercent, Map.of());
+    }
 
     /**
      * Builds the payload from the penalty's result. {@code before} is every skill's fill before the
      * wipe, indexed by ordinal; {@code after} is read from the skills as they stand now.
      */
     public static DeathRecapPayload of(Map<Skill, Float> lost, float[] before, PlayerSkills after,
-            int streakStacks, int streakPercent) {
+            int streakStacks, int streakPercent, Map<Skill, Float> restedLost) {
+        float restedTotal = 0f;
+        for (float xp : restedLost.values()) {
+            restedTotal += xp;
+        }
         List<Row> rows = new ArrayList<>(Math.min(lost.size(), MAX_ROWS));
         lost.entrySet().stream()
                 .sorted(Map.Entry.<Skill, Float>comparingByValue(Comparator.reverseOrder()))
@@ -79,11 +99,11 @@ public record DeathRecapPayload(List<Row> rows, int more, int streakStacks, int 
                     rows.add(new Row(skill.ordinal(), before[skill.ordinal()], after.barProgress(skill)));
                 });
         return new DeathRecapPayload(rows, Math.max(0, lost.size() - rows.size()), Math.max(0, streakStacks),
-                Math.max(0, streakPercent));
+                Math.max(0, streakPercent), Math.round(restedTotal), restedLost.size());
     }
 
     /** True when there is nothing to show. */
     public boolean isEmpty() {
-        return rows.isEmpty() && more <= 0 && streakStacks <= 0;
+        return rows.isEmpty() && more <= 0 && streakStacks <= 0 && restedXp <= 0;
     }
 }

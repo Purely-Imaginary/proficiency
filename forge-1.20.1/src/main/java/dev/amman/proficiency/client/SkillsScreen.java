@@ -350,7 +350,8 @@ public final class SkillsScreen extends Screen {
             boolean icons) {
         Skill skill = row.skill();
         int level = skills == null ? 0 : skills.level(skill);
-        float progress = skills == null ? 0f : skills.progress(skill);
+        // The bar a player sees everywhere else: toward the next level, at 100 toward the next star.
+        float progress = skills == null ? 0f : skills.barProgress(skill);
         boolean maxed = level >= SkillMath.MAX_LEVEL;
         int accent = maxed ? SkillPalette.MAXED : SkillPalette.accent(skill.category());
 
@@ -409,9 +410,16 @@ public final class SkillsScreen extends Screen {
         int barLeft = row.x();
         int barWidth = row.width();
         graphics.fill(barLeft, barTop, barLeft + barWidth, barTop + BAR_HEIGHT, SkillPalette.TRACK);
-        int filled = Math.round(barWidth * (maxed ? 1.0f : progress));
+        int filled = Math.round(barWidth * progress);
         if (filled > 0) {
             graphics.fill(barLeft, barTop, barLeft + Math.min(barWidth, filled), barTop + BAR_HEIGHT, accent);
+        }
+        // Rested XP: the blue part after the fill. The row's tooltip says how much.
+        int restedPx = skills == null ? 0
+                : RestedBar.pixels(skills.restedReach(skill), barWidth, Math.min(barWidth, filled));
+        if (restedPx > 0) {
+            int from = barLeft + Math.min(barWidth, filled);
+            graphics.fill(from, barTop, from + restedPx, barTop + BAR_HEIGHT, SkillPalette.RESTED_BAR);
         }
     }
 
@@ -552,6 +560,7 @@ public final class SkillsScreen extends Screen {
                 .withStyle(style -> style.withColor(SkillPalette.accent(skill.category()))));
         lines.add(progressLine(skill, skills, level));
         lines.addAll(MasteryStars.tooltip(skills, skill));
+        lines.addAll(RestedBar.tooltip(skills, skill));
         lines.add(SkillNumbers.headline(skills, skill));
         int points = skills.pointsAvailable(skill);
         if (!detailed) {

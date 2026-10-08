@@ -32,7 +32,8 @@ public final class NeoForgeGameTests {
             TacticianGameTests.class,
             KillBonusGameTests.class,
             XpSourcesGameTests.class,
-            MasteryGameTests.class);
+            MasteryGameTests.class,
+            RestedGameTests.class);
 
     private NeoForgeGameTests() {
     }

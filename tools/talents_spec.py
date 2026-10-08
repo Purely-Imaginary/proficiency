@@ -6,6 +6,7 @@ Edit here, then run:  python3 tools/gen_talents.py
 
 Node: (id, name, row, col, ranks, cost, effects, special, parents, desc, mat)
   cost     ignored: price() below sets every node's cost per rank from where it sits
+           (the last keyword, per_rank, overrides it for one node)
   effects  per rank: XP BON PC PP AD AC DW TMP (see PerkEffect)
   special  a tag the event code reads, or None. Its number per rank is in the desc.
   mat      1..4: which of the skill's old material lists this node charges when it fills
@@ -33,10 +34,11 @@ def price(n):
     return {1: 2, 2: 2, 3: 3, 4: 4}[row]
 
 
-def N(id, name, row, col, ranks, cost, fx, special, parents, desc, mat=None):
+def N(id, name, row, col, ranks, cost, fx, special, parents, desc, mat=None, per_rank=None):
     n = dict(id=id, name=name, row=row, col=col, ranks=ranks, cost=cost, fx=fx,
              special=special, parents=parents, desc=desc, mat=mat)
-    n["cost"] = price(n)
+    # per_rank overrides price() for the few nodes that have to fit a tree under 100 points.
+    n["cost"] = price(n) if per_rank is None else per_rank
     return n
 
 def root(id, name):
@@ -433,15 +435,20 @@ TREES["decorating"] = [
 # in skill/SocialMath.java; keep the descriptions in step with them.
 TREES["social"] = [
     root("fellowship", "Fellowship"),
-    N("kinship", "Kinship", 1, 0, 5, 1, {"BON": 0.05}, None, ["fellowship"], "The company bonus grows bigger."),
+    N("kinship", "Kinship", 1, 0, 2, 1, {"BON": 0.125}, None, ["fellowship"], "The company bonus grows bigger."),
     N("open_circle", "Open Circle", 1, 2, 3, 1, {}, "company_radius", ["fellowship"], "Company counts from 4 blocks further away per rank."),
-    N("good_word", "A Good Word", 1, 4, 5, 1, {"PC": 0.10}, None, ["fellowship"], "Good Company comes more often."),
+    N("good_word", "A Good Word", 1, 4, 2, 1, {"PC": 0.25}, None, ["fellowship"], "Good Company comes more often."),
     N("old_friends", "Old Friends", 2, 0, 3, 1, {}, "camaraderie_up", ["kinship"], "Camaraderie grows by 5 points per rank: +15% becomes +30% at full."),
     N("stay_a_while", "Stay a While", 2, 2, 3, 1, {}, "company_linger", ["open_circle"], "The company bonus lasts 10 seconds per rank after the others walk away."),
     N("teaching", "Teaching", 2, 4, 3, 1, {}, "teaching", ["good_word"], "Players near you with a lower Social level earn 4% more XP per rank."),
     N("patient_mentor", "Patient Mentor", 3, 0, 3, 1, {}, "mentor_gap", ["old_friends"], "Someone counts as your mentor with 4 fewer levels of lead per rank.", 2),
     N("strength_in_numbers", "Strength in Numbers", 3, 2, 3, 1, {}, "company_crowd", ["stay_a_while"], "2% more company XP per rank for each extra player near you, up to three."),
-    N("wise_counsel", "Wise Counsel", 3, 4, 3, 1, {}, "mentor_up", ["teaching"], "The mentor bonus grows by 5 points per rank: +50% becomes +65% at full.", 3),
+    N("wise_counsel", "Wise Counsel", 3, 4, 3, 1, {}, "mentor_up", ["teaching"], "The mentor bonus grows by 5 points per rank: +25% becomes +40% at full.", 3),
+    # Rested XP and teaching (docs/RESTED-AND-TEACHING.md). Three nodes that make the teacher better
+    # at it; numbers are in skill/RestedMath.java. Priced 2 a rank so the tree stays at 100 points.
+    N("quick_study", "Quick Study", 2, 3, 2, 1, {}, "teach_rate", ["good_word"], "The rested XP you teach fills 15% faster per rank.", None, 2),
+    N("wide_classroom", "Wide Classroom", 3, 3, 2, 1, {}, "teach_radius", ["quick_study"], "Students count from 6 blocks further away per rank when you teach.", None, 2),
+    N("teachers_pride", "Teacher's Pride", 4, 4, 2, 1, {}, "teacher_cut", ["wise_counsel", "wide_classroom"], "You earn 5 points more of the XP your students spend per rank: 25% becomes 35% at full.", None, 2),
     N("in_step", "In Step", 4, 2, 1, 3, {}, "in_step", ["patient_mentor", "wise_counsel"], "With company near, a tempo chain survives a pause twice as long, in every skill.", 4),
     cap("heart_of_the_group", "Heart of the Group", "heart_of_group", "Anyone near you who is at least as good as you at a skill counts as your mentor in it.", ["in_step", "strength_in_numbers"]),
 ]

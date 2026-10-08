@@ -67,6 +67,8 @@ public final class PlayerLifecycleEvents {
             return;
         }
         ProficiencyNetwork.sendFullSync(player);
+        // Old saves get a "last used" day; credit that piled up while a teacher was away is paid.
+        dev.amman.proficiency.skill.RestedService.onLogin(player);
         // A new session has an empty journal on the client, even if the same UUID logged out a
         // moment ago on this very JVM (single player), so start the delta over.
         ProficiencyNetwork.forgetVisited(player.getUUID());
@@ -94,6 +96,7 @@ public final class PlayerLifecycleEvents {
     public static void onServerStopping(dev.amman.proficiency.platform.event.server.ServerStoppingEvent event) {
         dev.amman.proficiency.skill.XpFeedRecorder.stopAll();
         dev.amman.proficiency.skill.TelemetryService.stop();
+        dev.amman.proficiency.skill.TeachingService.saveNow();
     }
 
     @SubscribeEvent
@@ -137,6 +140,10 @@ public final class PlayerLifecycleEvents {
         Map<Skill, Float> lost = fresh.applyDeathPenalty();
         fresh.clearFrenzy();
         int streakLost = SurvivalStreak.onDeath(fresh);
+        // Rested XP: every pool is emptied, teacher-filled parts included, and the credit still
+        // waiting on this student's spending is lost with it. A Death Ward does not keep any.
+        Map<Skill, Float> restedLost = event.getEntity() instanceof ServerPlayer student
+                ? dev.amman.proficiency.skill.RestedService.onDeath(student, fresh) : Map.of();
         if (event.getEntity() instanceof ServerPlayer dead) {
             dev.amman.proficiency.skill.TelemetryService.death(dead, fresh, lost, streakLost);
         }
@@ -163,14 +170,22 @@ public final class PlayerLifecycleEvents {
                         worst.size() - DEATH_LINES_SHOWN).withStyle(ChatFormatting.DARK_RED));
             }
         }
+        if (!restedLost.isEmpty()) {
+            float total = 0f;
+            for (float xp : restedLost.values()) {
+                total += xp;
+            }
+            player.sendSystemMessage(Component.translatable("proficiency.death.rested",
+                    Math.max(1, Math.round(total)), restedLost.size()).withStyle(ChatFormatting.RED));
+        }
         ProficiencyNetwork.sendDeathRecap(player,
                 DeathRecapPayload.of(lost, before, fresh, streakLost,
-                        SurvivalStreak.percent(streakLost)));
+                        SurvivalStreak.percent(streakLost), restedLost));
         if (streakLost > 0) {
             player.sendSystemMessage(Component.translatable("proficiency.streak.lost",
                     streakLost, SurvivalStreak.percent(streakLost)).withStyle(ChatFormatting.RED));
         }
-        if (!lost.isEmpty() || streakLost > 0) {
+        if (!lost.isEmpty() || streakLost > 0 || !restedLost.isEmpty()) {
             player.playNotifySound(SoundEvents.WITHER_HURT, SoundSource.PLAYERS, 0.35f, 1.6f);
         }
     }
@@ -186,6 +201,10 @@ public final class PlayerLifecycleEvents {
             streakCounter = 0;
             for (ServerPlayer player : event.getServer().getPlayerList().getPlayers()) {
                 SurvivalStreak.tick(player, STREAK_INTERVAL_TICKS);
+                // Rested XP: unused skills rest, teachers fill their students' pools, and teachers
+                // are paid for what their students spent.
+                dev.amman.proficiency.skill.RestedService.tick(player, STREAK_INTERVAL_TICKS);
+                dev.amman.proficiency.skill.TeachingService.tick(player);
                 dev.amman.proficiency.skill.TelemetryService.tick(player);
                 // Social XP collected from shared work, paid in 5-second lumps.
                 dev.amman.proficiency.skill.SocialService.tick(player);
@@ -193,6 +212,7 @@ public final class PlayerLifecycleEvents {
                 dev.amman.proficiency.skill.NightwalkerService.tick(player);
             }
             dev.amman.proficiency.skill.TelemetryService.afterPlayers(event.getServer());
+            dev.amman.proficiency.skill.TeachingService.saveIfDue(event.getServer());
         }
 
         if (++tickCounter < SYNC_INTERVAL_TICKS) {

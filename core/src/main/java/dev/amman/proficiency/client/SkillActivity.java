@@ -62,7 +62,8 @@ public final class SkillActivity {
         float total = 0f;
         for (int i = 0; i < COUNT; i++) {
             Skill skill = Skill.VALUES[i];
-            VALUES[i] = skills.level(skill) + skills.progress(skill);
+            // Level units, with a level 100 skill counting its stars and star bar, never a flat 101.
+            VALUES[i] = (float) BarValue.value(skills, skill);
             total += VALUES[i];
         }
         observeAll(skills, VALUES, total, now);

@@ -19,7 +19,8 @@
       "dev.amman.proficiency.gametest.TacticianGameTests",
       "dev.amman.proficiency.gametest.KillBonusGameTests",
       "dev.amman.proficiency.gametest.XpSourcesGameTests",
-      "dev.amman.proficiency.gametest.MasteryGameTests"
+      "dev.amman.proficiency.gametest.MasteryGameTests",
+      "dev.amman.proficiency.gametest.RestedGameTests"
     ]
   },
   "mixins": [

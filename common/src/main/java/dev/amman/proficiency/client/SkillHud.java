@@ -52,6 +52,7 @@ public final class SkillHud {
     private static Skill lastSkill;
     private static int lastLevel = -1;
     private static float lastProgress = -1f;
+    private static int lastStars = -1;
     private static long shownAt;
     /** The skill and displayed level seen last frame, to catch the number turning over. */
     private static final int[] SEEN = newSeen();
@@ -97,6 +98,7 @@ public final class SkillHud {
         lastSkill = null;
         lastProgress = -1f;
         lastLevel = -1;
+        lastStars = -1;
         java.util.Arrays.fill(SEEN, -1);
         cSkill = null;
         cLevel = -1;
@@ -163,7 +165,7 @@ public final class SkillHud {
             long elapsed = now - LevelUpFx.startedAt();
             long remaining = LevelUpFx.lineMs() - elapsed;
             int alpha = (int) (255 * Math.min(1.0, remaining / (double) FADE_MS));
-            drawLine(graphics, minecraft, skills, skill, level, value(level, skills.barProgress(skill)),
+            drawLine(graphics, minecraft, skills, skill, level, BarValue.value(skills, skill),
                     alpha, now, false);
             return;
         }
@@ -178,19 +180,23 @@ public final class SkillHud {
         // Show it when something changed, then let it fade rather than sitting there forever.
         float progress = skills.barProgress(skill);
         int level = skills.level(skill);
-        double real = value(level, progress);
+        int stars = skills.stars(skill);
+        // One continuous value (stars included), so earning a star is a gain like a level-up and
+        // not a drop from 100.95 to 100.02 that would snap the bar and skip the dots.
+        double real = BarValue.value(level, progress, stars);
         // Level is part of the key as well as progress: dying at level 0 leaves progress at exactly
         // 0.0 both sides of the respawn, and without this the line would never come back.
-        if (skill != lastSkill || progress != lastProgress || level != lastLevel) {
+        if (skill != lastSkill || progress != lastProgress || level != lastLevel || stars != lastStars) {
             boolean animate = skill == lastSkill && ProficiencyClientConfig.hudXpDots();
             if (animate) {
-                DOTS.gain(value(lastLevel, lastProgress), real, now);
+                DOTS.gain(BarValue.value(lastLevel, lastProgress, lastStars), real, now);
             } else {
                 DOTS.snap(real, now);
             }
             lastSkill = skill;
             lastProgress = progress;
             lastLevel = level;
+            lastStars = stars;
             shownAt = now;
         }
         if (!ProficiencyClientConfig.hudXpDots()) {
@@ -359,12 +365,19 @@ public final class SkillHud {
         int barTop = y + 11;
         graphics.fill(barLeft, barTop, barLeft + BAR_WIDTH, barTop + 2,
                 (SkillPalette.TRACK & 0x00FFFFFF) | a24);
-        int filled = (int) Math.round(BAR_WIDTH * fill(shown));
+        int filled = (int) Math.round(BAR_WIDTH * BarValue.fill(shown));
         // At level 100 the bar is the way to the next star, in its own colour.
         int barRgb = shownLevel >= SkillMath.MAX_LEVEL && Mastery.maxStars() > 0
                 ? SkillPalette.STAR_BAR & 0x00FFFFFF : rgb;
         if (filled > 0) {
             graphics.fill(barLeft, barTop, barLeft + filled, barTop + 2, a24 | barRgb);
+        }
+        // Rested XP: a blue segment after the fill, as long as the XP that will pay double.
+        int restedPx = RestedBar.pixels(skills.restedReach(skill), BAR_WIDTH, filled);
+        if (restedPx > 0) {
+            int restedAlpha = Math.round(alpha * 0.9f) << 24;
+            graphics.fill(barLeft + filled, barTop, barLeft + filled + restedPx, barTop + 2,
+                    restedAlpha | (SkillPalette.RESTED_BAR & 0x00FFFFFF));
         }
         if (flash > 0f) {
             int glow = Math.round(alpha * flash * 0.85f);
@@ -475,20 +488,6 @@ public final class SkillHud {
             cPctW = font.width(cPct);
             cPercent = percent;
         }
-    }
-
-    /** Level + progress; a maxed skill is {@link SkillMath#MAX_LEVEL} plus its progress toward the next star. */
-    private static double value(int level, float progress) {
-        // Level 100 reads 100 plus the bar toward the next Mastery star, so the bar keeps moving.
-        return level >= SkillMath.MAX_LEVEL ? SkillMath.MAX_LEVEL + progress : level + progress;
-    }
-
-    /** The bar's fill for an animated value: its fraction (the star bar at level 100). */
-    private static double fill(double shown) {
-        if (shown >= SkillMath.MAX_LEVEL) {
-            return Math.max(0.0, Math.min(1.0, shown - SkillMath.MAX_LEVEL));
-        }
-        return Math.max(0.0, Math.min(1.0, shown - Math.floor(shown)));
     }
 
     /**

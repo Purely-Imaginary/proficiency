@@ -34,7 +34,8 @@ class TalentsTableTest {
         Set<String> shapes = new HashSet<>();
         for (Skill skill : Skill.VALUES) {
             int size = Talents.of(skill).size();
-            assertTrue(size >= 9 && size <= 14, skill.id() + " has " + size + " nodes");
+            // Social has 15: its teaching nodes (rested XP) went in beside the company ones.
+            assertTrue(size >= 9 && size <= 15, skill.id() + " has " + size + " nodes");
             StringBuilder ids = new StringBuilder();
             Talents.of(skill).forEach(talent -> ids.append(talent.id()).append(','));
             assertTrue(shapes.add(ids.toString()), skill.id() + " is a copy of another tree");

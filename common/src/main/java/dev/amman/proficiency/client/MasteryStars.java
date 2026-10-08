@@ -29,7 +29,7 @@ public final class MasteryStars {
 
     /** Stars to draw next to a skill's name: earned ones only, and only at level 100. */
     public static int shown(PlayerSkills skills, Skill skill) {
-        return skills.level(skill) >= SkillMath.MAX_LEVEL ? skills.stars(skill) : 0;
+        return skills.level(skill) >= SkillMath.MAX_LEVEL ? Mastery.shownStars(skills.stars(skill)) : 0;
     }
 
     public static int width(int stars) {
@@ -57,7 +57,8 @@ public final class MasteryStars {
         if (skills.level(skill) < SkillMath.MAX_LEVEL || (Mastery.maxStars() <= 0 && skills.stars(skill) <= 0)) {
             return lines;
         }
-        int stars = skills.stars(skill);
+        // A cap lowered after stars were earned must not read 5/3.
+        int stars = Mastery.shownStars(skills.stars(skill));
         lines.add(Component.translatable("proficiency.tooltip.stars", stars, Mastery.lastStar())
                 .withStyle(ChatFormatting.GOLD));
         if (stars >= Mastery.lastStar()) {

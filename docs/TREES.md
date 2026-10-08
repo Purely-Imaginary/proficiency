@@ -389,15 +389,18 @@ level-100 skill earns, so every branch fills in the end.
 ## Social (99 points)
 
 - **Fellowship** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches. _+5% XP per rank; materials (old Apprentice list)._
-- **Kinship** · 5 ranks · level 10 (after Fellowship). The company bonus grows bigger. _+5% passive per rank._
+- **Kinship** · 2 ranks · level 10 (after Fellowship). The company bonus grows bigger. _+12% passive per rank._
 - **Open Circle** · 3 ranks · level 10 (after Fellowship). Company counts from 4 blocks further away per rank.
-- **A Good Word** · 5 ranks · level 10 (after Fellowship). Good Company comes more often. _+10% signature chance per rank._
+- **A Good Word** · 2 ranks · level 10 (after Fellowship). Good Company comes more often. _+25% signature chance per rank._
 - **Old Friends** · 3 ranks · level 30 (after Kinship). Camaraderie grows by 5 points per rank: +15% becomes +30% at full.
 - **Stay a While** · 3 ranks · level 30 (after Open Circle). The company bonus lasts 10 seconds per rank after the others walk away.
 - **Teaching** · 3 ranks · level 30 (after A Good Word). Players near you with a lower Social level earn 4% more XP per rank.
 - **Patient Mentor** · 3 ranks · level 60 (after Old Friends). Someone counts as your mentor with 4 fewer levels of lead per rank. _materials (old Journeyman list)._
 - **Strength in Numbers** · 3 ranks · level 60 (after Stay a While). 2% more company XP per rank for each extra player near you, up to three.
-- **Wise Counsel** · 3 ranks · level 60 (after Teaching). The mentor bonus grows by 5 points per rank: +50% becomes +65% at full. _materials (old Expert list)._
+- **Wise Counsel** · 3 ranks · level 60 (after Teaching). The mentor bonus grows by 5 points per rank: +25% becomes +40% at full. _materials (old Expert list)._
+- **Quick Study** · 2 ranks · level 30 (after A Good Word). The rested XP you teach fills 15% faster per rank.
+- **Wide Classroom** · 2 ranks · level 60 (after Quick Study). Students count from 6 blocks further away per rank when you teach.
+- **Teacher's Pride** · 2 ranks · level 90 (after Wise Counsel, Wide Classroom). You earn 5 points more of the XP your students spend per rank: 25% becomes 35% at full.
 - **In Step** · 1 rank · level 90 (after Patient Mentor, Wise Counsel). With company near, a tempo chain survives a pause twice as long, in every skill. _materials (old Master list)._
 - **Heart of the Group** · 1 rank · level 100 (after In Step, Strength in Numbers). Anyone near you who is at least as good as you at a skill counts as your mentor in it. _+15% passive, -20% ability cooldown._
 

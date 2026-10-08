@@ -47,7 +47,7 @@ KIND_COLORS = {
     "block": "#c2813a", "mob": "#b5483f", "kill": "#8c2f39", "item": "#4f8f6b",
     "first-time": "#d6b33a", "discovery": "#3f86c4", "movement": "#6a8f3a",
     "damage": "#8a5aa8", "share": "#d77fa1", "role": "#3aa6a0", "action": "#7d7f8a",
-    "other": "#9a9a9a",
+    "rested": "#4f86ff", "teaching": "#a07fd7", "other": "#9a9a9a",
 }
 
 
@@ -135,13 +135,14 @@ def analyse(rows, skills):
     players = {}     # (world, uuid) -> dict
     ps = {}          # (world, uuid, skill) -> dict
     mix = {s: {} for s in skills}
-    meta, meta_t = None, -1
+    metas = {}       # world -> (t, curve): each server has its own curve settings
     for r in rows:
         t = r.get("t", 0)
         typ = r.get("type")
         if typ == "meta":
-            if t >= meta_t and isinstance(r.get("curve"), list) and len(r["curve"]) == 3:
-                meta, meta_t = r, t
+            if isinstance(r.get("curve"), list) and len(r["curve"]) == 3 \
+                    and t >= metas.get(r["_world"], (-1, None))[0]:
+                metas[r["_world"]] = (t, tuple(r["curve"]))
             continue
         key = (r["_world"], r.get("uuid", r.get("player", "?")))
         p = players.setdefault(key, {"name": r.get("player", "?"), "world": r["_world"],
@@ -174,13 +175,23 @@ def analyse(rows, skills):
             for f in ("active_s", "levelups", "procs", "rolls", "roll_hits", "chance_sum",
                       "deaths", "xp_lost"):
                 s[f] += r.get(f, 0)
-            if t >= s["lt"]:
-                s["lt"], s["level"], s["need"] = t, r.get("level", 0), r.get("need", 0.0)
-    curve = tuple(meta["curve"]) if meta else DEFAULT_CURVE
-    return players, ps, mix, curve
+            # A window with no grant carries no level; it must not overwrite the last known one.
+            if "level" in r and t >= s["lt"]:
+                s["lt"], s["level"], s["need"] = t, r["level"], r.get("need", 0.0)
+    curves = {w: metas[w][1] if w in metas else DEFAULT_CURVE for w in {k[0] for k in players}}
+    return players, ps, mix, curves
 
 
-def skill_table(skills, players, ps, mix, curve):
+def curve_text(curves):
+    """The curve as one formula when every server agrees, else one per server."""
+    def one(c):
+        return "%g + %g x (L+1)^%g" % tuple(c)
+    if len(set(curves.values())) <= 1:
+        return one(next(iter(curves.values()), DEFAULT_CURVE))
+    return "; ".join("%s: %s" % (w, one(c)) for w, c in sorted(curves.items()))
+
+
+def skill_table(skills, players, ps, mix, curves):
     out = []
     for skill in skills:
         mine = [(k, v) for k, v in ps.items() if k[2] == skill]
@@ -203,6 +214,8 @@ def skill_table(skills, players, ps, mix, curve):
             "skill": skill, "xp": xp, "players": len([1 for _, v in mine if v["xp"] > 0]),
             "rate_players": len(rates), "rate": rate, "per_play_hour": median(shares),
             "mix": mix[skill], "level": level,
+            # XP the rested pool added to grants, and Social XP paid to teachers: kinds of their own.
+            "rested": mix[skill].get("rested", 0.0), "teaching": mix[skill].get("teaching", 0.0),
             "levelups": sum(v["levelups"] for _, v in mine),
             "procs": sum(v["procs"] for _, v in mine), "rolls": rolls, "hits": hits,
             "expect": chance / rolls if rolls else None,
@@ -212,12 +225,28 @@ def skill_table(skills, players, ps, mix, curve):
             "h_next": None, "h_to_100": None, "h_total": None,
         }
         if rate:
-            row["h_total"] = hours_between(0, MAX_LEVEL, curve, rate)
-            if level is not None and level < MAX_LEVEL:
-                row["h_next"] = need_at(level, curve) / rate
-                row["h_to_100"] = hours_between(level, MAX_LEVEL, curve, rate)
+            # Each server's own curve, its own median rate and level; the row is the median of those.
+            totals, nexts, to100 = [], [], []
+            for world in sorted({k[0] for k, _ in mine}):
+                curve = curves.get(world, DEFAULT_CURVE)
+                w_rates = [v["xp"] / (v["active_s"] / 3600.0) for (wd, _, _), v in mine
+                           if wd == world and v["xp"] > 0 and v["active_s"] >= MIN_ACTIVE_S]
+                if not w_rates:
+                    continue
+                w_rate = median(w_rates)
+                w_levels = [v["level"] for (wd, _, _), v in mine
+                            if wd == world and (v["level"] or v["xp"] > 0)]
+                w_level = int(median(w_levels)) if w_levels else None
+                totals.append(hours_between(0, MAX_LEVEL, curve, w_rate))
+                if w_level is not None and w_level < MAX_LEVEL:
+                    nexts.append(need_at(w_level, curve) / w_rate)
+                    to100.append(hours_between(w_level, MAX_LEVEL, curve, w_rate))
+            row["h_total"] = median(totals)
+            row["h_next"] = median(nexts)
+            row["h_to_100"] = median(to100)
         if row["rolls"] >= PROC_MIN_ROLLS:
-            p = row["expect"]
+            # A chance can be summed above 1 by older files; a roll is never surer than certain.
+            p = min(1.0, max(0.0, row["expect"]))
             sigma = math.sqrt(max(p * (1 - p), 1e-9) / row["rolls"])
             row["proc_off"] = abs(row["observed"] - p) > 3 * sigma
         else:
@@ -270,6 +299,18 @@ def fp(v):
     return "-" if v is None else ("%.0f%%" % (v * 100))
 
 
+def rested_text(r):
+    """Rested XP for a skill row: the XP and its share of the skill's XP, '-' when none."""
+    if r["rested"] <= 0:
+        return "-"
+    share = r["rested"] / r["xp"] if r["xp"] > 0 else None
+    return "%.0f (%s)" % (r["rested"], fp(share))
+
+
+def teaching_text(r):
+    return "-" if r["teaching"] <= 0 else "%.0f" % r["teaching"]
+
+
 def mix_text(mix):
     total = sum(mix.values())
     if total <= 0:
@@ -294,14 +335,14 @@ def anon_names(players):
 
 
 def build(rows, files, bad, since, until, anon, skills):
-    players, ps, mix, curve = analyse(rows, skills)
-    table, mid = skill_table(skills, players, ps, mix, curve)
+    players, ps, mix, curves = analyse(rows, skills)
+    table, mid = skill_table(skills, players, ps, mix, curves)
     names = anon_names(players) if anon else {k: v["name"] for k, v in players.items()}
     deaths = death_summary(players, ps)
     return {
         "since": since, "until": until, "files": files, "bad": bad, "anon": anon,
         "players": players, "names": names, "table": table, "median_rate": mid,
-        "curve": curve, "deaths": deaths, "worlds": sorted({k[0] for k in players}),
+        "curves": curves, "curve_text": curve_text(curves), "deaths": deaths, "worlds": sorted({k[0] for k in players}),
         "generated": dt.datetime.now().strftime("%Y-%m-%d %H:%M"),
     }
 
@@ -345,19 +386,28 @@ def markdown(d):
         "%s (%s)" % (r["skill"], fx(r["vs_median"])) for r in slow) or "none"))
     w("- Dead (no XP in the window): %s." % (", ".join(dead) or "none"))
     w("- Proc rate off its configured chance: %s." % (", ".join(r["skill"] for r in off) or "none"))
+    all_xp = sum(r["xp"] for r in t)
+    w("- Rested XP: %.0f of %.0f XP (%s); teaching paid %.0f Social XP." % (
+        sum(r["rested"] for r in t), all_xp,
+        fp(sum(r["rested"] for r in t) / all_xp if all_xp > 0 else None),
+        sum(r["teaching"] for r in t)))
     w("")
     w("## XP per active hour")
     w("")
-    w("| Skill | Median XP/h | Players | vs median | Per play hour | Median level | XP total | Level-ups |")
-    w("|---|---:|---:|---:|---:|---:|---:|---:|")
+    w("| Skill | Median XP/h | Players | vs median | Per play hour | Median level | XP total | Rested XP | Teaching XP | Level-ups |")
+    w("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
     for r in sorted(t, key=lambda r: -(r["rate"] or -1)):
         if r["dead"]:
             continue
         flag = " (runaway)" if r["runaway"] else (" (slow)" if r["slow"] else "")
-        w("| %s%s | %s | %d of %d | %s | %s | %s | %.0f | %d |" % (
+        w("| %s%s | %s | %d of %d | %s | %s | %s | %.0f | %s | %s | %d |" % (
             r["skill"], flag, f1(r["rate"]), r["rate_players"], r["players"], fx(r["vs_median"]),
             f1(r["per_play_hour"]), r["level"] if r["level"] is not None else "-", r["xp"],
-            r["levelups"]))
+            rested_text(r), teaching_text(r), r["levelups"]))
+    w("")
+    w("Rested XP is the extra XP grants gained from the player's rested pool, with its share of the "
+      "skill's XP; it is part of the XP total. Teaching XP is the Social XP teachers were paid for "
+      "what their students spent.")
     w("")
     w("Median XP/h is XP over the hours the skill was in use, per player. Players with under "
       "%d minutes in a skill are left out of its median (the Players column says how many "
@@ -378,8 +428,7 @@ def markdown(d):
     w("")
     w("## Time to level at the current rate")
     w("")
-    w("Curve %s + %s x (L+1)^%s, from the server's own settings. Hours of use of that skill.\n" % (
-        "%g" % d["curve"][0], "%g" % d["curve"][1], "%g" % d["curve"][2]))
+    w("Curve %s, from the server's own settings. Hours of use of that skill.\n" % d["curve_text"])
     w("| Skill | Median level | Next level | Level to 100 | 0 to 100 |")
     w("|---|---:|---:|---:|---:|")
     for r in sorted(t, key=lambda r: -(r["h_total"] or -1)):
@@ -501,7 +550,8 @@ def page(d):
         h(", ".join(r["skill"] for r in off)) or "none"))
     top = max([r["rate"] or 0 for r in t] + [1])
     w("<h2>XP per active hour</h2><div class=tablewrap><table><tr><th>Skill<th>Median XP/h"
-      "<th>Players<th>vs median<th>Per play hour<th>Level<th>XP total<th>Level-ups</tr>")
+      "<th>Players<th>vs median<th>Per play hour<th>Level<th>XP total<th>Rested XP<th>Teaching XP"
+      "<th>Level-ups</tr>")
     for r in sorted(t, key=lambda r: -(r["rate"] or -1)):
         if r["dead"]:
             continue
@@ -509,11 +559,14 @@ def page(d):
             "<span class='tag slow'>slow</span>" if r["slow"] else "")
         width = int(110 * (r["rate"] or 0) / top)
         w("<tr><td>%s%s<td>%s<span class=bar style='width:%dpx'></span><td>%d of %d<td>%s<td>%s"
-          "<td>%s<td>%.0f<td>%d</tr>" % (
+          "<td>%s<td>%.0f<td>%s<td>%s<td>%d</tr>" % (
               h(r["skill"]), tag, h(f1(r["rate"])), width, r["rate_players"], r["players"],
               h(fx(r["vs_median"])), h(f1(r["per_play_hour"])),
-              h(r["level"] if r["level"] is not None else "-"), r["xp"], r["levelups"]))
-    w("</table></div><p class=note>Median over players of XP per hour the skill was in use "
+              h(r["level"] if r["level"] is not None else "-"), r["xp"],
+              h(rested_text(r)), h(teaching_text(r)), r["levelups"]))
+    w("</table></div><p class=note>Rested XP is the extra XP grants gained from the rested pool "
+      "(part of the XP total, with its share); Teaching XP is the Social XP paid to teachers.</p>")
+    w("<p class=note>Median over players of XP per hour the skill was in use "
       "(players under %d minutes in it are left out). Per play hour spreads the XP over all "
       "active hours instead.</p>" % (MIN_ACTIVE_S // 60))
     w("<h2>Source mix</h2><div class=legend>%s</div><div class=tablewrap><table>"
@@ -531,9 +584,9 @@ def page(d):
     w("</table></div>")
     w("<h2>Dead skills</h2><p>%s</p>" % (
         h(", ".join(r["skill"] for r in dead)) if dead else "None: every skill paid XP in the window."))
-    w("<h2>Time to level at the current rate</h2><p class=note>Curve %g + %g x (L+1)^%g, from the "
+    w("<h2>Time to level at the current rate</h2><p class=note>Curve %s, from the "
       "server's own settings. Hours of use of that skill.</p><div class=tablewrap><table>"
-      "<tr><th>Skill<th>Median level<th>Next level<th>Level to 100<th>0 to 100</tr>" % d["curve"])
+      "<tr><th>Skill<th>Median level<th>Next level<th>Level to 100<th>0 to 100</tr>" % h(d["curve_text"]))
     for r in sorted(t, key=lambda r: -(r["h_total"] or -1)):
         if r["h_total"] is not None:
             w("<tr><td>%s<td>%s<td>%s<td>%s<td>%s</tr>" % (
@@ -572,6 +625,16 @@ def page(d):
 
 # ---------------------------------------------------------------- main
 
+def today():
+    """Today in Warsaw: the mod names its day files by the server's local date, and this
+    usually runs on a UTC host where the date flips two hours early."""
+    try:
+        from zoneinfo import ZoneInfo
+        return dt.datetime.now(ZoneInfo("Europe/Warsaw")).date()
+    except Exception:  # no tz database on this machine
+        return dt.date.today()
+
+
 def parse_day(text):
     return dt.date.fromisoformat(text)
 
@@ -585,7 +648,7 @@ def main(argv=None):
     ap.add_argument("--until", type=parse_day)
     ap.add_argument("--anon", action="store_true", help="replace player names with Player A, B ...")
     args = ap.parse_args(argv)
-    until = args.until or dt.date.today()
+    until = args.until or today()
     since = args.since or (until - dt.timedelta(days=args.days - 1))
     if since > until:
         ap.error("--since is after --until")

@@ -6,6 +6,7 @@ import dev.amman.proficiency.skill.ActiveService;
 import dev.amman.proficiency.skill.PlayerSkills;
 import dev.amman.proficiency.skill.Skill;
 import dev.amman.proficiency.skill.SkillMath;
+import dev.amman.proficiency.skill.SkillPassives;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -62,41 +63,116 @@ public final class SkillNumbers {
         return Component.translatable("proficiency.stats.ability_locked", ActiveService.unlockLevel());
     }
 
-    /**
-     * The compact block for an item's tooltip: passive, proc and the ability's ready or cooldown
-     * state. The passive and proc are the header line's own parts; only the ability line differs,
-     * because an item shows what you can do now. {@code gameTime} is the client level's tick.
-     */
-    public static List<Component> itemLines(PlayerSkills skills, Skill skill, long gameTime) {
-        List<Component> lines = new ArrayList<>(3);
-        lines.add(passivePart(skills, skill));
-        lines.add(procPart(skills, skill));
-        if (skills.level(skill) < ActiveService.unlockLevel()) {
-            lines.add(abilityLockedPart());
-        } else {
-            Component abilityName = Component.translatable(skill.activeKey());
-            long cooling = skills.cooldownRemaining(skill, gameTime);
-            lines.add(cooling > 0
-                    ? Component.translatable("proficiency.tooltip.ability.cooldown", abilityName,
-                            seconds((cooling + 19) / 20 * 20))
-                    : Component.translatable("proficiency.tooltip.ability.ready", abilityName));
+    // ---- The passive as concrete stats ----------------------------------------------------------
+
+    /** One stat's label, with its arguments. */
+    private static MutableComponent statName(SkillPassives.Stat stat) {
+        return Component.translatable(stat.labelKey(), stat.labelArgs());
+    }
+
+    /** A stat value in its own format: "×1.36", "7.2%", "4.78". */
+    static String value(SkillPassives.Format format, double value) {
+        return switch (format) {
+            case MULT -> "×" + fixed(value, 2);
+            case PERCENT -> number(value * 100, 1) + "%";
+            case NUMBER -> number(value, 2);
+        };
+    }
+
+    /** The detail layer: "Break speed: ×1.00 → ×1.36" for every stat the passive changes. */
+    public static List<Component> statRows(PlayerSkills skills, Skill skill) {
+        List<Component> rows = new ArrayList<>(3);
+        for (SkillPassives.Stat stat : SkillPassives.of(skills, skill)) {
+            boolean changed = Math.abs(stat.current() - stat.base()) > 1e-9;
+            rows.add(Component.translatable("proficiency.stat.row",
+                    statName(stat).withStyle(ChatFormatting.GRAY),
+                    Component.literal(value(stat.format(), stat.base())).withStyle(ChatFormatting.DARK_GRAY),
+                    Component.literal(value(stat.format(), stat.current()))
+                            .withStyle(changed ? ChatFormatting.GREEN : ChatFormatting.GRAY)));
         }
+        return rows;
+    }
+
+    /** The short layer's one line: the skill's first stat as it is now, "Break speed: ×1.36". */
+    public static Component headline(PlayerSkills skills, Skill skill) {
+        SkillPassives.Stat stat = SkillPassives.of(skills, skill).get(0);
+        boolean changed = Math.abs(stat.current() - stat.base()) > 1e-9;
+        return Component.translatable("proficiency.stat.now", statName(stat).withStyle(ChatFormatting.GRAY),
+                Component.literal(value(stat.format(), stat.current()))
+                        .withStyle(changed ? ChatFormatting.GREEN : ChatFormatting.GRAY));
+    }
+
+    /** The ability's state on an item: ready or cooling down; null before the ability unlocks. */
+    private static Component abilityState(PlayerSkills skills, Skill skill, long gameTime) {
+        if (skills.level(skill) < ActiveService.unlockLevel()) {
+            return null;
+        }
+        Component abilityName = Component.translatable(skill.activeKey());
+        long cooling = skills.cooldownRemaining(skill, gameTime);
+        return cooling > 0
+                ? Component.translatable("proficiency.tooltip.ability.cooldown", abilityName,
+                        seconds((cooling + 19) / 20 * 20))
+                : Component.translatable("proficiency.tooltip.ability.ready", abilityName);
+    }
+
+    /**
+     * The block under an item's tooltip header. Short: the one stat that matters and, once it
+     * exists, the ability's state. Detailed: every stat as base to current, the signature move and
+     * the ability. {@code gameTime} is the client level's tick.
+     */
+    public static List<Component> itemLines(PlayerSkills skills, Skill skill, long gameTime, boolean detailed) {
+        List<Component> lines = new ArrayList<>(6);
+        Component ability = abilityState(skills, skill, gameTime);
+        if (!detailed) {
+            lines.add(headline(skills, skill));
+            if (ability != null) {
+                lines.add(ability);
+            }
+            return lines;
+        }
+        lines.addAll(statRows(skills, skill));
+        lines.add(procPart(skills, skill));
+        lines.add(ability != null ? ability : abilityLockedPart());
         return lines;
     }
 
-    /** The hover: where each number comes from, and what the next level gives. */
-    public static List<Component> tooltip(PlayerSkills skills, Skill skill) {
+    /** The tree header's hover, short or detailed. */
+    public static List<Component> tooltip(PlayerSkills skills, Skill skill, boolean detailed) {
+        return detailed ? detailedTooltip(skills, skill) : shortTooltip(skills, skill);
+    }
+
+    /** Short: the title, the stat that matters, the signature move. */
+    private static List<Component> shortTooltip(PlayerSkills skills, Skill skill) {
+        int level = skills.level(skill);
+        List<Component> lines = new ArrayList<>();
+        lines.add(Component.translatable("proficiency.stats.title", level)
+                .withStyle(style -> style.withColor(SkillPalette.accent(skill.category()))));
+        lines.add(headline(skills, skill));
+        double chance = skills.procChance(skill);
+        lines.add(chance > 0
+                ? Component.translatable("proficiency.tooltip.proc", Component.translatable(skill.procKey()), pct(chance))
+                        .withStyle(ChatFormatting.LIGHT_PURPLE)
+                : Component.translatable("proficiency.tooltip.proc_locked", procUnlock())
+                        .withStyle(ChatFormatting.DARK_PURPLE));
+        return lines;
+    }
+
+    /**
+     * The detailed hover, top-down: the passive with its stat lines and where they come from, then
+     * the signature move, then the ability, then what the skill is about.
+     */
+    private static List<Component> detailedTooltip(PlayerSkills skills, Skill skill) {
         int level = skills.level(skill);
         boolean maxed = level >= SkillMath.MAX_LEVEL;
         List<Component> lines = new ArrayList<>();
         lines.add(Component.translatable("proficiency.stats.title", level)
                 .withStyle(style -> style.withColor(SkillPalette.accent(skill.category()))));
 
-        // Passive.
+        // Passive: the summary, the stats, the breakdown, the next level.
         PlayerSkills.Modifier passive = skills.modifier(skill, PerkEffect.BONUS);
         lines.add(Component.translatable("proficiency.stats.passive", pct(skills.bonus(skill)))
                 .withStyle(ChatFormatting.DARK_AQUA));
-        lines.add(Component.translatable(skill.descriptionKey()).withStyle(ChatFormatting.GRAY));
+        lines.addAll(statRows(skills, skill));
         lines.add(Component.translatable("proficiency.stats.passive.parts",
                 pct(SkillMath.bonus(skill, level)), times(passive.ranks()), times(passive.synergies()),
                 times(passive.discipline())).withStyle(ChatFormatting.DARK_GRAY));
@@ -148,6 +224,10 @@ public final class SkillNumbers {
                 times(skills.perkModifier(skill, PerkEffect.ABILITY_DURATION)),
                 seconds(ProficiencyConfig.abilityCooldown()),
                 times(skills.perkModifier(skill, PerkEffect.ABILITY_COOLDOWN))).withStyle(ChatFormatting.DARK_GRAY));
+
+        // What the skill is about, last: it is the longest part.
+        lines.add(Component.literal(" "));
+        lines.add(Component.translatable(skill.descriptionKey()).withStyle(ChatFormatting.GRAY));
         return lines;
     }
 
@@ -174,6 +254,17 @@ public final class SkillNumbers {
 
     static String seconds(long ticks) {
         return number(ticks / 20.0, ticks % 20 == 0 ? 0 : 1);
+    }
+
+    /** A number with exactly {@code decimals} decimals, in the player's decimal mark. */
+    static String fixed(double value, int decimals) {
+        String text = String.format(Locale.ROOT, "%." + decimals + "f", value);
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft != null && minecraft.options != null
+                && minecraft.options.languageCode.startsWith("pl")) {
+            text = text.replace('.', ',');
+        }
+        return text;
     }
 
     private static String number(double value, int decimals) {

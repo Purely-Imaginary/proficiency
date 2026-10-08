@@ -35,16 +35,9 @@ import java.util.Map;
 public final class TalentTreeScreen extends Screen {
 
     private static final int PADDING = 10;
-    /** Title, summary, the signature move, and the "your numbers" line. */
-    private static final int HEADER = 39;
-    private static final int FOOTER = 14;
-    private static final int NODE = 24;
-    private static final int COL_STEP = 46;
-    private static final int ROW_STEP = 34;
     private static final int COLUMNS = 5;
     private static final int ROWS = 6;
     private static final int SIDE_GAP = 14;
-    private static final int SIDE_WIDTH = 160;
     private static final int SYNERGY_ROW = 12;
     private static final int LOG_ROW = 10;
     /** Gap between the last synergy and the recent-XP header. */
@@ -54,10 +47,6 @@ public final class TalentTreeScreen extends Screen {
     private static final long LOG_FADE_MILLIS = 50_000L;
     private static final int LOG_FADED_ALPHA = 0x70;
 
-    private static final int GRID_WIDTH = (COLUMNS - 1) * COL_STEP + NODE;
-    private static final int GRID_HEIGHT = (ROWS - 1) * ROW_STEP + NODE;
-    private static final int PANEL_WIDTH = PADDING * 2 + GRID_WIDTH + SIDE_GAP + SIDE_WIDTH;
-    private static final int PANEL_HEIGHT = PADDING + HEADER + GRID_HEIGHT + FOOTER + PADDING;
 
     private final Skill skill;
     @Nullable
@@ -67,10 +56,47 @@ public final class TalentTreeScreen extends Screen {
     /** Unlock animation timing; fed the real ranks each frame. See {@link UnlockFx}. */
     private final UnlockFx fx;
 
+    /** Node size, column step and row step, biggest first; the first that fits the window is used. */
+    private static final int[][] GEOMETRIES = {{24, 46, 34}, {22, 42, 30}, {20, 38, 26}, {18, 36, 24}};
+    /** Tries in order: geometry, longest signature-move text in lines, vertical padding. */
+    private static final int[][] TRIES = {{0, 2, 10}, {1, 2, 10}, {2, 2, 10}, {3, 2, 10}, {3, 1, 6}};
+    private static final int SIDE_MIN = 120;
+    private static final int SIDE_WANTED_MAX = 230;
+    private static final int HEADER_LINE = 9;
+
+    private int padV = PADDING;
+    private int procLinesMax = 2;
+    private int node = GEOMETRIES[0][0];
+    private int colStep = GEOMETRIES[0][1];
+    private int rowStep = GEOMETRIES[0][2];
+    private int gridW;
+    private int gridH;
+    private int sideW;
+    private int panelW;
+    private int panelH;
+    private int headerH;
+    private int footerH;
+    /** Whole-screen shrink for a window too small for even the tightest grid; 1 almost always. */
+    private float uiScale = 1f;
+    /** The window size in this screen's own (scaled) units. */
+    private int vw;
+    private int vh;
     private int panelX;
     private int panelY;
     /** Where the synergy list ended on the last frame; the recent-XP list starts below it. */
     private int synergiesBottom;
+
+    /** A header line: its text, colour and which block (0 title, 1 summary, 2 signature move, 3 numbers). */
+    private record HLine(String text, int colour, int block) {
+    }
+
+    private List<HLine> headerLines = List.of();
+    private List<String> footerLines = List.of();
+    private String layoutKey = "";
+    private int layoutWidth = -1;
+    private int layoutHeight = -1;
+    /** Tooltip chosen during the scaled pass, drawn after it at the real pointer position. */
+    private List<Component> pendingTip = List.of();
 
     public TalentTreeScreen(Skill skill, @Nullable Screen parent) {
         super(Component.translatable("proficiency.tree.title",
@@ -87,72 +113,277 @@ public final class TalentTreeScreen extends Screen {
 
     @Override
     protected void init() {
-        panelX = (this.width - PANEL_WIDTH) / 2;
-        panelY = Math.max(4, (this.height - PANEL_HEIGHT) / 2);
+        layoutKey = "";
+        PlayerSkills skills = playerSkills();
+        if (skills != null) {
+            layout(skills);
+        }
+    }
+
+    /** The header's line: the signature move and its one-line description. The hover has the rest. */
+    private Component procLine() {
+        return Component.translatable("proficiency.tree.proc",
+                Component.translatable(skill.procKey()), TooltipDetail.shortOr(skill.procShortKey(), skill.procDescKey()));
+    }
+
+    /** The hover of that line: short, or with the whole description and the numbers (Shift). */
+    private List<Component> procTooltip(PlayerSkills skills) {
+        List<Component> lines = new ArrayList<>();
+        Component name = Component.translatable(skill.procKey()).withStyle(style -> style.withColor(accent()));
+        double chance = skills.procChance(skill);
+        if (!TooltipDetail.detailed()) {
+            lines.add(name);
+            lines.add(TooltipDetail.shortOr(skill.procShortKey(), skill.procDescKey()).copy().withStyle(ChatFormatting.GRAY));
+            lines.add(chance > 0
+                    ? Component.translatable("proficiency.stats.proc", SkillNumbers.pct(chance),
+                            SkillNumbers.times(skills.procPower(skill))).withStyle(ChatFormatting.LIGHT_PURPLE)
+                    : Component.translatable("proficiency.tooltip.proc_locked",
+                            dev.amman.proficiency.config.ProficiencyConfig.procUnlockLevel())
+                            .withStyle(ChatFormatting.DARK_PURPLE));
+            return TooltipDetail.withHint(lines, true);
+        }
+        lines.add(name);
+        lines.add(Component.translatable(skill.procDescKey()).withStyle(ChatFormatting.GRAY));
+        lines.add(chance > 0
+                ? Component.translatable("proficiency.stats.proc", SkillNumbers.pct(chance),
+                        SkillNumbers.times(skills.procPower(skill))).withStyle(ChatFormatting.LIGHT_PURPLE)
+                : Component.translatable("proficiency.tooltip.proc_locked",
+                        dev.amman.proficiency.config.ProficiencyConfig.procUnlockLevel())
+                        .withStyle(ChatFormatting.DARK_PURPLE));
+        return lines;
+    }
+
+    private Component summaryLine(PlayerSkills skills) {
+        return Component.translatable("proficiency.tree.summary",
+                skills.level(skill), skills.pointsAvailable(skill),
+                skills.pointsSpent(skill), Talents.fullTreeCost(skill));
+    }
+
+    private Component disciplineLine(PlayerSkills skills) {
+        double discipline = Synergies.discipline(skills, skill.category());
+        return Component.translatable("proficiency.tree.discipline",
+                Component.translatable(skill.category().translationKey()), (int) Math.round(discipline * 100));
+    }
+
+    private String synergyText(Synergy synergy) {
+        return "✦ " + synergy.displayName().getString();
+    }
+
+    /**
+     * Works out the geometry and the text lines for this window: the roomiest grid that fits, the
+     * side column as wide as its longest synergy asks (up to a limit), a header that spans the whole
+     * panel and wraps whole pieces to a second line, and a footer that does the same. Redone when
+     * the window or any of the text changes (the numbers move as XP comes in).
+     */
+    private void layout(PlayerSkills skills) {
+        String title = this.title.getString();
+        String summary = summaryLine(skills).getString();
+        String proc = procLine().getString();
+        String numbers = SkillNumbers.line(skills, skill).getString();
+        String footer = Component.translatable("proficiency.tree.footer", skill.id()).getString();
+        String key = title + '\n' + summary + '\n' + proc + '\n' + numbers + '\n' + footer;
+        if (key.equals(layoutKey) && layoutWidth == this.width && layoutHeight == this.height) {
+            return;
+        }
+        layoutKey = key;
+        layoutWidth = this.width;
+        layoutHeight = this.height;
+
+        int sideWanted = 150;
+        for (Synergy synergy : synergies) {
+            sideWanted = Math.max(sideWanted, this.font.width("0/9 " + synergy.displayName().getString()) + 4);
+        }
+        sideWanted = Math.max(sideWanted, this.font.width(Component.translatable("proficiency.tree.xp_log")) + 4);
+        sideWanted = Math.min(SIDE_WANTED_MAX, sideWanted);
+
+        int availW = this.width - 8;
+        int availH = this.height - 8;
+        for (int[] attempt : TRIES) {
+            node = GEOMETRIES[attempt[0]][0];
+            colStep = GEOMETRIES[attempt[0]][1];
+            rowStep = GEOMETRIES[attempt[0]][2];
+            procLinesMax = attempt[1];
+            padV = attempt[2];
+            gridW = (COLUMNS - 1) * colStep + node;
+            gridH = (ROWS - 1) * rowStep + node;
+            sideW = sideWanted;
+            panelW = PADDING * 2 + gridW + SIDE_GAP + sideW;
+            if (panelW > availW) {
+                sideW = Math.max(SIDE_MIN, sideW - (panelW - availW));
+                panelW = PADDING * 2 + gridW + SIDE_GAP + sideW;
+            }
+            buildText(title, summary, proc, numbers, footer, panelW - PADDING * 2);
+            panelH = padV + headerH + gridH + 4 + footerH + padV;
+            if (panelW <= availW && panelH <= availH) {
+                break;
+            }
+        }
+        uiScale = Math.min(1f, Math.min(availW / (float) panelW, availH / (float) panelH));
+        vw = Math.round(this.width / uiScale);
+        vh = Math.round(this.height / uiScale);
+        panelX = (vw - panelW) / 2;
+        panelY = Math.max(2, (vh - panelH) / 2);
+        if (uiScale < 1f) {
+            TextFit.note("tree.scaled");
+        }
+    }
+
+    private void buildText(String title, String summary, String proc, String numbers, String footer, int width) {
+        List<HLine> lines = new java.util.ArrayList<>();
+        int accent = accent();
+        lines.add(new HLine(TextFit.clip(this.font, title, width - SkillIcons.advance(SkillIcons.LARGE)), accent, 0));
+        boolean[] cut = new boolean[1];
+        for (String line : TextFit.pack(this.font, summary, width, 2, cut, TextFit.DOT_RE, TextFit.DOT)) {
+            lines.add(new HLine(line, SkillPalette.TEXT_DIM, 1));
+        }
+        for (String line : TextFit.wrapLimited(this.font, proc, width, procLinesMax, cut)) {
+            lines.add(new HLine(line, accent, 2));
+        }
+        for (String line : TextFit.pack(this.font, numbers, width, 2, cut, TextFit.DOT_RE, TextFit.DOT)) {
+            lines.add(new HLine(line, SkillPalette.TEXT, 3));
+        }
+        if (cut[0]) {
+            TextFit.note("tree.header");
+        }
+        headerLines = lines;
+        headerH = 10 + HEADER_LINE * (lines.size() - 1) + 3;
+        boolean[] footerCut = new boolean[1];
+        footerLines = TextFit.pack(this.font, footer, width, 3, footerCut, "\\s{2,}", "   ");
+        if (footerCut[0]) {
+            TextFit.note("tree.footer");
+        }
+        footerH = HEADER_LINE * footerLines.size() + 1;
+    }
+
+    /** Screen position of a node's centre (real GUI pixels); the layout demo hovers it. */
+    int[] nodePoint(int row, int col) {
+        PlayerSkills skills = playerSkills();
+        if (skills != null) {
+            layout(skills);
+        }
+        return new int[] {Math.round((panelX + PADDING + col * colStep + node / 2) * uiScale),
+                Math.round((panelY + padV + headerH + row * rowStep + node / 2) * uiScale)};
+    }
+
+    /** Screen position of the i-th synergy line; the layout demo hovers it. */
+    int[] synergyPoint(int index) {
+        return new int[] {Math.round((panelX + PADDING + gridW + SIDE_GAP + 20) * uiScale),
+                Math.round((synergyTop() + discLines * SYNERGY_ROW + 4 + index * SYNERGY_ROW + 4) * uiScale)};
+    }
+
+    /** A point on the header's numbers line (real GUI pixels); the layout demo hovers it. */
+    int[] statsPoint(boolean proc) {
+        PlayerSkills skills = playerSkills();
+        if (skills != null) {
+            layout(skills);
+        }
+        int y = panelY + padV;
+        for (HLine line : headerLines) {
+            if (line.block() == (proc ? 2 : 3)) {
+                return new int[] {Math.round((panelX + PADDING + 30) * uiScale), Math.round((y + 3) * uiScale)};
+            }
+            y += line.block() == 0 ? 10 : HEADER_LINE;
+        }
+        return new int[] {0, 0};
     }
 
     private int nodeX(Talent talent) {
-        return panelX + PADDING + talent.col() * COL_STEP;
+        return panelX + PADDING + talent.col() * colStep;
     }
 
     private int nodeY(Talent talent) {
-        return panelY + PADDING + HEADER + talent.row() * ROW_STEP;
+        return panelY + padV + headerH + talent.row() * rowStep;
     }
 
     private int accent() {
         return SkillPalette.accent(skill.category());
     }
 
+    /** Top of the side column: level with the first row of nodes. */
+    private int synergyTop() {
+        return panelY + padV + headerH;
+    }
+
+    /** How many lines the discipline line took on the last frame (it wraps). */
+    private int discLines = 1;
+
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         super.render(graphics, mouseX, mouseY, partialTick);
-        graphics.fill(panelX, panelY, panelX + PANEL_WIDTH, panelY + PANEL_HEIGHT, SkillPalette.PANEL);
-        border(graphics, panelX, panelY, PANEL_WIDTH, PANEL_HEIGHT, SkillPalette.PANEL_BORDER);
-
         PlayerSkills skills = playerSkills();
         if (skills == null) {
             return;
         }
+        layout(skills);
+        pendingTip = List.of();
+        // Everything below is laid out in this screen's own units, drawn shrunk when the window is
+        // too small, and the pointer is converted to match. The tooltip is drawn afterwards at the
+        // real pointer position, at full size.
+        int mx = Math.round(mouseX / uiScale);
+        int my = Math.round(mouseY / uiScale);
+        graphics.pose().pushPose();
+        graphics.pose().scale(uiScale, uiScale, 1f);
+        renderPanel(graphics, skills, mx, my);
+        graphics.pose().popPose();
+        if (!pendingTip.isEmpty()) {
+            TextFit.tooltip(graphics, this.font, pendingTip, mouseX, mouseY, Math.min(300, this.width - 16));
+        }
+    }
 
-        Component summary = Component.translatable("proficiency.tree.summary",
-                skills.level(skill), skills.pointsAvailable(skill),
-                skills.pointsSpent(skill), Talents.fullTreeCost(skill));
-        String titleText = this.title.getString();
-        String summaryText = summary.getString();
-        // The header lines share the top rows with the synergy column, so they stop at the grid.
-        int headerLimit = panelX + PADDING + GRID_WIDTH;
-        // The icon: full size beside the title and the summary when both still fit whole, else
-        // small beside the title only (the summary keeps the full width), else none.
+    private void renderPanel(GuiGraphics graphics, PlayerSkills skills, int mouseX, int mouseY) {
+        graphics.fill(panelX, panelY, panelX + panelW, panelY + panelH, SkillPalette.PANEL);
+        border(graphics, panelX, panelY, panelW, panelH, SkillPalette.PANEL_BORDER);
+
+        int innerW = panelW - PADDING * 2;
+        // The icon: full size beside the title and the first summary line when both still fit
+        // whole, else small beside the title only, else none.
         int icon = 0;
         if (SkillIcons.enabled()) {
-            int both = Math.max(this.font.width(titleText), this.font.width(summaryText));
-            icon = SkillIcons.fit(GRID_WIDTH, both, SkillIcons.LARGE) == SkillIcons.LARGE
-                    ? SkillIcons.LARGE : SkillIcons.fit(GRID_WIDTH, this.font.width(titleText), SkillIcons.SMALL);
+            int titleW = this.font.width(headerLines.get(0).text());
+            int both = titleW;
+            for (HLine line : headerLines) {
+                if (line.block() == 1) {
+                    both = Math.max(both, this.font.width(line.text()));
+                    break;
+                }
+            }
+            icon = SkillIcons.fit(innerW, both, SkillIcons.LARGE) == SkillIcons.LARGE
+                    ? SkillIcons.LARGE : SkillIcons.fit(innerW, titleW, SkillIcons.SMALL);
         }
-        int titleY = panelY + PADDING;
-        int titleX = panelX + PADDING + SkillIcons.advance(icon);
-        int summaryX = icon == SkillIcons.LARGE ? titleX : panelX + PADDING;
+        int titleY = panelY + padV;
         if (icon == SkillIcons.LARGE) {
             SkillIcons.draw(graphics, skill, panelX + PADDING, titleY - 1, icon);
         } else if (icon > 0) {
             SkillIcons.draw(graphics, skill, panelX + PADDING, SkillIcons.smallTop(titleY), icon);
         }
-        drawClipped(graphics, titleText, titleX, titleY, headerLimit, accent());
-        drawClipped(graphics, summaryText, summaryX, panelY + PADDING + 10,
-                headerLimit, SkillPalette.TEXT_DIM);
-        // The signature move, named and explained. Cut to the grid; hover for the whole line.
-        int procY = panelY + PADDING + 19;
-        int procWidth = GRID_WIDTH;
-        Component procLine = Component.translatable("proficiency.tree.proc",
-                Component.translatable(skill.procKey()),
-                Component.translatable(skill.procDescKey()));
-        drawClipped(graphics, procLine.getString(), panelX + PADDING, procY, headerLimit, accent());
-        boolean procHovered = inside(mouseX, mouseY, panelX + PADDING, procY, procWidth, 9);
-        // Your numbers now: passive, proc chance and power, ability. Hover for where they come from.
-        int statsY = panelY + PADDING + 28;
-        drawClipped(graphics, SkillNumbers.line(skills, skill).getString(), panelX + PADDING, statsY,
-                headerLimit, SkillPalette.TEXT);
-        boolean statsHovered = inside(mouseX, mouseY, panelX + PADDING, statsY, procWidth, 9);
+        int y = titleY;
+        boolean firstSummary = true;
+        int procTop = -1;
+        int procBottom = -1;
+        int statsTop = -1;
+        int statsBottom = -1;
+        for (HLine line : headerLines) {
+            int x = panelX + PADDING;
+            if (line.block() == 0 || (line.block() == 1 && firstSummary && icon == SkillIcons.LARGE)) {
+                x += SkillIcons.advance(icon);
+            }
+            if (line.block() == 1) {
+                firstSummary = false;
+            }
+            if (line.block() == 2) {
+                procTop = procTop < 0 ? y : procTop;
+                procBottom = y + HEADER_LINE;
+            } else if (line.block() == 3) {
+                statsTop = statsTop < 0 ? y : statsTop;
+                statsBottom = y + HEADER_LINE;
+            }
+            graphics.drawString(this.font, line.text(), x, y, line.colour(), false);
+            y += line.block() == 0 ? 10 : HEADER_LINE;
+        }
+        boolean procHovered = procTop >= 0 && inside(mouseX, mouseY, panelX + PADDING, procTop, innerW,
+                procBottom - procTop);
+        boolean statsHovered = statsTop >= 0 && inside(mouseX, mouseY, panelX + PADDING, statsTop, innerW,
+                statsBottom - statsTop);
 
         List<Talent> tree = Talents.of(skill);
         long now = System.currentTimeMillis();
@@ -184,7 +415,7 @@ public final class TalentTreeScreen extends Screen {
         Talent hovered = null;
         for (Talent talent : tree) {
             drawNode(graphics, talent, skills, now, fxOn);
-            if (inside(mouseX, mouseY, nodeX(talent), nodeY(talent), NODE, NODE)) {
+            if (inside(mouseX, mouseY, nodeX(talent), nodeY(talent), node, node)) {
                 hovered = talent;
             }
         }
@@ -192,35 +423,34 @@ public final class TalentTreeScreen extends Screen {
         Synergy hoveredSynergy = drawSynergies(graphics, skills, mouseX, mouseY);
         ClientXpLog.Line hoveredLog = drawXpLog(graphics, synergiesBottom + LOG_GAP, mouseX, mouseY);
 
-        graphics.drawString(this.font, Component.translatable("proficiency.tree.footer", skill.id()),
-                panelX + PADDING, panelY + PANEL_HEIGHT - PADDING - 8, SkillPalette.TEXT_DIM, false);
+        // The hint line spans the panel under the grid and the side column, wrapped by whole
+        // pieces, so it never runs under another element.
+        int footY = panelY + panelH - padV - footerH + 1;
+        for (String line : footerLines) {
+            graphics.drawString(this.font, line, panelX + PADDING, footY, SkillPalette.TEXT_DIM, false);
+            footY += HEADER_LINE;
+        }
 
         if (statsHovered && hovered == null) {
-            // Wrapped: the passive's description is one long line.
-            List<net.minecraft.util.FormattedCharSequence> wrapped = new ArrayList<>();
-            for (Component line : SkillNumbers.tooltip(skills, skill)) {
-                wrapped.addAll(this.font.split(line, 260));
-            }
-            graphics.renderTooltip(this.font, wrapped, mouseX, mouseY);
+            pendingTip = TooltipDetail.withHint(new ArrayList<>(SkillNumbers.tooltip(skills, skill, TooltipDetail.detailed())), true);
         } else if (procHovered && hovered == null) {
-            graphics.renderTooltip(this.font, this.font.split(procLine, 220), mouseX, mouseY);
+            pendingTip = procTooltip(skills);
         } else if (hovered != null) {
-            graphics.renderComponentTooltip(this.font, nodeTooltip(hovered, skills, fxOn ? fx.shownRank(idx(hovered), now) : skills.rank(hovered)),
-                    mouseX, mouseY);
+            pendingTip = nodeTooltip(hovered, skills, fxOn ? fx.shownRank(idx(hovered), now) : skills.rank(hovered));
         } else if (hoveredSynergy != null) {
-            graphics.renderComponentTooltip(this.font, synergyTooltip(hoveredSynergy, skills), mouseX, mouseY);
+            pendingTip = synergyTooltip(hoveredSynergy, skills);
         } else if (hoveredLog != null) {
-            graphics.renderComponentTooltip(this.font, logTooltip(hoveredLog), mouseX, mouseY);
+            pendingTip = logTooltip(hoveredLog);
         }
     }
 
     /** Elbow from the bottom of one node to the top of the next: down, across, down. */
     private void connector(GuiGraphics graphics, Talent from, Talent to, int colour, int lit, float travel) {
-        int x1 = nodeX(from) + NODE / 2;
-        int y1 = nodeY(from) + NODE;
-        int x2 = nodeX(to) + NODE / 2;
+        int x1 = nodeX(from) + node / 2;
+        int y1 = nodeY(from) + node;
+        int x2 = nodeX(to) + node / 2;
         int y2 = nodeY(to);
-        int mid = y2 - (ROW_STEP - NODE) / 2;
+        int mid = y2 - (rowStep - node) / 2;
         graphics.fill(x1, y1, x1 + 1, mid + 1, colour);
         graphics.fill(Math.min(x1, x2), mid, Math.max(x1, x2) + 1, mid + 1, colour);
         graphics.fill(x2, mid, x2 + 1, y2, colour);
@@ -271,31 +501,31 @@ public final class TalentTreeScreen extends Screen {
                 : open || rank > 0 ? accent()
                 : SkillPalette.TRACK;
 
-        graphics.fill(x, y, x + NODE, y + NODE, fill);
-        border(graphics, x, y, NODE, NODE, edge);
+        graphics.fill(x, y, x + node, y + node, fill);
+        border(graphics, x, y, node, node, edge);
         if (big) {
-            border(graphics, x - 2, y - 2, NODE + 4, NODE + 4, edge);
+            border(graphics, x - 2, y - 2, node + 4, node + 4, edge);
         }
         if (talent.kind() == Talent.Kind.BRIDGE) {
             // Bridges are the synergy inside a tree; a notch on each side says "joins two".
-            graphics.fill(x - 3, y + NODE / 2 - 1, x, y + NODE / 2 + 1, edge);
-            graphics.fill(x + NODE, y + NODE / 2 - 1, x + NODE + 3, y + NODE / 2 + 1, edge);
+            graphics.fill(x - 3, y + node / 2 - 1, x, y + node / 2 + 1, edge);
+            graphics.fill(x + node, y + node / 2 - 1, x + node + 3, y + node / 2 + 1, edge);
         }
         if (!talent.materials().isEmpty() && !skills.hasPaid(talent)) {
             // A corner pip: this node will want something from your bags when it fills.
-            graphics.fill(x + NODE - 4, y + 1, x + NODE - 1, y + 4, 0xFFD2A249);
+            graphics.fill(x + node - 4, y + 1, x + node - 1, y + 4, 0xFFD2A249);
         }
 
         if (fxOn) {
             float sweep = fx.sweep(idx(talent), now);
             if (sweep >= 0f) {
                 // The new rank fills the node from the bottom, with a bright front edge.
-                int height = Math.round((float) XpGainDots.ease(sweep) * NODE);
+                int height = Math.round((float) XpGainDots.ease(sweep) * node);
                 boolean nowFull = rank + 1 >= talent.maxRank();
                 int body = (accent() & 0x00FFFFFF) | (nowFull ? 0xB0000000 : 0x90000000);
-                graphics.fill(x + 1, y + NODE - height, x + NODE - 1, y + NODE - 1, body);
-                if (height > 0 && height < NODE) {
-                    graphics.fill(x + 1, y + NODE - height, x + NODE - 1, y + NODE - height + 1, 0xFFFFFFFF);
+                graphics.fill(x + 1, y + node - height, x + node - 1, y + node - 1, body);
+                if (height > 0 && height < node) {
+                    graphics.fill(x + 1, y + node - height, x + node - 1, y + node - height + 1, 0xFFFFFFFF);
                 }
             } else if (full && talent.kind() == Talent.Kind.CAPSTONE) {
                 shimmer(graphics, talent, x, y, now);
@@ -304,7 +534,7 @@ public final class TalentTreeScreen extends Screen {
 
         String text = talent.maxRank() == 1 ? (full ? "✔" : "◆") : rank + "/" + talent.maxRank();
         int colour = full ? SkillPalette.MAXED : open || rank > 0 ? SkillPalette.TEXT : SkillPalette.TEXT_DIM;
-        graphics.drawCenteredString(this.font, text, x + NODE / 2 + 1, y + (NODE - 8) / 2, colour);
+        graphics.drawCenteredString(this.font, text, x + node / 2 + 1, y + (node - 8) / 2, colour);
     }
 
     /** A slow diagonal glint across a finished capstone, with a soft halo while it passes. */
@@ -313,32 +543,38 @@ public final class TalentTreeScreen extends Screen {
         if (t < 0f) {
             return;
         }
-        int centre = Math.round(t * (NODE * 2 + 6)) - 3;
-        for (int row = 1; row < NODE - 1; row++) {
+        int centre = Math.round(t * (node * 2 + 6)) - 3;
+        for (int row = 1; row < node - 1; row++) {
             int from = Math.max(1, centre - row - 1);
-            int to = Math.min(NODE - 1, centre - row + 2);
+            int to = Math.min(node - 1, centre - row + 2);
             if (to > from) {
                 graphics.fill(x + from, y + row, x + to, y + row + 1, 0x66FFFFFF);
             }
         }
         int halo = (int) (Math.sin(t * Math.PI) * 0x58);
-        border(graphics, x - 3, y - 3, NODE + 6, NODE + 6, (SkillPalette.MAXED & 0x00FFFFFF) | (halo << 24));
+        border(graphics, x - 3, y - 3, node + 6, node + 6, (SkillPalette.MAXED & 0x00FFFFFF) | (halo << 24));
     }
 
     @Nullable
     private Synergy drawSynergies(GuiGraphics graphics, PlayerSkills skills, int mouseX, int mouseY) {
-        int x = panelX + PADDING + GRID_WIDTH + SIDE_GAP;
-        int y = panelY + PADDING;
-        graphics.drawString(this.font, Component.translatable("proficiency.tree.synergies"),
-                x, y, 0xFFB98BE0, false);
+        int x = panelX + PADDING + gridW + SIDE_GAP;
+        int y = synergyTop();
+        TextFit.draw(graphics, this.font, "tree.synergies", Component.translatable("proficiency.tree.synergies").getString(),
+                x, y, sideW, 0xFFB98BE0, false);
         y += 11;
 
         double discipline = Synergies.discipline(skills, skill.category());
-        graphics.drawString(this.font, Component.translatable("proficiency.tree.discipline",
-                        Component.translatable(skill.category().translationKey()),
-                        (int) Math.round(discipline * 100)),
-                x, y, discipline > 0 ? SkillPalette.TEXT : SkillPalette.TEXT_DIM, false);
-        y += SYNERGY_ROW + 4;
+        // "<Category> discipline +0%" wraps to a second line rather than being cut: the number is
+        // the point of the line.
+        List<String> disc = TextFit.wrapPlain(this.font, disciplineLine(skills).getString(), sideW);
+        discLines = Math.min(2, disc.size());
+        for (int i = 0; i < discLines; i++) {
+            String text = i == discLines - 1 && disc.size() > discLines
+                    ? TextFit.clip(this.font, String.join(" ", disc.subList(i, disc.size())), sideW) : disc.get(i);
+            graphics.drawString(this.font, text, x, y, discipline > 0 ? SkillPalette.TEXT : SkillPalette.TEXT_DIM, false);
+            y += SYNERGY_ROW - 2;
+        }
+        y += 6;
 
         Synergy hovered = null;
         long now = System.currentTimeMillis();
@@ -352,7 +588,7 @@ public final class TalentTreeScreen extends Screen {
             if (pulse >= 0f) {
                 // Once, in the synergy colour, as the line switches on.
                 int alpha = (int) (Math.sin(pulse * Math.PI) * 0x70);
-                graphics.fill(x - 3, y - 2, x + SIDE_WIDTH, y + SYNERGY_ROW - 2, 0xB98BE0 | (alpha << 24));
+                graphics.fill(x - 3, y - 2, x + sideW, y + SYNERGY_ROW - 2, 0xB98BE0 | (alpha << 24));
             }
             int met = 0;
             for (Synergy.Need need : synergy.requires()) {
@@ -365,10 +601,17 @@ public final class TalentTreeScreen extends Screen {
                 met = Math.min(skills.grandmasters(), synergy.grandmastersNeeded());
                 total = synergy.grandmastersNeeded();
             }
-            String marker = active ? "✦ " : met + "/" + total + " ";
-            graphics.drawString(this.font, Component.literal(marker).append(synergy.displayName()),
+            String marker = active ? "\u2726 " : met + "/" + total + " ";
+            // The marker stays whole; the name is cut with an ellipsis, and the hover has all of it.
+            String name = synergy.displayName().getString();
+            int room = sideW - this.font.width(marker);
+            String shown = TextFit.clip(this.font, name, room);
+            if (!shown.equals(name)) {
+                TextFit.note("tree.synergy");
+            }
+            graphics.drawString(this.font, marker + shown,
                     x, y, active ? 0xFFD9B8FF : met > 0 ? SkillPalette.TEXT : SkillPalette.TEXT_DIM, false);
-            if (inside(mouseX, mouseY, x, y - 1, SIDE_WIDTH, SYNERGY_ROW)) {
+            if (inside(mouseX, mouseY, x, y - 1, sideW, SYNERGY_ROW)) {
                 hovered = synergy;
             }
             y += SYNERGY_ROW;
@@ -389,19 +632,25 @@ public final class TalentTreeScreen extends Screen {
      */
     @Nullable
     private ClientXpLog.Line drawXpLog(GuiGraphics graphics, int top, int mouseX, int mouseY) {
-        int x = panelX + PADDING + GRID_WIDTH + SIDE_GAP;
-        int bottom = panelY + PANEL_HEIGHT - PADDING - 8 - 4;
+        int x = panelX + PADDING + gridW + SIDE_GAP;
+        int bottom = panelY + padV + headerH + gridH;
         if (top + 11 + LOG_ROW > bottom) {
             return null;
         }
-        graphics.drawString(this.font, Component.translatable("proficiency.tree.xp_log"),
-                x, top, 0xFFB98BE0, false);
+        TextFit.draw(graphics, this.font, "tree.xp_log", Component.translatable("proficiency.tree.xp_log").getString(),
+                x, top, sideW, 0xFFB98BE0, false);
         int y = top + 11;
 
         List<ClientXpLog.Line> lines = ClientXpLog.lines(skill);
         if (lines.isEmpty()) {
-            graphics.drawString(this.font, Component.translatable("proficiency.tree.xp_log.empty"),
-                    x, y, SkillPalette.TEXT_DIM, false);
+            for (String line : TextFit.wrapPlain(this.font,
+                    Component.translatable("proficiency.tree.xp_log.empty").getString(), sideW)) {
+                if (y + LOG_ROW > bottom + 2) {
+                    break;
+                }
+                graphics.drawString(this.font, line, x, y, SkillPalette.TEXT_DIM, false);
+                y += LOG_ROW;
+            }
             return null;
         }
         long now = System.currentTimeMillis();
@@ -415,13 +664,13 @@ public final class TalentTreeScreen extends Screen {
 
             String ago = ago(age);
             int agoWidth = this.font.width(ago);
-            graphics.drawString(this.font, ago, x + SIDE_WIDTH - agoWidth, y,
+            graphics.drawString(this.font, ago, x + sideW - agoWidth, y,
                     withAlpha(SkillPalette.TEXT_DIM, alpha), false);
 
             // Amount in the skill's colour, then the source, then the count dimmed, all cut to
             // what is left once the age has its room on the right. Every line is this tree's
             // skill, so the skill's name would only take the source's room.
-            int room = SIDE_WIDTH - agoWidth - 4;
+            int room = sideW - agoWidth - 4;
             String amount = String.format(java.util.Locale.ROOT, "+%.1f", line.amount());
             String source = line.source().isEmpty() ? "" : " · " + sourceName(line.source());
             String count = line.count() > 1 ? " ×" + line.count() : "";
@@ -429,7 +678,7 @@ public final class TalentTreeScreen extends Screen {
             cursor = drawClipped(graphics, amount, cursor, y, x + room, withAlpha(accent(), alpha));
             cursor = drawClipped(graphics, source, cursor, y, x + room, withAlpha(SkillPalette.TEXT, alpha));
             drawClipped(graphics, count, cursor, y, x + room, withAlpha(SkillPalette.TEXT_DIM, alpha));
-            if (inside(mouseX, mouseY, x, y - 1, SIDE_WIDTH, LOG_ROW)) {
+            if (inside(mouseX, mouseY, x, y - 1, sideW, LOG_ROW)) {
                 hovered = line;
             }
             y += LOG_ROW;
@@ -445,6 +694,7 @@ public final class TalentTreeScreen extends Screen {
     private List<Component> logTooltip(ClientXpLog.Line line) {
         List<Component> out = new java.util.ArrayList<>();
         java.util.Locale root = java.util.Locale.ROOT;
+        boolean detailed = TooltipDetail.detailed();
         out.add(Component.translatable("proficiency.tree.xp_log.tip.title",
                         String.format(root, "%.1f", line.amount()),
                         Component.translatable(line.skill().translationKey()))
@@ -457,12 +707,18 @@ public final class TalentTreeScreen extends Screen {
         if (line.count() > 1) {
             out.add(Component.translatable("proficiency.tree.xp_log.tip.merged", line.count(),
                     ago(Math.max(0L, now - line.first())), last).withColor(SkillPalette.TEXT_DIM));
+            if (!detailed) {
+                return TooltipDetail.withHint(out, true);
+            }
             out.add(Component.translatable("proficiency.tree.xp_log.tip.average",
                     String.format(root, "%.2f", line.amount() / line.count()))
                     .withColor(SkillPalette.TEXT_DIM));
         } else {
             out.add(Component.translatable("proficiency.tree.xp_log.tip.single", last)
                     .withColor(SkillPalette.TEXT_DIM));
+            if (!detailed) {
+                return TooltipDetail.withHint(out, true);
+            }
         }
         if (line.base() > 0) {
             out.add(Component.translatable("proficiency.tree.xp_log.tip.base",
@@ -500,6 +756,7 @@ public final class TalentTreeScreen extends Screen {
         if (this.font.width(text) > room) {
             int ellipsis = this.font.width("…");
             shown = room > ellipsis ? this.font.plainSubstrByWidth(text, room - ellipsis) + "…" : "";
+            TextFit.note("tree.log");
         }
         graphics.drawString(this.font, shown, x, y, colour, false);
         return x + this.font.width(shown);
@@ -515,6 +772,11 @@ public final class TalentTreeScreen extends Screen {
         if (key.startsWith("first|")) {
             return Component.translatable("proficiency.xplog.source.first_time",
                     sourceName(key.substring("first|".length()))).getString();
+        }
+        // The kill bonus line: "kill|<entity key>", shown as "Kill · Zombie".
+        if (key.startsWith("kill|")) {
+            return Component.translatable("proficiency.xplog.source.kill",
+                    sourceName(key.substring("kill|".length()))).getString();
         }
         String tail = key.substring(key.lastIndexOf('.') + 1).replace('_', ' ');
         String fallback = tail.isEmpty() ? key
@@ -549,9 +811,31 @@ public final class TalentTreeScreen extends Screen {
         return (colour & 0x00FFFFFF) | (alpha << 24);
     }
 
-    /** {@code rank} is the one the node shows, so a filling node and its tooltip agree. */
+    /**
+     * {@code rank} is the one the node shows, so a filling node and its tooltip agree. Short: the
+     * name with its rank, one line of what it does, and what a click does. Detailed (Shift): the
+     * kind, the full description, the numbers per rank, the cost, the materials and the synergies
+     * the node feeds.
+     */
     private List<Component> nodeTooltip(Talent talent, PlayerSkills skills, int rank) {
         List<Component> lines = new ArrayList<>();
+        TalentService.Outcome outcome = skills.check(talent);
+        if (!TooltipDetail.detailed()) {
+            lines.add(talent.displayName().copy().withStyle(style -> style.withColor(accent()))
+                    .append(Component.literal(" " + rank + "/" + talent.maxRank()).withStyle(ChatFormatting.DARK_GRAY)));
+            lines.add(TooltipDetail.shortOr(talent.shortKey(), talent.descriptionKey()).copy()
+                    .withStyle(ChatFormatting.GRAY));
+            if (outcome == TalentService.Outcome.OK) {
+                lines.add(Component.translatable("proficiency.tree.click.short", talent.costPerRank())
+                        .withStyle(ChatFormatting.YELLOW));
+            } else if (outcome == TalentService.Outcome.MISSING_MATERIALS) {
+                lines.add(Component.translatable("proficiency.tree.materials.short").withStyle(ChatFormatting.GOLD));
+            } else {
+                lines.add(TalentService.explain(skills, talent, outcome).copy()
+                        .withStyle(outcome == TalentService.Outcome.MAXED ? ChatFormatting.GOLD : ChatFormatting.RED));
+            }
+            return TooltipDetail.withHint(lines, true);
+        }
         lines.add(talent.displayName().copy().withStyle(style -> style.withColor(accent())));
         lines.add(Component.translatable("proficiency.talent.kind." + talent.kind().name().toLowerCase())
                 .withStyle(ChatFormatting.DARK_GRAY));
@@ -585,7 +869,6 @@ public final class TalentTreeScreen extends Screen {
             }
         }
 
-        TalentService.Outcome outcome = skills.check(talent);
         if (outcome == TalentService.Outcome.OK) {
             lines.add(Component.translatable("proficiency.tree.click").withStyle(ChatFormatting.YELLOW));
         } else {
@@ -609,6 +892,19 @@ public final class TalentTreeScreen extends Screen {
         List<Component> lines = new ArrayList<>();
         boolean active = Synergies.isActive(skills, synergy);
         lines.add(synergy.displayName().copy().withStyle(active ? ChatFormatting.LIGHT_PURPLE : ChatFormatting.WHITE));
+        if (!TooltipDetail.detailed()) {
+            lines.add(TooltipDetail.shortOr(synergy.shortKey(), synergy.descriptionKey()).copy()
+                    .withStyle(ChatFormatting.GRAY));
+            int parts = synergy.requires().size() + (synergy.grandmastersNeeded() > 0 ? 1 : 0);
+            int ready = (int) synergy.requires().stream()
+                    .filter(need -> skills.rank(need.talent()) >= need.minRank()).count()
+                    + (synergy.grandmastersNeeded() > 0 && skills.grandmasters() >= synergy.grandmastersNeeded() ? 1 : 0);
+            lines.add(active
+                    ? Component.translatable("proficiency.synergy.state.awake").withStyle(ChatFormatting.GREEN)
+                    : Component.translatable("proficiency.synergy.state.parts", ready, parts)
+                            .withStyle(ChatFormatting.DARK_GRAY));
+            return TooltipDetail.withHint(lines, true);
+        }
         lines.add(Component.translatable(synergy.descriptionKey()).withStyle(ChatFormatting.GRAY));
         for (Synergy.Need need : synergy.requires()) {
             int rank = skills.rank(need.talent());
@@ -643,8 +939,10 @@ public final class TalentTreeScreen extends Screen {
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         PlayerSkills skills = playerSkills();
         if (button == 0 && skills != null) {
+            double px = mouseX / uiScale;
+            double py = mouseY / uiScale;
             for (Talent talent : Talents.of(skill)) {
-                if (!inside(mouseX, mouseY, nodeX(talent), nodeY(talent), NODE, NODE)) {
+                if (!inside(px, py, nodeX(talent), nodeY(talent), node, node)) {
                     continue;
                 }
                 // Shift fills the node in one go; the server takes each rank separately and stops

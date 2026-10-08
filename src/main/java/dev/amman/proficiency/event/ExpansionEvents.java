@@ -78,7 +78,7 @@ public final class ExpansionEvents {
             "ae2", "arseng", "titanium", "functionalstorage", "merequester", "toms_storage");
 
     /** How far Mining and Masonry can push block reach at level 100, in blocks, each. */
-    private static final double REACH_AT_MAX = 2.0;
+    private static final double REACH_AT_MAX = dev.amman.proficiency.skill.SkillPassives.REACH_AT_MAX;
 
     private static final ResourceLocation MINING_REACH = Proficiency.id("mining_reach");
     private static final ResourceLocation MASONRY_REACH = Proficiency.id("masonry_reach");
@@ -107,7 +107,7 @@ public final class ExpansionEvents {
     private static final TagKey<EntityType<?>> NOTABLE_BOSSES = TagKey.create(
             Registries.ENTITY_TYPE, Proficiency.id("notable_bosses"));
 
-    private static boolean isNotableBoss(LivingEntity victim) {
+    static boolean isNotableBoss(LivingEntity victim) {
         return victim.getType().is(NOTABLE_BOSSES)
                 || victim.getMaxHealth() >= dev.amman.proficiency.config.ProficiencyConfig.bossHealth();
     }
@@ -403,8 +403,7 @@ public final class ExpansionEvents {
 
             // Long Arm and Grand Architect. Both sides, like the rest of reach, or the client
             // would refuse to aim at a block the server would let you place.
-            double talentReach = 0.5 * TalentService.rank(player, Skill.MASONRY, "long_arm")
-                    + (TalentService.rank(player, Skill.MASONRY, "architect_reach") > 0 ? 2.0 : 0.0);
+            double talentReach = dev.amman.proficiency.skill.SkillPassives.masonryTalentReach(skills);
             setReachDirect(reach, MASONRY_TALENT_REACH, talentReach);
         }
         if (player instanceof ServerPlayer serverPlayer) {
@@ -742,7 +741,7 @@ public final class ExpansionEvents {
             // Beastslaying rides on top of whatever weapon skill already applied.
             double bonus = ProficiencyAttachments.of(player).bonus(Skill.BEASTSLAYING);
             if (bonus > 0) {
-                event.setAmount((float) (event.getAmount() * (1.0 + bonus)));
+                event.setAmount((float) (event.getAmount() * dev.amman.proficiency.skill.SkillPassives.more(bonus)));
             }
         }
         beastslayingTalents(event, player, victim);
@@ -780,15 +779,17 @@ public final class ExpansionEvents {
         double bonus = ProficiencyAttachments.of(player).bonus(skill);
         float amount = event.getAmount();
         if (bonus > 0) {
-            amount *= (float) (1.0 + bonus);
+            amount *= (float) dev.amman.proficiency.skill.SkillPassives.more(bonus);
         }
         boolean empowered = ProcService.fire(player, skill, event.getEntity());
         if (empowered) {
             amount *= (float) (2.0 * ProcService.power(player, skill));
         }
         event.setAmount(amount);
-        SkillService.grant(player, skill, dev.amman.proficiency.skill.SpawnOrigin.xpFactor(event.getEntity()),
+        SkillService.grantNoFirstTime(player, skill,
+                dev.amman.proficiency.skill.SpawnOrigin.xpFactor(event.getEntity()),
                 event.getEntity().getType().getDescriptionId());
+        dev.amman.proficiency.skill.KillCredit.record(event.getEntity(), player, skill);
 
         if (empowered && TalentService.rank(player, skill, "echo_cast") > 0) {
             echo(event, player, amount * 0.5f);

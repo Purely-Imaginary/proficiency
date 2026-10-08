@@ -48,6 +48,9 @@ public final class XpFeedHud {
         long at;
         /** The newest gain's factors, as the text of the small second line; empty for none. */
         String factors;
+        /** The factor text wrapped for the width it was last drawn at, and that width. */
+        List<String> detail = List.of();
+        int detailFor = -1;
 
         Line(Skill skill, String source, float amount, float base, String factors, long at) {
             this.skill = skill;
@@ -147,7 +150,8 @@ public final class XpFeedHud {
         Font font = minecraft.font;
         int x = ProficiencyClientConfig.feedX();
         boolean showFactors = ProficiencyClientConfig.feedShowFactors();
-        int screenBottom = graphics.guiHeight() - 4;
+        // Stops above the hearts, the hotbar and the chat (about 44 pixels), not at the window edge.
+        int screenBottom = graphics.guiHeight() - 48;
         int baseY = Math.max(8, Math.round(graphics.guiHeight() * ProficiencyClientConfig.feedYFraction()));
         // Clear of the discovery banner, which a new biome puts up at the same moment. If that
         // would push the feed off the bottom, draw at the set place instead: the banner is brief.
@@ -158,10 +162,13 @@ public final class XpFeedHud {
         // Keep the newest lines that fit between here and the bottom edge.
         boolean overflow = overflowCount > 0;
         int room = screenBottom - (y + 11) - (overflow ? 10 : 0);
+        // Lines never run past the right edge: the source is cut, and the factor line wraps.
+        int maxWidth = graphics.guiWidth() - x - 4;
         int first = LINES.size();
         while (first > 0) {
             Line candidate = LINES.get(first - 1);
-            int step = showFactors && !candidate.factors.isEmpty() ? 10 + DETAIL_HEIGHT : 10;
+            int step = showFactors && !candidate.factors.isEmpty()
+                    ? 10 + DETAIL_HEIGHT * detail(font, candidate, maxWidth).size() : 10;
             if (step > room) {
                 break;
             }
@@ -171,16 +178,16 @@ public final class XpFeedHud {
         if (first == LINES.size()) {
             return;
         }
-        graphics.drawString(font, Component.translatable("proficiency.xpfeed.header"), x, y,
-                SkillPalette.TEXT_DIM, true);
+        TextFit.draw(graphics, font, "feed.header", Component.translatable("proficiency.xpfeed.header").getString(),
+                x, y, maxWidth, SkillPalette.TEXT_DIM, true);
         y += 11;
         if (overflow) {
             long oage = now - overflowAt;
             float ofade = oage <= visibleMs ? 1f : 1f - (oage - visibleMs) / (float) FADE_MS;
             int oa = Math.round(Math.max(0f, ofade) * 255);
             if (oa >= 8) {
-                graphics.drawString(font, Component.translatable("proficiency.xpfeed.overflow",
-                        format(overflowAmount), overflowCount), x, y,
+                TextFit.draw(graphics, font, "feed.overflow", Component.translatable("proficiency.xpfeed.overflow",
+                        format(overflowAmount), overflowCount).getString(), x, y, maxWidth,
                         (Math.round(oa * 0.75f) << 24) | (SkillPalette.TEXT_DIM & 0xFFFFFF), true);
             }
             y += 10;
@@ -190,26 +197,30 @@ public final class XpFeedHud {
             long age = now - line.at;
             float fade = age <= visibleMs ? 1f : 1f - (age - visibleMs) / (float) FADE_MS;
             int a = Math.round(Math.max(0f, fade) * 255);
-            boolean detail = showFactors && !line.factors.isEmpty();
-            int step = detail ? 10 + DETAIL_HEIGHT : 10;
+            List<String> detailLines = showFactors && !line.factors.isEmpty()
+                    ? detail(font, line, maxWidth) : List.of();
+            boolean detail = !detailLines.isEmpty();
+            int step = detail ? 10 + DETAIL_HEIGHT * detailLines.size() : 10;
             if (a < 8) {
                 y += step;
                 continue;
             }
-            MutableComponent text = Component.literal("+" + format(line.amount) + " ")
-                    .append(Component.translatable(line.skill.translationKey()));
-            if (!line.source.isEmpty()) {
-                text.append(" · " + TalentTreeScreen.sourceName(line.source));
-            }
-            if (line.count > 1) {
-                text.append(" ×" + line.count);
-            }
-            int width = font.width(text);
             // Base in grey after it: the gap between the two is the multipliers.
             String base = " (" + format(line.base) + ")";
             int baseWidth = font.width(base);
+            String head = "+" + format(line.amount) + " " + Component.translatable(line.skill.translationKey()).getString();
+            String count = line.count > 1 ? " \u00D7" + line.count : "";
+            int fixed = font.width(head) + font.width(count) + baseWidth;
             // The skill's icon leads the line, unless the line already runs to the right edge.
-            int icon = iconOn ? SkillIcons.fit(graphics.guiWidth() - x - 2, width + baseWidth, SkillIcons.SMALL) : 0;
+            int icon = iconOn ? SkillIcons.fit(maxWidth - 2, fixed, SkillIcons.SMALL) : 0;
+            int sourceRoom = maxWidth - SkillIcons.advance(icon) - fixed;
+            String source = line.source.isEmpty() ? "" : " \u00B7 " + TalentTreeScreen.sourceName(line.source);
+            String shownSource = TextFit.clip(font, source, Math.max(0, sourceRoom));
+            if (!shownSource.equals(source)) {
+                TextFit.note("feed.line");
+            }
+            MutableComponent text = Component.literal(head + shownSource + count);
+            int width = font.width(text);
             int tx = x + SkillIcons.advance(icon);
             graphics.fill(x - 2, y - 1, tx + width + baseWidth + 2, y + 9,
                     Math.round(a * 0.45f) << 24);
@@ -220,15 +231,33 @@ public final class XpFeedHud {
             if (detail) {
                 // Smaller and dimmer: the why under the what.
                 var pose = graphics.pose();
-                pose.pushPose();
-                pose.translate(x + 4 + SkillIcons.advance(icon), y + 10, 0);
-                pose.scale(DETAIL_SCALE, DETAIL_SCALE, 1f);
-                graphics.drawString(font, line.factors, 0, 0,
-                        (Math.round(a * 0.75f) << 24) | (SkillPalette.TEXT_DIM & 0xFFFFFF), true);
-                pose.popPose();
+                int lineY = y + 10;
+                for (String piece : detailLines) {
+                    pose.pushPose();
+                    pose.translate(x + 4 + SkillIcons.advance(icon), lineY, 0);
+                    pose.scale(DETAIL_SCALE, DETAIL_SCALE, 1f);
+                    graphics.drawString(font, piece, 0, 0,
+                            (Math.round(a * 0.75f) << 24) | (SkillPalette.TEXT_DIM & 0xFFFFFF), true);
+                    pose.popPose();
+                    lineY += DETAIL_HEIGHT;
+                }
             }
             y += step;
         }
+    }
+
+    /** The factor text wrapped (at most two lines) for the room under the line; cached per width. */
+    private static List<String> detail(Font font, Line line, int maxWidth) {
+        if (line.detailFor != maxWidth) {
+            int room = Math.round((maxWidth - 4 - SkillIcons.advance(SkillIcons.SMALL)) / DETAIL_SCALE);
+            boolean[] cut = new boolean[1];
+            line.detail = TextFit.pack(font, line.factors, room, 2, cut, TextFit.DOT_RE, TextFit.DOT);
+            line.detailFor = maxWidth;
+            if (line.detail.size() > 1 || cut[0]) {
+                TextFit.note("feed.detail");
+            }
+        }
+        return line.detail;
     }
 
     private static String format(float value) {

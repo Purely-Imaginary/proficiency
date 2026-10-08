@@ -32,5 +32,7 @@ class ProficiencyClientConfigTest {
         assertTrue(ProficiencyClientConfig.hudDeathRecap());
         assertTrue(ProficiencyClientConfig.procFxEnabled());
         assertTrue(ProficiencyClientConfig.uiSkillIcons());
+        assertTrue(ProficiencyClientConfig.tooltipSkillInfo());
+        assertFalse(ProficiencyClientConfig.tooltipAlwaysDetailed());
     }
 }

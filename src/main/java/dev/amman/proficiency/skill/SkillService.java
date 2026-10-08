@@ -26,6 +26,19 @@ public final class SkillService {
         return grantOnce(player, skill, baseAmount, source, 1.0);
     }
 
+    /**
+     * A kill bonus: its own log line (source {@code kill|<victim type>}), and the first-time bonus
+     * for that kind of mob, which hits never pay. Nothing is paid, first-time included, when the
+     * kill pays nothing (a spawn-egg mob).
+     */
+    public static float grantKill(Player player, Skill skill, double baseAmount, String victimType) {
+        float amount = grantOnce(player, skill, baseAmount, KillXp.KILL_PREFIX + victimType, 1.0);
+        if (amount > 0 && player instanceof ServerPlayer serverPlayer) {
+            firstTime(serverPlayer, skill, victimType);
+        }
+        return amount;
+    }
+
     public static void grant(Player player, Skill skill, double baseAmount) {
         grant(player, skill, baseAmount, null);
     }
@@ -58,6 +71,7 @@ public final class SkillService {
         }
         return source != null && !source.isEmpty()
                 && !source.startsWith(FirstTimeKinds.FIRST_PREFIX)
+                && !source.startsWith(KillXp.KILL_PREFIX)
                 && !source.startsWith("proficiency.")
                 && !source.startsWith("biome.")
                 && !source.startsWith("dimension.")

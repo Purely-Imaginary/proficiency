@@ -34,6 +34,7 @@ public final class ClientInputEvents {
     public static void onClientTick(ClientTickEvent.Post event) {
         SkillTooltip.tick();
         Minecraft minecraft = Minecraft.getInstance();
+        LayoutDemo.tick(minecraft);
         if (OPEN_TREE != null && !openedFromEnvironment && minecraft.player != null
                 && (minecraft.screen == null
                         || minecraft.screen instanceof net.minecraft.client.gui.screens.PauseScreen)

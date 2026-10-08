@@ -58,10 +58,16 @@ def main():
         del lang[key]
     for key in [k for k in lang if k.startswith("proficiency.special.")]:
         del lang[key]
+    # One-line versions for the short tooltip (tools/talent_short.json); a node whose description is
+    # already short has none, and the root nodes share one line.
+    shorts = json.load(open(os.path.join(ROOT, "tools/talent_short.json")))
+    lang["proficiency.talent.root.short"] = shorts["root"]
     for skill, nodes in spec.TREES.items():
         for n in nodes:
             lang[f"proficiency.talent.{skill}.{n['id']}"] = n["name"]
             lang[f"proficiency.talent.{skill}.{n['id']}.desc"] = n["desc"]
+            if f"{skill}.{n['id']}" in shorts:
+                lang[f"proficiency.talent.{skill}.{n['id']}.short"] = shorts[f"{skill}.{n['id']}"]
     json.dump(lang, open(LANG, "w"), ensure_ascii=False, indent=2)
     open(LANG, "a").write("\n")
     write_reference()

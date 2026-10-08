@@ -59,15 +59,7 @@ public final class CompanyBonus {
 
     /** The Social talents of one player that change the bonus. */
     public static SocialMath.Talents talents(ServerPlayer player) {
-        PlayerSkills skills = ProficiencyAttachments.of(player);
-        return new SocialMath.Talents(
-                TalentService.rank(skills, Skill.SOCIAL, "company_radius"),
-                TalentService.rank(skills, Skill.SOCIAL, "camaraderie_up"),
-                TalentService.rank(skills, Skill.SOCIAL, "mentor_up"),
-                TalentService.rank(skills, Skill.SOCIAL, "mentor_gap"),
-                TalentService.rank(skills, Skill.SOCIAL, "company_linger"),
-                TalentService.rank(skills, Skill.SOCIAL, "company_crowd"),
-                TalentService.rank(skills, Skill.SOCIAL, "heart_of_group") > 0);
+        return SkillPassives.socialTalents(ProficiencyAttachments.of(player));
     }
 
     /** Who counts as company for this player in this skill, right now, before any lingering. */

@@ -26,7 +26,9 @@ public final class ClientConfigScreen extends Screen {
 
     private static final String LANG = "proficiency.configuration.";
     private static final int ROW = 22;
-    private static final int WIDTH = 240;
+    private static final int MIN_WIDTH = 240;
+    /** Row width; grows to the longest label, up to what the window allows. */
+    private int rowWidth = MIN_WIDTH;
 
     private final Screen parent;
     private final List<Header> headers = new ArrayList<>();
@@ -46,7 +48,8 @@ public final class ClientConfigScreen extends Screen {
     protected void init() {
         headers.clear();
         rows.clear();
-        int x = (width - WIDTH) / 2;
+        rowWidth = measureRows();
+        int x = (width - rowWidth) / 2;
         int y = 32;
         String section = "";
         for (ProficiencyClientConfig.Entry entry : ProficiencyClientConfig.entries()) {
@@ -68,13 +71,33 @@ public final class ClientConfigScreen extends Screen {
         place();
     }
 
+    /**
+     * A row wide enough for its longest label with the value after it ("Label: Off", "Label: 0.350"),
+     * between 240 and 400 pixels and never wider than the window. A label still longer than that
+     * scrolls inside the button, as every vanilla button does.
+     */
+    private int measureRows() {
+        int need = 0;
+        for (ProficiencyClientConfig.Entry entry : ProficiencyClientConfig.entries()) {
+            Component label = Component.translatable(LANG + entry.key());
+            int value = Math.max(font.width(": 0.000"), font.width(": " + CommonComponents.OPTION_OFF.getString()));
+            need = Math.max(need, font.width(label) + value + 16);
+        }
+        int wanted = Math.max(MIN_WIDTH, Math.min(400, need));
+        int allowed = Math.max(150, width - 16);
+        if (wanted > allowed) {
+            TextFit.note("config.rows_narrow");
+        }
+        return Math.min(wanted, allowed);
+    }
+
     @SuppressWarnings("unchecked")
     private AbstractWidget widget(ProficiencyClientConfig.Entry entry, int x, int y) {
         Component label = Component.translatable(LANG + entry.key());
         Object current = entry.value().get();
         if (current instanceof Boolean on) {
             ForgeConfigSpec.ConfigValue<Boolean> value = (ForgeConfigSpec.ConfigValue<Boolean>) entry.value();
-            return CycleButton.onOffBuilder(on).create(x, y, WIDTH, 20, label,
+            return CycleButton.onOffBuilder(on).create(x, y, rowWidth, 20, label,
                     (button, next) -> value.set(next));
         }
         boolean whole = current instanceof Integer;
@@ -89,7 +112,7 @@ public final class ClientConfigScreen extends Screen {
         private final boolean whole;
 
         Slider(int x, int y, Component label, ProficiencyClientConfig.Entry entry, boolean whole, double number) {
-            super(x, y, WIDTH, 20, Component.empty(),
+            super(x, y, rowWidth, 20, Component.empty(),
                     (number - entry.min()) / Math.max(1e-9, entry.max() - entry.min()));
             this.label = label;
             this.entry = entry;
@@ -160,11 +183,13 @@ public final class ClientConfigScreen extends Screen {
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         renderBackground(graphics);
-        graphics.drawCenteredString(font, title, width / 2, 12, 0xFFFFFF);
+        String titleText = TextFit.clip(font, title.getString(), width - 16);
+        graphics.drawString(font, titleText, (width - font.width(titleText)) / 2, 12, 0xFFFFFF, false);
         for (Header header : headers) {
             int y = header.y() - scroll;
             if (y >= 28 && y <= height - 40) {
-                graphics.drawString(font, header.text(), (width - WIDTH) / 2, y, 0xFFD27F);
+                TextFit.draw(graphics, font, "config.header", header.text().getString(), (width - rowWidth) / 2, y,
+                        rowWidth, 0xFFD27F, false);
             }
         }
         for (AbstractWidget widget : rows) {

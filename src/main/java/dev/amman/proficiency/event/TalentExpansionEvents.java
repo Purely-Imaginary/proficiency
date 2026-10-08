@@ -166,7 +166,7 @@ public final class TalentExpansionEvents {
 
     /** Half the Wayfaring passive, which is what the Trailwise description promises. */
     private static double walkShare(Player player) {
-        return 0.5 * SkillService.bonus(player, Skill.WAYFARING);
+        return dev.amman.proficiency.skill.SkillPassives.walkShare(SkillService.bonus(player, Skill.WAYFARING));
     }
 
     /**

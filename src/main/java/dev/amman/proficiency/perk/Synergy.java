@@ -51,6 +51,11 @@ public record Synergy(
         return "proficiency.synergy." + id + ".desc";
     }
 
+    /** The one-line version for the short tooltip; absent when the description is already short. */
+    public String shortKey() {
+        return "proficiency.synergy." + id + ".short";
+    }
+
     /** Whether this synergy has anything to do with a tree, either as a need or a payout. */
     public boolean involves(Skill skill) {
         return requires.stream().anyMatch(need -> need.skill() == skill)

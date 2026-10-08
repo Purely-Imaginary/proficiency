@@ -220,7 +220,8 @@ public final class SkillHud {
 
         // Above the label, not below the bar: below is the item-name and action-bar zone.
         if (ActiveService.isFrenzied(minecraft.player, skill)) {
-            Component frenzy = Component.translatable(skill.activeKey());
+            String frenzy = TextFit.clip(minecraft.font, Component.translatable(skill.activeKey()).getString(),
+                    graphics.guiWidth() - 16);
             int width = minecraft.font.width(frenzy);
             graphics.drawString(minecraft.font, frenzy,
                     graphics.guiWidth() / 2 - width / 2, graphics.guiHeight() - LINE_FROM_BOTTOM - 11,
@@ -262,6 +263,16 @@ public final class SkillHud {
         if (badge) {
             total += GAP_WIDTH + StreakBadge.WIDTH + cPctW;
         }
+        // A name too long for the screen is cut so the level and the badge stay whole.
+        String prefix = cPrefix;
+        int prefixWidth = cPrefixW;
+        int available = graphics.guiWidth() - 16;
+        if (total > available) {
+            prefix = TextFit.clip(font, cPrefix, Math.max(font.width("\u2026"), cPrefixW - (total - available)));
+            prefixWidth = font.width(prefix);
+            total = total - cPrefixW + prefixWidth;
+            TextFit.note("hud.line");
+        }
         int x = centreX - total / 2;
         // The skill's icon hangs left of the text, so the text stays centred over the bar. It goes
         // rather than run off a narrow screen.
@@ -277,8 +288,8 @@ public final class SkillHud {
             base = StreakBadge.lerp(rgb, gold ? GOLD_FLASH : 0xFFFFFF, Math.min(1f, flash * 0.85f));
         }
         int colour = a24 | base;
-        graphics.drawString(font, cPrefix, x, y, colour, true);
-        int numX = x + cPrefixW;
+        graphics.drawString(font, prefix, x, y, colour, true);
+        int numX = x + prefixWidth;
         if (rolling && alpha > 8) {
             float roll = LevelUpFx.roll(now);
             int slide = Math.round(roll * 9);

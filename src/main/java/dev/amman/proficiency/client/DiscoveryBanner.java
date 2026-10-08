@@ -45,7 +45,9 @@ public final class DiscoveryBanner {
     private static final float TITLE_SCALE = 3.0f;
     private static final int RULE_LENGTH = 48;
     /** Tallest a banner gets at scale 1: kicker, a full-size title, and the XP line. */
-    private static final int MAX_HEIGHT = 54;
+    private static final int MAX_HEIGHT = 84;
+    /** Smallest the title is drawn on one line; a longer name goes onto two lines at a bigger size. */
+    private static final float MIN_ONE_LINE_SCALE = 1.4f;
 
     /** A first-time kind (a new ore for Mining) is small news next to a new biome. */
     private static final float FIRST_SCALE = 2.0f;
@@ -302,37 +304,73 @@ public final class DiscoveryBanner {
         int kickerColour = reveal ? BannerStyle.kickerTint(banner.tint()) : KICKER_COLOUR;
 
         Component kicker = banner.kicker();
+        int kickerLines = 0;
         if (kicker != null) {
-            int kickerWidth = font.width(kicker);
-            // The kicker shrinks to fit a narrow window; the rules need 54 pixels a side, so
-            // they go when they would run off the edge.
-            float kickerScale = Math.min(1f, width * 0.95f / Math.max(1, kickerWidth));
-            boolean rules = kickerWidth * kickerScale / 2 + 6 + RULE_LENGTH <= width / 2f;
-            graphics.pose().pushPose();
-            graphics.pose().scale(kickerScale, kickerScale, 1f);
-            graphics.drawString(font, kicker, -kickerWidth / 2, top, (a << 24) | kickerColour, true);
-            if (rules) {
-                rule(graphics, -kickerWidth / 2 - 6, top + 4, -1, a, kickerColour);
-                rule(graphics, kickerWidth / 2 + 5, top + 4, 1, a, kickerColour);
+            // The kicker wraps to two lines when it is wider than the screen allows, instead of
+            // shrinking until it is hard to read.
+            java.util.List<FormattedCharSequence> pieces = TextFit.wrap(font, kicker, Math.round(width * 0.9f));
+            kickerLines = Math.min(2, pieces.size());
+            if (pieces.size() > 2) {
+                TextFit.note("banner.kicker");
+                pieces = java.util.List.of(pieces.get(0), TextFit.clip(font,
+                        net.minecraft.network.chat.FormattedText.of(kickerPlain(pieces, 1)), Math.round(width * 0.9f)));
             }
-            graphics.pose().popPose();
+            if (kickerLines > 1) {
+                TextFit.note("banner.kicker");
+            }
+            for (int i = 0; i < kickerLines; i++) {
+                FormattedCharSequence piece = pieces.get(i);
+                int pieceWidth = font.width(piece);
+                graphics.drawString(font, piece, -pieceWidth / 2, top + i * 10, (a << 24) | kickerColour, true);
+                // The rules need 54 pixels a side, so they go when they would run off the edge.
+                if (kickerLines == 1 && pieceWidth / 2 + 6 + RULE_LENGTH <= width / 2f) {
+                    rule(graphics, -pieceWidth / 2 - 6, top + 4, -1, a, kickerColour);
+                    rule(graphics, pieceWidth / 2 + 5, top + 4, 1, a, kickerColour);
+                }
+            }
         }
-        int titleTop = kicker == null ? top + 4 : top + 12;
+        int titleTop = kicker == null ? top + 4 : top + 2 + kickerLines * 10;
 
-        // Shrink a long modded name to fit rather than run off both edges.
         int titleWidth = font.width(banner.title());
         float full = banner.kind() == DiscoveryPayload.FIRST ? FIRST_SCALE
                 : banner.kind() == DiscoveryPayload.ENTER ? ENTER_SCALE : TITLE_SCALE;
         boolean hasIcon = reveal && !icon.isEmpty();
         // The icon is about a text line tall (11 text units with its gap), and sits left of the title.
         float iconUnits = hasIcon ? 13f : 0f;
+        // A long name shrinks to fit on one line, down to a readable size; below that it goes onto
+        // two lines at a larger size (the letter-by-letter reveal is skipped for those).
         float scale = Math.min(full, width * 0.9f / Math.max(1, titleWidth + iconUnits));
+        java.util.List<FormattedCharSequence> titleLinesList = null;
+        if (scale < Math.min(full, MIN_ONE_LINE_SCALE)) {
+            float candidate = Math.min(full, 2.2f);
+            while (true) {
+                int room = Math.round(width * 0.9f / candidate);
+                java.util.List<FormattedCharSequence> split = TextFit.wrap(font, banner.title(), room);
+                if (split.size() <= 2 || candidate <= 1.0f) {
+                    titleLinesList = split.size() > 3 ? split.subList(0, 3) : split;
+                    scale = candidate;
+                    break;
+                }
+                candidate -= 0.2f;
+            }
+            TextFit.note("banner.title_wrapped");
+            hasIcon = false;
+            iconUnits = 0f;
+        }
+        int titleLineCount = titleLinesList == null ? 1 : titleLinesList.size();
         graphics.pose().pushPose();
         graphics.pose().translate(0, titleTop, 0);
         graphics.pose().scale(scale, scale, 1f);
         // Shift right by half the icon so the icon and title together stay centred.
         float shift = iconUnits / 2f;
-        if (reveal) {
+        if (titleLinesList != null) {
+            int line = 0;
+            for (FormattedCharSequence piece : titleLinesList) {
+                graphics.drawString(font, piece, -font.width(piece) / 2, line * 10,
+                        ((reveal ? ta : a) << 24) | titleColour, true);
+                line++;
+            }
+        } else if (reveal) {
             drawRevealed(graphics, font, banner, ta, titleColour, titleWidth, shift, age);
         } else {
             graphics.drawString(font, banner.title(), -titleWidth / 2, 0, (a << 24) | TITLE_COLOUR, true);
@@ -352,18 +390,43 @@ public final class DiscoveryBanner {
         }
         graphics.pose().popPose();
 
-        int y = titleTop + Math.round(9 * scale) + 5;
+        int y = titleTop + Math.round((9 + (titleLineCount - 1) * 10) * scale) + 5;
         if (banner.xp() != null) {
-            // The skill line: the skill's icon, then "+15 XP Mining", centred together.
+            // The skill line: the skill's icon, then "+15 XP Mining", centred together; two lines
+            // (no icon) when it is wider than the screen.
             int xpWidth = font.width(banner.xp());
-            int icon = SkillIcons.enabled()
-                    ? SkillIcons.fit(Math.round(width) - 8, xpWidth, SkillIcons.SMALL) : 0;
-            int left = -(xpWidth + SkillIcons.advance(icon)) / 2;
-            SkillIcons.draw(graphics, banner.skill(), left, SkillIcons.smallTop(y), icon, a);
-            graphics.drawString(font, banner.xp(), left + SkillIcons.advance(icon), y,
-                    (a << 24) | (SkillPalette.accent(banner.skill().category()) & 0xFFFFFF), true);
+            int room = Math.round(width) - 8;
+            if (xpWidth > room) {
+                java.util.List<FormattedCharSequence> pieces = TextFit.wrap(font, banner.xp(), room);
+                TextFit.note("banner.xp");
+                int count = Math.min(2, pieces.size());
+                for (int i = 0; i < count; i++) {
+                    FormattedCharSequence piece = pieces.get(i);
+                    graphics.drawString(font, piece, -font.width(piece) / 2, y + i * 10,
+                            (a << 24) | (SkillPalette.accent(banner.skill().category()) & 0xFFFFFF), true);
+                }
+                y += (count - 1) * 10;
+            } else {
+                int icon = SkillIcons.enabled() ? SkillIcons.fit(room, xpWidth, SkillIcons.SMALL) : 0;
+                int left = -(xpWidth + SkillIcons.advance(icon)) / 2;
+                SkillIcons.draw(graphics, banner.skill(), left, SkillIcons.smallTop(y), icon, a);
+                graphics.drawString(font, banner.xp(), left + SkillIcons.advance(icon), y,
+                        (a << 24) | (SkillPalette.accent(banner.skill().category()) & 0xFFFFFF), true);
+            }
         }
         return y + 10;
+    }
+
+    private static String kickerPlain(java.util.List<FormattedCharSequence> pieces, int from) {
+        StringBuilder out = new StringBuilder();
+        for (int i = from; i < pieces.size(); i++) {
+            pieces.get(i).accept((index, style, codePoint) -> {
+                out.appendCodePoint(codePoint);
+                return true;
+            });
+            out.append(' ');
+        }
+        return out.toString().strip();
     }
 
     /**

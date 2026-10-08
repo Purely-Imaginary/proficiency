@@ -95,7 +95,7 @@ public final class CraftingEvents {
         }
         double bonus = SkillService.bonus(player, Skill.SMITHING);
         if (bonus > 0) {
-            event.setBreakChance((float) (event.getBreakChance() * (1.0 - Math.min(0.9, bonus))));
+            event.setBreakChance((float) (event.getBreakChance() * dev.amman.proficiency.skill.SkillPassives.lessUpTo90(bonus)));
         }
         SkillService.grant(player, Skill.SMITHING, 2.0, "proficiency.xplog.source.anvil");
     }
@@ -138,7 +138,7 @@ public final class CraftingEvents {
         if (cost <= 0 || bonus <= 0) {
             return cost;
         }
-        return (int) Math.max(1L, Math.round(cost * (1.0 - Math.min(0.75, bonus))));
+        return (int) Math.max(1L, Math.round(cost * dev.amman.proficiency.skill.SkillPassives.anvilCostFactor(bonus)));
     }
 
     /**
@@ -351,7 +351,7 @@ public final class CraftingEvents {
             if (active == null || active.isInfiniteDuration()) {
                 continue;
             }
-            int stretched = (int) Math.round(active.getDuration() * (1.0 + bonus));
+            int stretched = (int) Math.round(active.getDuration() * dev.amman.proficiency.skill.SkillPassives.more(bonus));
             if (stretched <= active.getDuration()) {
                 continue;
             }

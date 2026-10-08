@@ -76,6 +76,8 @@ public final class DiscoveryJournalScreen extends Screen {
     private int panelHeight;
     private int viewTop;
     private int viewHeight;
+    private int tabsHeight = TAB_HEIGHT;
+    private final TextFit.Hovers hovers = new TextFit.Hovers();
 
     public DiscoveryJournalScreen(Screen parent) {
         super(Component.translatable("proficiency.journal.title"));
@@ -90,21 +92,54 @@ public final class DiscoveryJournalScreen extends Screen {
         panelY = (this.height - panelHeight) / 2;
 
         int tabsTop = panelY + PADDING + 14;
-        int tabWidth = (panelWidth - PADDING * 2 - TAB_GAP * 3) / 4;
-        tabButtons.clear();
+        // Four tabs of equal width when every label fits one; else widths by label; else two rows.
+        int inner = panelWidth - PADDING * 2;
+        int[] want = new int[4];
+        int sum = 0;
+        int widest = 0;
         for (Tab each : Tab.values()) {
-            int x = panelX + PADDING + each.ordinal() * (tabWidth + TAB_GAP);
+            want[each.ordinal()] = this.font.width(Component.translatable(each.key())) + 12;
+            sum += want[each.ordinal()];
+            widest = Math.max(widest, want[each.ordinal()]);
+        }
+        int equal = (inner - TAB_GAP * 3) / 4;
+        boolean twoRows = widest > equal && sum + TAB_GAP * 3 > inner;
+        tabsHeight = twoRows ? TAB_HEIGHT * 2 + TAB_GAP : TAB_HEIGHT;
+        tabButtons.clear();
+        int cursor = panelX + PADDING;
+        for (Tab each : Tab.values()) {
+            int i = each.ordinal();
+            int x;
+            int y = tabsTop;
+            int w;
+            if (twoRows) {
+                w = (inner - TAB_GAP) / 2;
+                x = panelX + PADDING + (i % 2) * (w + TAB_GAP);
+                y = tabsTop + (i / 2) * (TAB_HEIGHT + TAB_GAP);
+            } else if (widest > equal) {
+                // Spread the spare room evenly over the labels.
+                w = want[i] + (inner - TAB_GAP * 3 - sum) / 4;
+                x = cursor;
+                cursor += w + TAB_GAP;
+            } else {
+                w = equal;
+                x = panelX + PADDING + i * (equal + TAB_GAP);
+            }
             Button button = addWidget(Button.builder(Component.translatable(each.key()), b -> select(each))
-                    .bounds(x, tabsTop, tabWidth, TAB_HEIGHT).build());
+                    .bounds(x, y, w, TAB_HEIGHT).build());
             tabButtons.add(button);
         }
+        if (widest > equal) {
+            TextFit.note(twoRows ? "journal.tabs_two_rows" : "journal.tabs_by_label");
+        }
         // Summary line and bar sit under the tabs; the list takes what is left above Back.
-        viewTop = tabsTop + TAB_HEIGHT + 24;
+        viewTop = tabsTop + tabsHeight + 24;
         int backTop = panelY + panelHeight - PADDING - BUTTON_HEIGHT;
         viewHeight = Math.max(LINE * 3, backTop - 4 - viewTop);
+        int backWidth = Math.max(80, this.font.width(Component.translatable("proficiency.journal.back")) + 16);
         backButton = addWidget(Button.builder(Component.translatable("proficiency.journal.back"),
                         b -> onClose())
-                .bounds(panelX + (panelWidth - 80) / 2, backTop, 80, BUTTON_HEIGHT).build());
+                .bounds(panelX + (panelWidth - backWidth) / 2, backTop, backWidth, BUTTON_HEIGHT).build());
         rebuild();
     }
 
@@ -242,8 +277,10 @@ public final class DiscoveryJournalScreen extends Screen {
         renderBackground(graphics);
         graphics.fill(panelX, panelY, panelX + panelWidth, panelY + panelHeight, SkillPalette.PANEL);
         border(graphics, panelX, panelY, panelWidth, panelHeight, SkillPalette.PANEL_BORDER);
-        graphics.drawCenteredString(this.font, this.title, panelX + panelWidth / 2, panelY + PADDING,
-                SkillPalette.TEXT);
+        hovers.clear();
+        String titleText = TextFit.clip(this.font, this.title.getString(), panelWidth - PADDING * 2);
+        graphics.drawString(this.font, titleText, panelX + (panelWidth - this.font.width(titleText)) / 2,
+                panelY + PADDING, SkillPalette.TEXT, false);
 
         int accent = SkillPalette.accent(tab.category);
         for (int i = 0; i < tabButtons.size(); i++) {
@@ -258,6 +295,12 @@ public final class DiscoveryJournalScreen extends Screen {
 
         drawSummary(graphics, accent);
         drawList(graphics);
+        if (mouseY >= viewTop && mouseY < viewTop + viewHeight) {
+            List<Component> full = hovers.at(mouseX, mouseY);
+            if (full != null) {
+                TextFit.tooltip(graphics, this.font, full, mouseX, mouseY, Math.min(300, this.width - 16));
+            }
+        }
     }
 
     private void drawSummary(GuiGraphics graphics, int accent) {
@@ -267,13 +310,14 @@ public final class DiscoveryJournalScreen extends Screen {
         Component text;
         if (tab == Tab.SKILLS) {
             text = Component.translatable("proficiency.journal.skills.summary", found);
-            graphics.drawString(this.font, text, left, top, SkillPalette.TEXT, false);
+            TextFit.draw(graphics, this.font, "journal.summary", text.getString(), left, top, width,
+                    SkillPalette.TEXT, false);
             return;
         }
         boolean complete = total > 0 && found >= total;
         text = Component.translatable("proficiency.journal.found", found, total);
-        graphics.drawString(this.font, text, left, top, complete ? SkillPalette.MAXED : SkillPalette.TEXT,
-                false);
+        TextFit.draw(graphics, this.font, "journal.summary", text.getString(), left, top, width,
+                complete ? SkillPalette.MAXED : SkillPalette.TEXT, false);
         int barTop = top + 11;
         graphics.fill(left, barTop, left + width, barTop + BAR_HEIGHT, SkillPalette.TRACK);
         int filled = total <= 0 ? 0 : Math.round(width * Math.min(1f, found / (float) total));
@@ -295,8 +339,13 @@ public final class DiscoveryJournalScreen extends Screen {
         for (Line line : lines) {
             if (y + LINE > viewTop && y < viewTop + viewHeight) {
                 int rightWidth = line.right().isEmpty() ? 0 : this.font.width(line.right()) + 4;
-                graphics.drawString(this.font, clip(line.text(), width - rightWidth), left + (line.header() ? 0 : 4),
-                        y, line.colour(), false);
+                int room = width - rightWidth - (line.header() ? 0 : 4);
+                String shown = clip(line.text(), room);
+                graphics.drawString(this.font, shown, left + (line.header() ? 0 : 4), y, line.colour(), false);
+                if (!shown.equals(line.text())) {
+                    TextFit.note("journal.row");
+                    hovers.add(left, y, room, LINE, Component.literal(line.text()));
+                }
                 if (!line.right().isEmpty()) {
                     graphics.drawString(this.font, line.right(), left + width - this.font.width(line.right()),
                             y, SkillPalette.TEXT_DIM, false);
@@ -317,11 +366,9 @@ public final class DiscoveryJournalScreen extends Screen {
 
     /** Cuts to fit, with an ellipsis, so a long modded name cannot run into the count. */
     private String clip(String text, int width) {
-        if (this.font.width(text) <= width) {
-            return text;
-        }
-        return this.font.plainSubstrByWidth(text, Math.max(0, width - this.font.width("..."))) + "...";
+        return TextFit.clip(this.font, text, width);
     }
+
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollY) {

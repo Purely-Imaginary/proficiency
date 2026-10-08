@@ -36,6 +36,7 @@ public final class ProficiencyClientConfig {
     private static final ForgeConfigSpec.BooleanValue BANNERS_SOUND;
     private static final ForgeConfigSpec.BooleanValue BANNERS_REVEAL;
     private static final ForgeConfigSpec.BooleanValue TOOLTIP_SKILL_INFO;
+    private static final ForgeConfigSpec.BooleanValue TOOLTIP_ALWAYS_DETAILED;
     private static final ForgeConfigSpec.IntValue FEED_X;
     private static final ForgeConfigSpec.DoubleValue FEED_Y;
     private static final ForgeConfigSpec.IntValue FEED_MAX_LINES;
@@ -118,8 +119,11 @@ public final class ProficiencyClientConfig {
                 .translation(LANG + "tooltip").push("tooltip");
         TOOLTIP_SKILL_INFO = b.comment("A tool, weapon or other item that trains a skill shows the "
                 + "skill, your passive, the signature proc and the ability in its tooltip. "
-                + "The details sit behind Shift.")
+                + "The details sit behind Shift (or see alwaysDetailed).")
                 .translation(LANG + "tooltip.skillInfo").define("skillInfo", true);
+        TOOLTIP_ALWAYS_DETAILED = b.comment("Every tooltip of the mod shows its detailed layer at once "
+                + "and the Shift hint goes away. Off: short tooltips, details on Shift.")
+                .translation(LANG + "tooltip.alwaysDetailed").define("alwaysDetailed", false);
         b.pop();
 
         b.comment("The skills panel and the talent trees.")
@@ -185,6 +189,7 @@ public final class ProficiencyClientConfig {
                 new Entry("hud", "hud.streakFx", HUD_STREAK_FX, 0, 0),
                 new Entry("hud", "hud.deathRecap", HUD_DEATH_RECAP, 0, 0),
                 new Entry("tooltip", "tooltip.skillInfo", TOOLTIP_SKILL_INFO, 0, 0),
+                new Entry("tooltip", "tooltip.alwaysDetailed", TOOLTIP_ALWAYS_DETAILED, 0, 0),
                 new Entry("screens", "screens.unlockFx", SCREENS_UNLOCK_FX, 0, 0),
                 new Entry("screens", "screens.activity", SCREENS_ACTIVITY, 0, 0),
                 new Entry("procFx", "procFx.enabled", PROC_FX_ENABLED, 0, 0),
@@ -237,6 +242,10 @@ public final class ProficiencyClientConfig {
 
     public static boolean tooltipSkillInfo() {
         return flag(TOOLTIP_SKILL_INFO, true);
+    }
+
+    public static boolean tooltipAlwaysDetailed() {
+        return flag(TOOLTIP_ALWAYS_DETAILED, false);
     }
 
     public static int feedX() {

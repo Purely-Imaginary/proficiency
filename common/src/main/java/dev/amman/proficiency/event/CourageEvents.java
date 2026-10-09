@@ -89,7 +89,17 @@ public final class CourageEvents {
 
     // ---- Reading the fight --------------------------------------------------------------------
 
+    /**
+     * The boss rules of the XP table decide (the shipped ones follow the notable_bosses tag and the
+     * common boss tags, a pack datapack adds and removes ids), so Courage and the kill bonus never
+     * disagree about the same mob. The tags are the fallback when no rule speaks.
+     */
     public static boolean isBoss(LivingEntity entity) {
+        var rule = dev.amman.proficiency.xp.XpSources.table().match(dev.amman.proficiency.xp.XpDomain.BOSS,
+                dev.amman.proficiency.xp.XpSubjects.entity(entity));
+        if (rule != null) {
+            return Boolean.TRUE.equals(rule.rule().boss);
+        }
         return entity.getType().is(NOTABLE_BOSSES) || entity.getType().is(Tags.EntityTypes.BOSSES);
     }
 

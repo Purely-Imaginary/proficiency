@@ -62,6 +62,21 @@ public final class NeoForgePlatform implements Platform {
     }
 
     @Override
+    public boolean canDig(ItemStack stack, String kind) {
+        if (stack.isEmpty()) {
+            return false;
+        }
+        net.neoforged.neoforge.common.ItemAbility ability = switch (kind) {
+            case "pickaxe" -> net.neoforged.neoforge.common.ItemAbilities.PICKAXE_DIG;
+            case "shovel" -> net.neoforged.neoforge.common.ItemAbilities.SHOVEL_DIG;
+            case "axe" -> net.neoforged.neoforge.common.ItemAbilities.AXE_DIG;
+            case "hoe" -> net.neoforged.neoforge.common.ItemAbilities.HOE_DIG;
+            default -> null;
+        };
+        return Platform.super.canDig(stack, kind) || (ability != null && stack.canPerformAction(ability));
+    }
+
+    @Override
     public boolean isModLoaded(String modId) {
         return ModList.get().isLoaded(modId);
     }

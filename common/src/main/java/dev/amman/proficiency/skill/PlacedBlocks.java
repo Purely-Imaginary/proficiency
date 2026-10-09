@@ -105,17 +105,96 @@ public final class PlacedBlocks {
         return unpaid;
     }
 
+    // ---- Refunded blocks ---------------------------------------------------------------------
+
+    private static final int COUNT_MASK = 0xFF;
+
+    private static int refundKey(BlockState state, int count) {
+        return (hash(state) & ~COUNT_MASK) | Math.min(COUNT_MASK, Math.max(1, count));
+    }
+
+    /**
+     * A refund talent paid {@code count} items for placing this block. Breaking or picking it back
+     * up must give them back, or place and pick up is a free block per cycle. Unlike the placed
+     * mark this is kept even when placed blocks pay XP, because the refund is the problem and not
+     * the XP.
+     */
+    public static void markRefunded(ServerLevel level, BlockPos pos, BlockState state, int count) {
+        PlacedBlocksData data = PlacedBlocksData.get(level);
+        data.refunded.mark(pos.getX(), pos.getY(), pos.getZ(), refundKey(state, count));
+        data.setDirty();
+    }
+
+    /** How many refunded items ride on the block standing here, 0 for none. A stale mark is dropped. */
+    public static int refundedCount(Level level, BlockPos pos, BlockState state) {
+        if (!(level instanceof ServerLevel server)) {
+            return 0;
+        }
+        PlacedBlocksData data = PlacedBlocksData.get(server);
+        PlacedBlockStore refunded = data.refunded;
+        if (refunded.isEmpty() || !refunded.isMarked(pos.getX(), pos.getY(), pos.getZ())) {
+            return 0;
+        }
+        int stored = refunded.hashAt(pos.getX(), pos.getY(), pos.getZ());
+        if ((stored & ~COUNT_MASK) != (hash(state) & ~COUNT_MASK)) {
+            refunded.clear(pos.getX(), pos.getY(), pos.getZ());
+            data.setDirty();
+            return 0;
+        }
+        return stored & COUNT_MASK;
+    }
+
+    /** As {@link #refundedCount}, and the mark goes: the block is being taken. */
+    public static int consumeRefunded(Level level, BlockPos pos, BlockState state) {
+        int count = refundedCount(level, pos, state);
+        if (count > 0) {
+            clearRefunded((ServerLevel) level, pos);
+        }
+        return count;
+    }
+
+    /** Whether a refunded mark is stored here, whatever block stands there now. */
+    public static boolean rawRefunded(ServerLevel level, BlockPos pos) {
+        return PlacedBlocksData.get(level).refunded.isMarked(pos.getX(), pos.getY(), pos.getZ());
+    }
+
+    /** The refunded count stored here whatever block stands now (0 for none), for the post-click check. */
+    public static int rawRefundedCount(ServerLevel level, BlockPos pos) {
+        PlacedBlockStore refunded = PlacedBlocksData.get(level).refunded;
+        return refunded.isMarked(pos.getX(), pos.getY(), pos.getZ())
+                ? refunded.hashAt(pos.getX(), pos.getY(), pos.getZ()) & COUNT_MASK : 0;
+    }
+
+    public static void clearRefunded(ServerLevel level, BlockPos pos) {
+        PlacedBlocksData data = PlacedBlocksData.get(level);
+        if (data.refunded.clear(pos.getX(), pos.getY(), pos.getZ())) {
+            data.setDirty();
+        }
+    }
+
     /** A piston is about to move or crush blocks: marks travel with the blocks pushed. */
     public static void pistonMove(Level level, BlockPos pistonPos, Direction facing, boolean extending) {
-        if (!(level instanceof ServerLevel server) || store(server).isEmpty()) {
+        if (!(level instanceof ServerLevel server)) {
+            return;
+        }
+        PlacedBlocksData data = PlacedBlocksData.get(server);
+        if (data.store.isEmpty() && data.refunded.isEmpty()) {
             return;
         }
         PistonStructureResolver resolver = new PistonStructureResolver(level, pistonPos, facing, extending);
         if (!resolver.resolve()) {
             return;
         }
-        PlacedBlockStore store = store(server);
         Direction move = extending ? facing : facing.getOpposite();
+        movePushed(data.store, resolver, move);
+        movePushed(data.refunded, resolver, move);
+        data.setDirty();
+    }
+
+    private static void movePushed(PlacedBlockStore store, PistonStructureResolver resolver, Direction move) {
+        if (store.isEmpty()) {
+            return;
+        }
         for (BlockPos crushed : resolver.getToDestroy()) {
             store.clear(crushed.getX(), crushed.getY(), crushed.getZ());
         }
@@ -134,7 +213,6 @@ public final class PlacedBlocks {
             BlockPos to = from.get(i).relative(move);
             store.mark(to.getX(), to.getY(), to.getZ(), hashes.get(i));
         }
-        dirty(server);
     }
 
     /** A falling block starts to fall from here: take the mark off the origin. Returns whether it had one. */

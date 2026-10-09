@@ -49,6 +49,18 @@ public interface Platform {
     /** Whether this player's client negotiated the channel; sending one it did not throws. */
     boolean canSend(ServerPlayer player, CustomPacketPayload.Type<?> type);
 
+    /**
+     * Whether a stack can dig like a pickaxe, shovel, axe or hoe ({@code kind} is one of those four
+     * words), read from the tool itself where the loader allows it. The default reads the common
+     * {@code c:tools/<kind>} tag, which is all Fabric has; NeoForge adds its item abilities, which
+     * is how a Meka-Tool or a hammer that no tag lists is still seen.
+     */
+    default boolean canDig(ItemStack stack, String kind) {
+        return !stack.isEmpty() && stack.is(net.minecraft.tags.TagKey.create(
+                net.minecraft.core.registries.Registries.ITEM,
+                net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("c", "tools/" + kind)));
+    }
+
     /** The food a stack gives this entity; NeoForge lets items answer per entity. */
     @Nullable
     FoodProperties food(ItemStack stack, @Nullable LivingEntity entity);

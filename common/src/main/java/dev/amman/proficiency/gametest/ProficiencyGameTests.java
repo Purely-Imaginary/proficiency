@@ -44,7 +44,7 @@ public final class ProficiencyGameTests {
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.DIAMOND_PICKAXE));
         helper.setBlock(TARGET, Blocks.STONE);
 
-        player.gameMode.destroyBlock(helper.absolutePos(TARGET));
+        Breaks.separately(player, helper.absolutePos(TARGET));
 
         PlayerSkills skills = ProficiencyAttachments.of(player);
         helper.assertTrue(earned(skills, Skill.MINING), "breaking stone gave no Mining XP");
@@ -58,7 +58,7 @@ public final class ProficiencyGameTests {
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.DIAMOND_AXE));
         helper.setBlock(TARGET, Blocks.OAK_LOG);
 
-        player.gameMode.destroyBlock(helper.absolutePos(TARGET));
+        Breaks.separately(player, helper.absolutePos(TARGET));
 
         PlayerSkills skills = ProficiencyAttachments.of(player);
         helper.assertTrue(earned(skills, Skill.WOODCUTTING), "chopping a log gave no Woodcutting XP");
@@ -72,7 +72,7 @@ public final class ProficiencyGameTests {
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.DIAMOND_SHOVEL));
         helper.setBlock(TARGET, Blocks.DIRT);
 
-        player.gameMode.destroyBlock(helper.absolutePos(TARGET));
+        Breaks.separately(player, helper.absolutePos(TARGET));
 
         helper.assertTrue(earned(ProficiencyAttachments.of(player), Skill.EXCAVATION),
                 "digging dirt gave no Excavation XP");
@@ -86,7 +86,7 @@ public final class ProficiencyGameTests {
         player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
         helper.setBlock(TARGET, Blocks.STONE);
 
-        player.gameMode.destroyBlock(helper.absolutePos(TARGET));
+        Breaks.separately(player, helper.absolutePos(TARGET));
 
         helper.assertFalse(earned(ProficiencyAttachments.of(player), Skill.MINING),
                 "bare hands should not train Mining");
@@ -145,7 +145,7 @@ public final class ProficiencyGameTests {
                 dev.amman.proficiency.perk.Talents.get(Skill.MINING, "mountain_king"), 0);
         helper.setBlock(TARGET, Blocks.IRON_ORE);
 
-        player.gameMode.destroyBlock(helper.absolutePos(TARGET));
+        Breaks.separately(player, helper.absolutePos(TARGET));
 
         var dropped = helper.getLevel().getEntitiesOfClass(ItemEntity.class,
                 new AABB(helper.absolutePos(TARGET)).inflate(4.0));
@@ -169,7 +169,7 @@ public final class ProficiencyGameTests {
         ProficiencyAttachments.of(player).fillTree(Skill.MINING);
         helper.setBlock(TARGET, Blocks.IRON_ORE);
 
-        player.gameMode.destroyBlock(helper.absolutePos(TARGET));
+        Breaks.separately(player, helper.absolutePos(TARGET));
 
         helper.assertTrue(player.getInventory().contains(new ItemStack(Items.IRON_INGOT)),
                 "the smelted ingot did not reach the inventory");
@@ -197,7 +197,7 @@ public final class ProficiencyGameTests {
                 "Prospector's Forge did not wake with both needs met");
         helper.setBlock(TARGET, Blocks.IRON_ORE);
 
-        player.gameMode.destroyBlock(helper.absolutePos(TARGET));
+        Breaks.separately(player, helper.absolutePos(TARGET));
 
         helper.assertTrue(earned(skills, Skill.SMITHING),
                 "mining smelted ore under Prospector's Forge paid Smithing nothing");
@@ -224,7 +224,7 @@ public final class ProficiencyGameTests {
             helper.setBlock(base.above(y), Blocks.OAK_LOG);
         }
 
-        player.gameMode.destroyBlock(helper.absolutePos(base));
+        Breaks.separately(player, helper.absolutePos(base));
 
         for (int y = 0; y < 3; y++) {
             helper.assertBlockPresent(Blocks.AIR, base.above(y));
@@ -1008,7 +1008,7 @@ public final class ProficiencyGameTests {
         PlayerSkills skills = ProficiencyAttachments.of(player);
 
         helper.setBlock(TARGET, Blocks.IRON_ORE);
-        player.gameMode.destroyBlock(helper.absolutePos(TARGET));
+        Breaks.separately(player, helper.absolutePos(TARGET));
 
         // Iron is an ore, so the tier is x2 on top of firstTimeXp.
         float floor = (float) (ProficiencyConfig.firstTimeXp() * 2.0 * baseRate(Skill.MINING)) - 0.01f;
@@ -1021,10 +1021,10 @@ public final class ProficiencyGameTests {
 
         BlockPos second = TARGET.east();
         helper.setBlock(second, Blocks.IRON_ORE);
-        player.gameMode.destroyBlock(helper.absolutePos(second));
+        Breaks.separately(player, helper.absolutePos(second));
         BlockPos deep = TARGET.east(2);
         helper.setBlock(deep, Blocks.DEEPSLATE_IRON_ORE);
-        player.gameMode.destroyBlock(helper.absolutePos(deep));
+        Breaks.separately(player, helper.absolutePos(deep));
 
         gains[0] = 0;
         float after = logged(player, Skill.MINING, "first|", gains);
@@ -1052,9 +1052,9 @@ public final class ProficiencyGameTests {
         helper.setBlock(emerald, Blocks.EMERALD_ORE);
         helper.setBlock(iron, Blocks.IRON_ORE);
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.STONE_PICKAXE));
-        player.gameMode.destroyBlock(helper.absolutePos(emerald));
+        Breaks.separately(player, helper.absolutePos(emerald));
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.WOODEN_PICKAXE));
-        player.gameMode.destroyBlock(helper.absolutePos(iron));
+        Breaks.separately(player, helper.absolutePos(iron));
 
         helper.assertTrue(logged(player, Skill.MINING, "", null) == 0f,
                 "ore the tool cannot harvest paid Mining XP: " + logged(player, Skill.MINING, "", null));
@@ -1064,8 +1064,8 @@ public final class ProficiencyGameTests {
         helper.setBlock(emerald, Blocks.EMERALD_ORE);
         helper.setBlock(iron, Blocks.IRON_ORE);
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.IRON_PICKAXE));
-        player.gameMode.destroyBlock(helper.absolutePos(emerald));
-        player.gameMode.destroyBlock(helper.absolutePos(iron));
+        Breaks.separately(player, helper.absolutePos(emerald));
+        Breaks.separately(player, helper.absolutePos(iron));
         helper.assertTrue(logged(player, Skill.MINING, "", null) > 0f, "an iron pickaxe paid no Mining XP");
         helper.assertTrue(logged(player, Skill.MINING, "first|", null) > 0f, "an iron pickaxe paid no first-time bonus");
         helper.succeed();
@@ -1151,12 +1151,12 @@ public final class ProficiencyGameTests {
         dev.amman.proficiency.event.ExpansionEvents.placed(player, Blocks.STONE.defaultBlockState(), placed);
         helper.assertTrue(logged(player, Skill.MASONRY, "", null) > 0f, "placing stone paid no Masonry XP");
 
-        player.gameMode.destroyBlock(placed);
+        Breaks.separately(player, placed);
         helper.assertTrue(logged(player, Skill.MINING, "", null) == 0f,
                 "breaking a placed stone paid Mining XP: " + logged(player, Skill.MINING, "", null));
         helper.assertFalse(dev.amman.proficiency.skill.PlacedBlocks.rawMarked(level, placed), "the mark outlived the block");
 
-        player.gameMode.destroyBlock(helper.absolutePos(naturalRel));
+        Breaks.separately(player, helper.absolutePos(naturalRel));
         helper.assertTrue(logged(player, Skill.MINING, "", null) > 0f, "breaking natural stone paid no Mining XP");
         helper.succeed();
     }
@@ -1174,12 +1174,12 @@ public final class ProficiencyGameTests {
         dev.amman.proficiency.skill.PlacedBlocks.markPlacement(level, helper.absolutePos(unripe), Blocks.WHEAT.defaultBlockState());
         dev.amman.proficiency.skill.PlacedBlocks.markPlacement(level, helper.absolutePos(ripe), Blocks.WHEAT.defaultBlockState());
 
-        player.gameMode.destroyBlock(helper.absolutePos(unripe));
+        Breaks.separately(player, helper.absolutePos(unripe));
         helper.assertTrue(logged(player, Skill.FARMING, "", null) == 0f, "an unripe planted crop paid Farming XP");
 
         // It grows to full age in place; the mark stays, and a ripe harvest still pays.
         helper.setBlock(ripe, Blocks.WHEAT.defaultBlockState().setValue(net.minecraft.world.level.block.CropBlock.AGE, 7));
-        player.gameMode.destroyBlock(helper.absolutePos(ripe));
+        Breaks.separately(player, helper.absolutePos(ripe));
         helper.assertTrue(logged(player, Skill.FARMING, "", null) > 0f, "a ripe planted crop paid no Farming XP");
         helper.succeed();
     }
@@ -1204,7 +1204,7 @@ public final class ProficiencyGameTests {
             BlockPos moved = helper.absolutePos(new BlockPos(3, 8, 1));
             helper.assertTrue(dev.amman.proficiency.skill.PlacedBlocks.rawMarked(level, moved), "the mark did not follow the pushed block");
             helper.assertFalse(dev.amman.proficiency.skill.PlacedBlocks.rawMarked(level, helper.absolutePos(new BlockPos(2, 8, 1))), "the old spot kept its mark");
-            player.gameMode.destroyBlock(moved);
+            Breaks.separately(player, moved);
             helper.assertTrue(logged(player, Skill.MINING, "", null) == 0f, "a pushed placed block paid Mining XP");
             helper.succeed();
         });
@@ -1293,13 +1293,13 @@ public final class ProficiencyGameTests {
         helper.assertTrue(dev.amman.proficiency.skill.SkillTools.isRipe(Blocks.PUMPKIN.defaultBlockState()), "a pumpkin block is not ripe");
 
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.IRON_HOE));
-        player.gameMode.destroyBlock(helper.absolutePos(rel));
+        Breaks.separately(player, helper.absolutePos(rel));
         helper.assertTrue(logged(player, Skill.FARMING, "", null) == 0f, "breaking unripe wheat paid Farming XP");
         helper.assertFalse(ProficiencyAttachments.of(player).hasVisited("first:" + Skill.FARMING.id() + ":block.minecraft.wheat"),
                 "breaking unripe wheat marked the first-time kind");
 
         helper.setBlock(rel, Blocks.WHEAT.defaultBlockState().setValue(net.minecraft.world.level.block.CropBlock.AGE, 7));
-        player.gameMode.destroyBlock(helper.absolutePos(rel));
+        Breaks.separately(player, helper.absolutePos(rel));
         helper.assertTrue(logged(player, Skill.FARMING, "", null) >= 1.0f, "breaking ripe wheat paid no Farming XP");
         helper.succeed();
     }

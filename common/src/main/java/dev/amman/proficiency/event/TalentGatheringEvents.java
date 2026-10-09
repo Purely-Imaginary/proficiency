@@ -164,8 +164,8 @@ public final class TalentGatheringEvents {
     /** Dark Sight: Night Vision below Y 30 while a pickaxe is in hand, and only then. */
     private static void darkSight(ServerPlayer player) {
         boolean wants = player.getY() < DARK_SIGHT_Y
-                && SkillTools.isPickaxe(player.getMainHandItem())
-                && TalentService.rank(player, Skill.MINING, "dark_sight") > 0;
+                && TalentService.rank(player, Skill.MINING, "dark_sight") > 0
+                && SkillTools.isPickaxe(player.getMainHandItem());
         if (wants) {
             player.addEffect(new MobEffectInstance(MobEffects.NIGHT_VISION, DARK_SIGHT_TICKS, 0,
                     true, false, true));

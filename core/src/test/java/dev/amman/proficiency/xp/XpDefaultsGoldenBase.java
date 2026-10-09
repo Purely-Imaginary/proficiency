@@ -222,12 +222,20 @@ abstract class XpDefaultsGoldenBase {
         assertNull(table.match(XpDomain.CRAFT, TestSubject.item("minecraft:piston")));
         assertNull(table.match(XpDomain.CRAFT, TestSubject.item("ars_nouveau:wand")));
         for (String mod : ARCANE_MODS) {
-            for (XpSubject subject : List.of(TestSubject.item(mod + ":wand"), TestSubject.entity(mod + ":bolt", 0))) {
-                XpMatch m = table.match(XpDomain.CAST, subject);
-                assertEquals(Skill.SPELLCASTING, m.rule().skill);
-                assertEquals(0.5, m.xp());
-            }
+            // The mod's entities (spell projectiles) cast.
+            XpMatch bolt = table.match(XpDomain.CAST, TestSubject.entity(mod + ":bolt", 0));
+            assertEquals(Skill.SPELLCASTING, bolt.rule().skill);
+            assertEquals(0.5, bolt.xp());
+            // Its items cast only when they are caster items. A glyph, a scroll, a ritual stone do not.
+            XpMatch wand = table.match(XpDomain.CAST, TestSubject.item(mod + ":wand", "proficiency:caster_items"));
+            assertEquals(Skill.SPELLCASTING, wand.rule().skill);
+            assertEquals(0.5, wand.xp());
+            assertNull(table.match(XpDomain.CAST, TestSubject.item(mod + ":glyph_projectile")),
+                    mod + " items outside the caster tag pay nothing");
+            assertNull(table.match(XpDomain.CAST, TestSubject.item(mod + ":blank_parchment")));
         }
+        // The tag is for items only: an entity in it is no spell, and an item in an arcane namespace is no bolt.
+        assertNull(table.match(XpDomain.CAST, TestSubject.entity("modx:thing", 0, "proficiency:caster_items")));
         assertNull(table.match(XpDomain.CAST, TestSubject.item("minecraft:stick")));
         assertNull(table.match(XpDomain.CAST, TestSubject.item("create:wrench")));
     }
@@ -252,6 +260,16 @@ abstract class XpDefaultsGoldenBase {
         assertEquals(Boolean.TRUE, m.rule().boss);
         assertNull(table.match(XpDomain.BOSS, TestSubject.entity("modx:dragon", 900)),
                 "health alone is the config backstop, not a rule");
+    }
+
+    @Test
+    void bossesAlsoFollowTheCommonBossTags() {
+        for (String tag : new String[] {"c:bosses", "neoforge:bosses", "forge:bosses"}) {
+            XpMatch m = table.match(XpDomain.BOSS, TestSubject.entity("modx:colossus", 20, tag));
+            assertEquals(Boolean.TRUE, m.rule().boss, tag);
+            XpMatch tier = table.match(XpDomain.FIRST_TIME, TestSubject.entity("modx:colossus", 20, tag));
+            assertEquals(10.0, tier.rule().multiplier, 0.0, tag + " is a x10 first-time kill");
+        }
     }
 
     // ---- discoveries --------------------------------------------------------------------------

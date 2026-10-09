@@ -1,6 +1,7 @@
 package dev.amman.proficiency.event;
 
 import dev.amman.proficiency.Proficiency;
+import dev.amman.proficiency.skill.AoeBreaks;
 import dev.amman.proficiency.skill.ProcService;
 import dev.amman.proficiency.skill.Skill;
 import dev.amman.proficiency.skill.SkillService;
@@ -69,6 +70,12 @@ public final class GatheringEvents {
      */
     private static final ThreadLocal<Boolean> CASCADING = ThreadLocal.withInitial(() -> false);
 
+    /**
+     * Which of a player's breaks this tick is the one they made and which an area tool (a hammer, an
+     * excavator, a broadaxe, a paxel, a vein miner) made for them. See {@link AoeBreaks}.
+     */
+    private static final AoeBreaks AOE = new AoeBreaks();
+
     private static final List<ItemStack> TREASURE = List.of(
             new ItemStack(Items.NAUTILUS_SHELL),
             new ItemStack(Items.NAME_TAG),
@@ -94,13 +101,76 @@ public final class GatheringEvents {
         }
     }
 
+    /**
+     * First in line, so the player's own block is seen before an area tool (listening at normal
+     * priority) breaks its neighbours from inside the same event: every later position this player
+     * breaks in the same tick is an extra. Own cascades (Timber, Landslide, talents) never post
+     * a break of their own and are skipped here anyway.
+     */
+    @SubscribeEvent(priority = dev.amman.proficiency.platform.bus.EventPriority.HIGHEST, receiveCanceled = true)
+    public static void onBlockBreakFirst(BlockEvent.BreakEvent event) {
+        Player player = event.getPlayer();
+        if (player == null || player.level().isClientSide() || CASCADING.get()) {
+            return;
+        }
+        if (event.isCanceled()) {
+            // Already refused (a claim, spawn protection): not a break that happened, so it takes no slot.
+            return;
+        }
+        AOE.classify(player.getUUID(), player.level().getGameTime(), dimensionKey(player), event.getPos().asLong());
+    }
+
+    /**
+     * Last in line. A break that something cancelled after the classifier saw it gives the primary
+     * slot back, so the player's next valid block is the primary and not a quarter-pay extra.
+     */
+    @SubscribeEvent(priority = dev.amman.proficiency.platform.bus.EventPriority.LOWEST, receiveCanceled = true)
+    public static void onBlockBreakLast(BlockEvent.BreakEvent event) {
+        Player player = event.getPlayer();
+        if (player == null || player.level().isClientSide() || CASCADING.get() || !event.isCanceled()) {
+            return;
+        }
+        AOE.release(player.getUUID(), player.level().getGameTime(), dimensionKey(player), event.getPos().asLong());
+    }
+
+    private static int dimensionKey(Player player) {
+        return player.level().dimension().location().hashCode();
+    }
+
+    /** True when this player's break of this block, this tick, was an area tool's extra block. */
+    public static boolean isAoeExtra(Player player, BlockPos pos) {
+        return AOE.isExtra(player.getUUID(), player.level().getGameTime(), dimensionKey(player), pos.asLong());
+    }
+
+    /** True while Timber, Landslide or another own cascade is breaking blocks for this player. */
+    static boolean cascading() {
+        return CASCADING.get();
+    }
+
+    /** Pays an area tool's extra block its share of the XP and nothing else; false when it is not an extra. */
+    static boolean payAoeExtra(Player player, BlockPos pos, Skill skill, double xp, BlockState state) {
+        if (!isAoeExtra(player, pos)) {
+            return false;
+        }
+        SkillService.grantAoe(player, skill, xp, state.getBlock().getDescriptionId());
+        return true;
+    }
+
+    public static void forgetAoe(java.util.UUID player) {
+        AOE.forget(player);
+    }
+
     @SubscribeEvent
     public static void onBlockBreak(BlockEvent.BreakEvent event) {
         Player player = event.getPlayer();
-        if (player == null || player.level().isClientSide()) {
+        if (player == null || player.level().isClientSide() || SkillTools.isFakePlayer(player)) {
             return;
         }
         BlockState state = event.getState();
+        if (player.getAbilities().instabuild) {
+            // Creative breaks drop nothing, so the drops handler never settles a refunded mark.
+            dev.amman.proficiency.skill.PlacedBlocks.consumeRefunded(player.level(), event.getPos(), state);
+        }
         // A block a player placed pays nothing: no XP, first-time bonus, proc or talent. The mark
         // is cleared by the drops handler, which sees the same break.
         if (dev.amman.proficiency.skill.PlacedBlocks.isUnpaid(player.level(), event.getPos(), state)) {
@@ -128,6 +198,12 @@ public final class GatheringEvents {
         BlockPos pos = event.getPos();
         float hardness = state.getDestroySpeed(event.getLevel(), pos);
         double xp = SkillTools.breakXp(state, hardness);
+        // An extra block of an area tool: a share of the XP and nothing else. No first-time
+        // bonus, no proc, no talent that reacts to a break, no tempo step. The placed-block,
+        // wrong-tool and unripe-crop rules above already applied to it.
+        if (payAoeExtra(player, pos, skill, xp, state)) {
+            return;
+        }
         SkillService.grant(player, skill, xp, state.getBlock().getDescriptionId());
 
         boolean procced = ProcService.fire(player, skill, pos);
@@ -322,6 +398,19 @@ public final class GatheringEvents {
     @SubscribeEvent
     public static void onBlockDrops(BlockDropsEvent event) {
         if (!(event.getBreaker() instanceof Player player)) {
+            // Popped off by a lost support or washed away: the refund is already in the player's
+            // hands, so the block's own drop is withheld and the mark goes.
+            RefundGuard.onDropsNoBreaker(event);
+            return;
+        }
+        // A block a refund talent paid for gives its refund back first, whoever breaks it (a
+        // machine's fake player included), so place and break is never a free block.
+        if (player instanceof net.minecraft.server.level.ServerPlayer breaker) {
+            RefundGuard.onDrops(event, breaker);
+        }
+        if (SkillTools.isFakePlayer(player)) {
+            // A machine's break pays nothing, but it still takes the placed mark away with the block.
+            dev.amman.proficiency.skill.PlacedBlocks.consume(player.level(), event.getPos(), event.getState());
             return;
         }
         // Player-placed block: pays nothing and forgets the mark. A ripe planted crop pays as usual.
@@ -336,6 +425,20 @@ public final class GatheringEvents {
         // Blocks felled by Timber or Landslide already paid out through the origin break. They are
         // still smelted and collected, or Mountain King would stop at the first block of a vein.
         if (CASCADING.get()) {
+            finishDrops(event, player, skill, true);
+            return;
+        }
+
+        // An extra block of an area tool is treated the same: it paid its share at the break, it
+        // rolls no extra copies and no proc, but it is still smelted and collected.
+        if (isAoeExtra(player, event.getPos())) {
+            // Master Farming puts the crop back every time, not only on a proc; the extras of an
+            // area tool get that too. They never proc, so a proc-only replant stays with the primary.
+            if (skill == Skill.FARMING && !event.getState().isAir()
+                    && TalentService.hasSpecial(player, Skill.FARMING, "always_replant")) {
+                event.getLevel().setBlockAndUpdate(
+                        event.getPos(), event.getState().getBlock().defaultBlockState());
+            }
             finishDrops(event, player, skill, true);
             return;
         }

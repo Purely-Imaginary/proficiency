@@ -35,4 +35,7 @@ tasks.named('test') {
     systemProperty 'proficiency.langDir',
             project(':common').file('src/main/resources/assets/proficiency/lang').absolutePath
     inputs.dir(project(':common').file('src/main/resources/assets/proficiency/lang'))
+    // PandowoXpDatapackTest reads the NeoForge pack's datapack and its id lists from here.
+    systemProperty 'proficiency.pandowoDir', project(':neoforge').file('packs/pandowo').absolutePath
+    inputs.dir(project(':neoforge').file('packs/pandowo'))
 }

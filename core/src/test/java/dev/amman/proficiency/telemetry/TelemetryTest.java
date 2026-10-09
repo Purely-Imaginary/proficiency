@@ -387,4 +387,17 @@ class TelemetryTest {
         assertEquals(1, find(rows, "xp", "mining", "block").get("n").getAsInt());
         assertEquals(0.6, find(rows, "xp", "social", "teaching").get("xp").getAsDouble(), 1e-9);
     }
+
+    @Test
+    void anAreaToolsExtraBlocksAreTheirOwnKind() {
+        Telemetry t = new Telemetry();
+        t.grant(id, "Amman", Skill.MINING, "block.minecraft.stone", 1.0, 1.0, 3, 1000);
+        t.grant(id, "Amman", Skill.MINING, "block.minecraft.stone", 0.25, 0.25, 3, 1100, Telemetry.KIND_AOE);
+        t.grant(id, "Amman", Skill.MINING, "block.minecraft.stone", 0.25, 0.25, 3, 1200, Telemetry.KIND_AOE);
+        List<JsonObject> rows = parse(t.drain(5000, ""));
+        assertEquals(1, find(rows, "xp", "mining", "block").get("n").getAsInt());
+        JsonObject aoe = find(rows, "xp", "mining", "aoe");
+        assertEquals(2, aoe.get("n").getAsInt());
+        assertEquals(0.5, aoe.get("xp").getAsDouble(), 1e-9);
+    }
 }

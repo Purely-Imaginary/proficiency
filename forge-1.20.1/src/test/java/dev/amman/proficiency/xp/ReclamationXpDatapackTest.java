@@ -41,14 +41,35 @@ class ReclamationXpDatapackTest {
     void everyBlockIdIsInThePackRegistryDump() throws Exception {
         Set<String> ids = new HashSet<>(Files.readAllLines(Path.of("packs/reclamation/item-ids.txt")));
         JsonObject root = JsonParser.parseString(Files.readString(FILE)).getAsJsonObject();
+        // agricraft:crop is a block with no item of its own (the dump holds items), so it is named here.
+        ids.add("agricraft:crop");
+        // The furniture and machine blocks are named from the jars' blockstates (many have no item).
+        ids.addAll(Files.readAllLines(Path.of("packs/reclamation/block-ids.txt")));
         int seen = 0;
-        for (JsonElement rule : root.getAsJsonArray("break")) {
-            for (JsonElement match : rule.getAsJsonObject().getAsJsonArray("match")) {
-                assertTrue(ids.contains(match.getAsString()), match.getAsString() + " is not a pack id");
-                seen++;
+        for (String domain : List.of("break", "place")) {
+            for (JsonElement rule : root.getAsJsonArray(domain)) {
+                for (JsonElement match : rule.getAsJsonObject().getAsJsonArray("match")) {
+                    assertTrue(ids.contains(match.getAsString()), match.getAsString() + " is not a pack id");
+                    seen++;
+                }
             }
         }
-        assertEquals(26, seen);
+        assertTrue(seen > 280, "looked at " + seen);
+    }
+
+    @Test
+    void agriCraftCropPaysWhatWheatPays() throws Exception {
+        XpTable table = load().table;
+        XpMatch harvest = table.match(XpDomain.BREAK, TestSubject.block("agricraft:crop", 0.0));
+        assertEquals(Skill.FARMING, harvest.rule().skill);
+        assertTrue(harvest.has("crop"));
+        XpMatch wheat = table.match(XpDomain.BREAK, TestSubject.block("minecraft:wheat", 0.0, "minecraft:crops"));
+        assertEquals(wheat.xp(), harvest.xp());
+        XpMatch plant = table.match(XpDomain.PLACE, TestSubject.block("agricraft:crop", 0.0));
+        assertEquals(Skill.FARMING, plant.rule().skill);
+        assertTrue(plant.has("planting"));
+        XpMatch plantWheat = table.match(XpDomain.PLACE, TestSubject.block("minecraft:wheat", 0.0, "minecraft:crops"));
+        assertEquals(plantWheat.xp(), plant.xp());
     }
 
     @Test
@@ -68,5 +89,22 @@ class ReclamationXpDatapackTest {
                 TestSubject.entity("botania:doppleganger", 400)).rule().boss);
         assertEquals(10.0, table.match(XpDomain.FIRST_TIME,
                 TestSubject.entity("botania:doppleganger", 400)).rule().multiplier);
+    }
+
+    @Test
+    void furnitureAndMachinesInTheAxeTagPayNothingWhenBroken() throws Exception {
+        XpTable table = load().table;
+        for (String id : List.of("create:andesite_encased_shaft", "create:belt", "storagedrawers:oak_full_drawers_1",
+                "farmersdelight:cutting_board", "botania:bellows", "naturesaura:auto_crafter")) {
+            XpMatch m = table.match(XpDomain.BREAK, TestSubject.block(id, 2.0, "minecraft:mineable/axe"));
+            assertTrue(m != null && m.paysNothing(), id + " pays nothing");
+        }
+        XpMatch both = table.match(XpDomain.BREAK, TestSubject.block("create:andesite_casing", 2.0,
+                "minecraft:mineable/axe", "minecraft:mineable/pickaxe"));
+        assertEquals(Skill.MINING, both.rule().skill, "a pickaxe block in both tags still pays Mining");
+        XpMatch log = table.match(XpDomain.BREAK, TestSubject.block("botania:livingwood_log", 2.0, "minecraft:logs"));
+        assertEquals(Skill.WOODCUTTING, log.rule().skill);
+        XpMatch other = table.match(XpDomain.BREAK, TestSubject.block("quark:oak_chest", 2.0, "minecraft:mineable/axe"));
+        assertEquals(Skill.WOODCUTTING, other.rule().skill, "a block we did not list is untouched");
     }
 }

@@ -29,11 +29,17 @@ public final class TelemetryService {
     /** A grant that has just been added to the player's bar; {@code level} is the level after it. */
     public static void grant(ServerPlayer player, Skill skill, @Nullable String source, double base,
             double finalXp, int level) {
+        grant(player, skill, source, base, finalXp, level, null);
+    }
+
+    /** As above, filed under {@code kindOverride} (such as the area-tool kind) when that is not null. */
+    public static void grant(ServerPlayer player, Skill skill, @Nullable String source, double base,
+            double finalXp, int level, @Nullable String kindOverride) {
         if (!ProficiencyConfig.telemetryEnabled()) {
             return;
         }
         data().grant(player.getUUID(), player.getGameProfile().getName(), skill, source, base, finalXp,
-                level, System.currentTimeMillis());
+                level, System.currentTimeMillis(), kindOverride);
     }
 
     /** The extra XP a grant gained from the rested pool: its own telemetry kind. */

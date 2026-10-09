@@ -1,0 +1,24 @@
+{
+  "replace": false,
+  "values": [
+    { "id": "ars_nouveau:novice_spell_book", "required": false },
+    { "id": "ars_nouveau:apprentice_spell_book", "required": false },
+    { "id": "ars_nouveau:archmage_spell_book", "required": false },
+    { "id": "ars_nouveau:creative_spell_book", "required": false },
+    { "id": "ars_nouveau:caster_tome", "required": false },
+    { "id": "ars_nouveau:spell_bow", "required": false },
+    { "id": "ars_nouveau:spell_crossbow", "required": false },
+    { "id": "ars_nouveau:wand", "required": false },
+    { "id": "ars_nouveau:enchanters_sword", "required": false },
+    { "id": "ars_elemental:air_caster_tome", "required": false },
+    { "id": "ars_elemental:anima_caster_tome", "required": false },
+    { "id": "ars_elemental:earth_caster_tome", "required": false },
+    { "id": "ars_elemental:fire_caster_tome", "required": false },
+    { "id": "ars_elemental:manipulation_caster_tome", "required": false },
+    { "id": "ars_elemental:water_caster_tome", "required": false },
+    { "id": "ars_elemental:spell_horn", "required": false },
+    { "id": "ars_artifice:spell_gem_t1", "required": false },
+    { "id": "ars_artifice:spell_gem_t2", "required": false },
+    { "id": "ars_artifice:spell_gem_t3", "required": false }
+  ]
+}

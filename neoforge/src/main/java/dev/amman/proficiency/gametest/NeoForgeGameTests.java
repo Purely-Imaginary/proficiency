@@ -32,6 +32,9 @@ public final class NeoForgeGameTests {
             TacticianGameTests.class,
             KillBonusGameTests.class,
             XpSourcesGameTests.class,
+            AoeGameTests.class,
+            NeoForgeToolGameTests.class,
+            ExploitGameTests.class,
             MasteryGameTests.class,
             RestedGameTests.class);
 

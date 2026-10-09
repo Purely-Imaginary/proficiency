@@ -55,13 +55,30 @@ public final class CombatEvents {
 
     private static final ThreadLocal<Integer> RIPOSTE_DEPTH = ThreadLocal.withInitial(() -> 0);
 
+    /**
+     * Entities that pay no combat XP: the tag {@code proficiency:no_combat_xp} (target dummies,
+     * shipped with the known ids, extendable by datapack), and any type whose id says "dummy".
+     */
+    public static final net.minecraft.tags.TagKey<net.minecraft.world.entity.EntityType<?>> NO_COMBAT_XP =
+            net.minecraft.tags.TagKey.create(net.minecraft.core.registries.Registries.ENTITY_TYPE,
+                    Proficiency.id("no_combat_xp"));
+
+    public static boolean paysNoCombatXp(LivingEntity target) {
+        if (target.getType().is(NO_COMBAT_XP)) {
+            return true;
+        }
+        return dev.amman.proficiency.skill.NoCombatXp.looksLikeDummy(
+                net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(target.getType()).getPath());
+    }
+
     private CombatEvents() {
     }
 
     @SubscribeEvent
     public static void onIncomingDamage(LivingIncomingDamageEvent event) {
         DamageSource source = event.getSource();
-        if (!(source.getEntity() instanceof Player player) || player.level().isClientSide()) {
+        if (!(source.getEntity() instanceof Player player) || player.level().isClientSide()
+                || SkillTools.isFakePlayer(player)) {
             return;
         }
         if (event.getEntity() == player) {
@@ -97,6 +114,9 @@ public final class CombatEvents {
 
         if (!SPLASHING.get()) {
             amount *= TalentMeleeEvents.damageMultiplier(player, target, skill);
+        }
+        // A target dummy gets no procs or talent effects either: they could be farmed on it for free.
+        if (!SPLASHING.get() && !paysNoCombatXp(target)) {
             // Sword Saint and Cratermaker force the roll here. Marksman forces it earlier, from a
             // HIGH-priority handler; either way the flag is spent by the fire() just below.
             boolean chained = TalentMeleeEvents.beforeRoll(player, skill);
@@ -109,6 +129,10 @@ public final class CombatEvents {
 
         if (amount != event.getAmount()) {
             event.setAmount(amount);
+        }
+        if (paysNoCombatXp(target)) {
+            // A target dummy: the damage is real enough to read, the fight is not.
+            return;
         }
         if (!SPLASHING.get()) {
             // Spawn-egg and command mobs pay nothing, spawner mobs a share (SpawnOrigin).
@@ -128,11 +152,14 @@ public final class CombatEvents {
     @SubscribeEvent
     public static void onKillBonus(LivingDeathEvent event) {
         LivingEntity victim = event.getEntity();
-        if (victim.level().isClientSide() || victim instanceof Player) {
+        if (victim.level().isClientSide() || victim instanceof Player || paysNoCombatXp(victim)) {
             return;
         }
         DamageSource source = event.getSource();
         Entity killer = source.getEntity();
+        if (killer instanceof Player machine && SkillTools.isFakePlayer(machine)) {
+            return;
+        }
         Player player;
         Skill skill;
         if (killer instanceof Player direct) {

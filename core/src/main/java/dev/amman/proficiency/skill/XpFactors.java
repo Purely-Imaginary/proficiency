@@ -21,6 +21,8 @@ public final class XpFactors {
     public static final String STREAK = "streak";
     /** Rested XP spent on this grant: the grant with the extra, over the grant without it. */
     public static final String RESTED = "rested";
+    /** An extra block of an area tool: the share of the normal XP it pays. */
+    public static final String AOE = "aoe";
     /** The first-time tier scaling. */
     public static final String TIER = "tier";
 

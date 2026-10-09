@@ -207,6 +207,11 @@ public final class XpSourcesGameTests {
         }
         int entities = 0;
         TagKey<EntityType<?>> bosses = TagKey.create(Registries.ENTITY_TYPE, Proficiency.id("notable_bosses"));
+        // The common boss tags count too: a boss mod needs no edit of ours.
+        List<TagKey<EntityType<?>>> bossTags = List.of(bosses,
+                TagKey.create(Registries.ENTITY_TYPE, ResourceLocation.tryParse("c:bosses")),
+                TagKey.create(Registries.ENTITY_TYPE, ResourceLocation.tryParse("neoforge:bosses")),
+                TagKey.create(Registries.ENTITY_TYPE, ResourceLocation.tryParse("forge:bosses")));
         for (EntityType<?> type : BuiltInRegistries.ENTITY_TYPE) {
             ResourceLocation key = BuiltInRegistries.ENTITY_TYPE.getKey(type);
             String id = String.valueOf(key);
@@ -221,7 +226,7 @@ public final class XpSourcesGameTests {
                     || kill.xp() != Math.min(60.0, 1.0 + health / 4.0))) {
                 wrong.add("kill xp " + id + ": " + kill.xp());
             }
-            boolean boss = type.is(bosses);
+            boolean boss = bossTags.stream().anyMatch(tag -> type.is(tag));
             XpMatch bossRule = XpSources.table().match(XpDomain.BOSS, subject);
             if ((bossRule != null && Boolean.TRUE.equals(bossRule.rule().boss)) != boss) {
                 wrong.add("boss " + id);
@@ -239,6 +244,7 @@ public final class XpSourcesGameTests {
             }
         }
         int items = 0;
+        TagKey<Item> casters = TagKey.create(Registries.ITEM, Proficiency.id("caster_items"));
         for (Item item : BuiltInRegistries.ITEM) {
             ResourceLocation key = BuiltInRegistries.ITEM.getKey(item);
             String id = String.valueOf(key);
@@ -249,8 +255,8 @@ public final class XpSourcesGameTests {
                 wrong.add("machine item " + id);
             }
             XpMatch cast = XpSources.table().match(XpDomain.CAST, subject);
-            if ((cast != null) != (key != null && ARCANE.contains(key.getNamespace()))) {
-                wrong.add("arcane item " + id);
+            if ((cast != null) != BuiltInRegistries.ITEM.wrapAsHolder(item).is(casters)) {
+                wrong.add("caster item " + id);
             }
             double oldTier = FirstTimeKinds.itemMultiplier(item.getDefaultInstance().getRarity().name());
             XpMatch tier = XpSources.table().match(XpDomain.FIRST_TIME, subject);
@@ -322,7 +328,7 @@ public final class XpSourcesGameTests {
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.DIAMOND_PICKAXE));
         helper.setBlock(new BlockPos(1, 1, 1), Blocks.STONE);
-        player.gameMode.destroyBlock(helper.absolutePos(new BlockPos(1, 1, 1)));
+        Breaks.separately(player, helper.absolutePos(new BlockPos(1, 1, 1)));
         return paid(player, Skill.MINING, id(Blocks.STONE));
     }
 
@@ -354,7 +360,7 @@ public final class XpSourcesGameTests {
             ServerPlayer player = helper.makeMockServerPlayerInLevel();
             player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.DIAMOND_AXE));
             helper.setBlock(new BlockPos(1, 1, 1), Blocks.BOOKSHELF);
-            player.gameMode.destroyBlock(helper.absolutePos(new BlockPos(1, 1, 1)));
+            Breaks.separately(player, helper.absolutePos(new BlockPos(1, 1, 1)));
             float got = paid(player, Skill.WOODCUTTING, id(Blocks.BOOKSHELF));
             helper.assertTrue(got > 0f, "the bookshelf paid no Woodcutting XP under the pack rule");
         } finally {
@@ -371,7 +377,7 @@ public final class XpSourcesGameTests {
             ServerPlayer player = helper.makeMockServerPlayerInLevel();
             player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.DIAMOND_PICKAXE));
             helper.setBlock(new BlockPos(1, 1, 1), Blocks.STONE);
-            player.gameMode.destroyBlock(helper.absolutePos(new BlockPos(1, 1, 1)));
+            Breaks.separately(player, helper.absolutePos(new BlockPos(1, 1, 1)));
             helper.assertTrue(paid(player, Skill.MINING, id(Blocks.STONE)) == 0f, "a none rule still paid");
         } finally {
             XpSources.install(before);

@@ -50,6 +50,16 @@ public final class SkillTools {
     }
 
     /**
+     * A machine's stand-in player (Create deployers, Mekanism miners, Ars turrets, rituals): it earns
+     * nothing and gets nothing. Also true for a player with no connection, which could never be sent
+     * a packet. See {@link FakeActors}.
+     */
+    public static boolean isFakePlayer(net.minecraft.world.entity.player.Player player) {
+        return FakeActors.isFake(player)
+                || (player instanceof net.minecraft.server.level.ServerPlayer server && server.connection == null);
+    }
+
+    /**
      * Whether breaking this crop is a harvest. Stems never are; a CropBlock (modded subclasses
      * included) asks its own isMaxAge; any other block with an "age" property is ripe at its top
      * value (nether wart 3, cocoa 2, berries); blocks with no age are always ripe.
@@ -114,17 +124,51 @@ public final class SkillTools {
         return switch (kind) {
             case "pickaxe" -> isPickaxe(tool);
             case "shovel" -> isShovel(tool);
-            case "axe" -> tool.is(ItemTags.AXES) || tool.getItem() instanceof AxeItem;
-            case "hoe" -> tool.is(ItemTags.HOES) || tool.getItem() instanceof HoeItem;
+            case "axe" -> isAxe(tool);
+            case "hoe" -> isHoe(tool);
             default -> true;
         };
     }
 
+    /**
+     * Paxels (a pickaxe, shovel and axe in one) are tagged {@code c:tools/paxels} or
+     * {@code forge:tools/paxels} by the mods that make them. A tag that does not exist is simply empty.
+     */
+    private static final net.minecraft.tags.TagKey<net.minecraft.world.item.Item> PAXELS_C =
+            net.minecraft.tags.TagKey.create(net.minecraft.core.registries.Registries.ITEM,
+                    net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("c", "tools/paxels"));
+    private static final net.minecraft.tags.TagKey<net.minecraft.world.item.Item> PAXELS_FORGE =
+            net.minecraft.tags.TagKey.create(net.minecraft.core.registries.Registries.ITEM,
+                    net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("forge", "tools/paxels"));
+
+    public static boolean isPaxel(ItemStack stack) {
+        return stack.is(PAXELS_C) || stack.is(PAXELS_FORGE);
+    }
+
+    /**
+     * What a tool can do is also read from the tool itself, so a hammer, an excavator, a paxel or a
+     * Meka-Tool counts whatever it is tagged: the loader's tool actions ("can this dig like a
+     * pickaxe?"). The tags and the vanilla classes stay as fallbacks. A paxel is a pickaxe, a shovel
+     * and an axe at once; the block decides which skill the swing pays, so it never pays twice.
+     * Weapons are not read this way: {@link #meleeSkill} keeps its own rule.
+     */
     public static boolean isPickaxe(ItemStack stack) {
-        return stack.is(ItemTags.PICKAXES) || stack.getItem() instanceof PickaxeItem;
+        return stack.is(ItemTags.PICKAXES) || stack.getItem() instanceof PickaxeItem || isPaxel(stack)
+                || dev.amman.proficiency.platform.Services.platform().canDig(stack, "pickaxe");
     }
 
     public static boolean isShovel(ItemStack stack) {
-        return stack.is(ItemTags.SHOVELS) || stack.getItem() instanceof ShovelItem;
+        return stack.is(ItemTags.SHOVELS) || stack.getItem() instanceof ShovelItem || isPaxel(stack)
+                || dev.amman.proficiency.platform.Services.platform().canDig(stack, "shovel");
+    }
+
+    public static boolean isAxe(ItemStack stack) {
+        return stack.is(ItemTags.AXES) || stack.getItem() instanceof AxeItem || isPaxel(stack)
+                || dev.amman.proficiency.platform.Services.platform().canDig(stack, "axe");
+    }
+
+    public static boolean isHoe(ItemStack stack) {
+        return stack.is(ItemTags.HOES) || stack.getItem() instanceof HoeItem
+                || dev.amman.proficiency.platform.Services.platform().canDig(stack, "hoe");
     }
 }

@@ -1472,6 +1472,7 @@
   "proficiency.xpfeed.factor.inspired": "inspired",
   "proficiency.xpfeed.factor.streak": "survival",
   "proficiency.xpfeed.factor.tier": "tier",
+  "proficiency.xpfeed.factor.aoe": "area tool",
   "dimension.minecraft.overworld": "The Overworld",
   "dimension.minecraft.the_nether": "The Nether",
   "dimension.minecraft.the_end": "The End",

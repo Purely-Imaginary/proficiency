@@ -32,6 +32,7 @@ public final class ProficiencyConfig {
     public static final ModConfigSpec.BooleanValue FIRST_TIME_TIER_SCALING;
     public static final ModConfigSpec.BooleanValue PLACED_BLOCKS_PAY_XP;
     public static final ModConfigSpec.DoubleValue SPAWNER_MOB_XP;
+    public static final ModConfigSpec.DoubleValue AOE_XP_SHARE;
     public static final ModConfigSpec.DoubleValue ARTIFICIAL_MOB_XP;
     public static final ModConfigSpec.DoubleValue KILL_BONUS_BASE;
     public static final ModConfigSpec.DoubleValue KILL_BONUS_HEALTH_DIVISOR;
@@ -163,10 +164,11 @@ public final class ProficiencyConfig {
                 .defineInRange("masteryMaxStars", 5, 0, 5);
 
         BOSS_HEALTH = b
-                .comment("Max health at which a kill is announced server-wide as a boss.",
-                        "A heuristic, and a blunt one: prefer filling in the",
-                        "proficiency:notable_bosses entity type tag, which this pack's owner",
-                        "controls and which does not drift as mobs are added.")
+                .comment("Max health at which a kill is announced server-wide as a boss, for a mob",
+                        "no boss rule names. A blunt backstop: the boss rules decide first. They follow",
+                        "the proficiency:notable_bosses tag AND the common boss tags (c:bosses,",
+                        "neoforge:bosses, forge:bosses) that mods fill in, and a datapack can add",
+                        "or remove ids. Prefer those to this number.")
                 .defineInRange("bossHealthThreshold", 150.0, 1.0, 10000.0);
 
         FIRST_TIME_XP = b
@@ -194,6 +196,15 @@ public final class ProficiencyConfig {
                         "existed count as natural. true restores the old behaviour.")
                 .define("placedBlocksPayXp", false);
 
+        AOE_XP_SHARE = b
+                .comment("Share of the usual gathering XP each EXTRA block pays when an area tool or a",
+                        "vein-mining mod breaks several blocks at once (a hammer, excavator or broadaxe,",
+                        "a Meka-Tool, a vein miner). The first block you break pays in full; every other",
+                        "block broken for you in the same tick pays this share, with no first-time bonus,",
+                        "no proc roll and no tempo step of its own. 0 pays nothing for the extras, 1 pays",
+                        "them in full.")
+                .defineInRange("aoeXpShare", dev.amman.proficiency.skill.AoeBreaks.DEFAULT_SHARE, 0.0, 1.0);
+
         SPAWNER_MOB_XP = b
                 .comment("Share of the usual combat XP a mob from a monster spawner pays (1.0 = all).")
                 .defineInRange("spawnerMobXp", 0.25, 0.0, 1.0);
@@ -220,8 +231,9 @@ public final class ProficiencyConfig {
                 .defineInRange("killBonusCap", 20.0, 0.0, 10000.0);
 
         KILL_BONUS_BOSS_MULTIPLIER = b
-                .comment("Multiplier on the kill bonus for mobs in the proficiency:notable_bosses tag",
-                        "(or over bossHealthThreshold health). Applied after the cap.")
+                .comment("Multiplier on the kill bonus for bosses: mobs a boss rule names (the",
+                        "proficiency:notable_bosses tag and the common boss tags in the shipped rules),",
+                        "or over bossHealthThreshold health when no rule applies. Applied after the cap.")
                 .defineInRange("killBonusBossMultiplier", 2.0, 0.0, 100.0);
 
         STRUCTURE_XP = b
@@ -591,6 +603,11 @@ public final class ProficiencyConfig {
 
     public static double firstTimeXp() {
         return safe(FIRST_TIME_XP, 15.0);
+    }
+
+    /** The share of its normal XP an area tool's extra block pays. */
+    public static double aoeXpShare() {
+        return safe(AOE_XP_SHARE, dev.amman.proficiency.skill.AoeBreaks.DEFAULT_SHARE);
     }
 
     public static boolean placedBlocksPayXp() {

@@ -25,7 +25,7 @@ public final class SkillService {
 
     /** A grant with no first-time bonus: the second half of a split block, which the first half already paid for. */
     public static float grantNoFirstTime(Player player, Skill skill, double baseAmount, @Nullable String source) {
-        return grantOnce(player, skill, baseAmount, source, 1.0);
+        return grantOnce(player, skill, baseAmount, source, 1.0, 0.0);
     }
 
     /**
@@ -34,7 +34,7 @@ public final class SkillService {
      * kill pays nothing (a spawn-egg mob).
      */
     public static float grantKill(Player player, Skill skill, double baseAmount, String victimType) {
-        float amount = grantOnce(player, skill, baseAmount, KillXp.KILL_PREFIX + victimType, 1.0);
+        float amount = grantOnce(player, skill, baseAmount, KillXp.KILL_PREFIX + victimType, 1.0, 0.0);
         if (amount > 0 && player instanceof ServerPlayer serverPlayer) {
             firstTime(serverPlayer, skill, victimType);
         }
@@ -46,6 +46,22 @@ public final class SkillService {
     }
 
     /**
+     * XP for an extra block an area tool took with the first one. The caller passes the block's
+     * normal XP; this pays {@code aoeXpShare} of it (default 25%), shown as the {@code aoe} factor. No first-time bonus, and no
+     * no tempo step and no tempo bonus (the first block builds the chain). The log line carries an
+     * {@code aoe} factor and the balance report files it under its own {@code aoe} kind.
+     *
+     * @return the XP actually added, 0 if nothing was granted
+     */
+    public static float grantAoe(Player player, Skill skill, double normalXp, @Nullable String source) {
+        double share = ProficiencyConfig.aoeXpShare();
+        if (AoeBreaks.extraXp(normalXp, share) <= 0) {
+            return 0f;
+        }
+        return grantOnce(player, skill, normalXp, source, 1.0, Math.min(1.0, share));
+    }
+
+    /**
      * As {@link #grant(Player, Skill, double)}, naming what paid for the XP log under the synergies
      * in the tree screen. {@code source} is a translation key: a block's or an entity's description
      * id, a biome key, or one of this mod's {@code proficiency.xplog.source.*} lines. Null is fine
@@ -54,7 +70,7 @@ public final class SkillService {
      * @return the XP actually added after every multiplier, or 0 if nothing was granted
      */
     public static float grant(Player player, Skill skill, double baseAmount, @Nullable String source) {
-        float amount = grantOnce(player, skill, baseAmount, source, 1.0);
+        float amount = grantOnce(player, skill, baseAmount, source, 1.0, 0.0);
         if (amount > 0 && player instanceof ServerPlayer serverPlayer) {
             firstTime(serverPlayer, skill, source);
         }
@@ -116,14 +132,16 @@ public final class SkillService {
         skills.markVisited(key);
         // The tier goes in as a factor, not folded into the base, so the feed shows it.
         double tier = ProficiencyConfig.firstTimeTierScaling() ? FirstTimeTiers.multiplier(kind) : 1.0;
-        float paid = grantOnce(player, skill, base, FirstTimeKinds.FIRST_PREFIX + kind, tier);
+        float paid = grantOnce(player, skill, base, FirstTimeKinds.FIRST_PREFIX + kind, tier, 0.0);
         dev.amman.proficiency.net.ProficiencyNetwork.sendDiscovery(player,
                 dev.amman.proficiency.net.DiscoveryPayload.FIRST, kind, kind, skill, paid);
     }
 
+    /** @param aoeShare above 0 for an area tool's extra block: the share it pays, which also marks the grant as one */
     private static float grantOnce(Player player, Skill skill, double baseAmount,
-            @Nullable String source, double tier) {
-        if (!(player instanceof ServerPlayer serverPlayer)) {
+            @Nullable String source, double tier, double aoeShare) {
+        if (!(player instanceof ServerPlayer serverPlayer) || SkillTools.isFakePlayer(serverPlayer)) {
+            // A machine's fake player earns nothing, and must never be sent a packet.
             return 0f;
         }
         if (serverPlayer.isSpectator() || !Double.isFinite(baseAmount) || baseAmount <= 0) {
@@ -138,13 +156,14 @@ public final class SkillService {
         double perk = skills.perkModifier(skill, dev.amman.proficiency.perk.PerkEffect.XP_RATE);
         double company = CompanyBonus.multiplier(serverPlayer, skill);
         // Social and Nightwalker are paid in 5-second lumps, so a tempo chain could never build.
+        boolean aoe = aoeShare > 0.0;
         double tempo = skill == Skill.SOCIAL || skill == Skill.NIGHTWALKER
-                ? 1.0 : Tempo.multiplier(serverPlayer, skill);
+                ? 1.0 : aoe ? 1.0 : Tempo.multiplier(serverPlayer, skill);
         double overflow = overflow(serverPlayer, skill);
         double inspired = inspiration(serverPlayer);
         double streak = SurvivalStreak.multiplier(skills);
         float amount = (float) (baseAmount * rate * perk * company * tempo * overflow * inspired
-                * streak * tier);
+                * streak * tier * (aoe ? aoeShare : 1.0));
         if (!Float.isFinite(amount) || amount <= 0) {
             return 0f;
         }
@@ -173,6 +192,9 @@ public final class SkillService {
         XpFactors.add(factors, XpFactors.INSPIRED, inspired);
         XpFactors.add(factors, XpFactors.STREAK, streak);
         XpFactors.add(factors, XpFactors.TIER, tier);
+        if (aoe) {
+            XpFactors.add(factors, XpFactors.AOE, aoeShare);
+        }
         if (restedExtra > 0f) {
             XpFactors.add(factors, XpFactors.RESTED, amount / beforeRested);
         }
@@ -199,7 +221,8 @@ public final class SkillService {
         // XP came from resting; the grant it rode on keeps the rest.
         float restedBanked = restedExtra > 0f ? banked * (restedExtra / amount) : 0f;
         TelemetryService.grant(serverPlayer, skill, source, baseAmount * (banked / amount),
-                banked - restedBanked, skills.level(skill));
+                banked - restedBanked, skills.level(skill),
+                aoe ? dev.amman.proficiency.telemetry.Telemetry.KIND_AOE : null);
         if (restedBanked > 0f) {
             TelemetryService.rested(serverPlayer, skill, restedBanked);
         }
@@ -215,7 +238,7 @@ public final class SkillService {
         // It sees the grant without the rested extra: resting must not pay Social.
         SocialService.onGrant(serverPlayer, skill, source, beforeRested, company);
         // Nightwalker's only share source: a part of any grant earned in the dark.
-        NightwalkerService.onGrant(serverPlayer, skill, source, baseAmount, tier);
+        NightwalkerService.onGrant(serverPlayer, skill, source, baseAmount, aoe ? tier * aoeShare : tier);
         return amount;
     }
 
@@ -278,6 +301,7 @@ public final class SkillService {
 
     public static void forget(java.util.UUID player) {
         INSPIRED.remove(player);
+        dev.amman.proficiency.event.GatheringEvents.forgetAoe(player);
         XP_LOGS.remove(player);
         XP_FEEDS.remove(player);
         XpFeedRecorder.stop(player);

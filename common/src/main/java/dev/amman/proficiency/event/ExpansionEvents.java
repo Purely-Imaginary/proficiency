@@ -17,6 +17,7 @@ import dev.amman.proficiency.skill.PlayerSkills;
 import dev.amman.proficiency.skill.ActiveService;
 import dev.amman.proficiency.skill.ProcService;
 import dev.amman.proficiency.skill.Skill;
+import dev.amman.proficiency.skill.PlacementThrottle;
 import dev.amman.proficiency.skill.SkillService;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
@@ -128,9 +129,10 @@ public final class ExpansionEvents {
      *
      * <p>This started as a bare {@code maxHealth >= 80} check, which was wrong for this pack: at
      * that threshold ordinary elites from Twilight Forest and the Aether qualify, and the
-     * server-wide announcement becomes red-text spam inside a week. The tag is the real answer
-     * because the pack's owner controls it and it does not drift as mobs are added; the health
-     * figure survives only as a configurable backstop for mobs nobody has listed yet.
+     * server-wide announcement becomes red-text spam inside a week. The boss rules are the real
+     * answer (the shipped ones follow the notable_bosses tag and the common boss tags that mods
+     * fill in, and a datapack adds or removes ids); the health figure survives only as a
+     * configurable backstop for mobs no rule names.
      */
     static boolean isNotableBoss(LivingEntity victim) {
         XpMatch rule = XpSources.table().match(XpDomain.BOSS, XpSubjects.entity(victim));
@@ -293,6 +295,10 @@ public final class ExpansionEvents {
     @SubscribeEvent
     public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
         PAID_PLACEMENTS.remove(event.getEntity().getUUID());
+        PLACEMENTS.forget(event.getEntity().getUUID());
+        if (event.getEntity() instanceof ServerPlayer leaving) {
+            RefundGuard.forget(leaving);
+        }
         ENTRY_COOLDOWN.forget(event.getEntity().getUUID());
         STREAKS.remove(event.getEntity().getUUID());
         LAST_CAST.remove(event.getEntity().getUUID());
@@ -314,32 +320,60 @@ public final class ExpansionEvents {
         if (!(event.getEntity() instanceof ServerPlayer player)) {
             return;
         }
+        // Whatever refunded mark an earlier block left here is stale now (it was blown up, broken
+        // in creative, ...): a new placement starts clean, so it is never charged for another's.
+        dev.amman.proficiency.skill.PlacedBlocks.clearRefunded(player.serverLevel(), event.getPos());
         // Every player placement is remembered, creative and machines included, so breaking it again pays nothing.
         dev.amman.proficiency.skill.PlacedBlocks.markPlacement(player.serverLevel(), event.getPos(), event.getPlacedBlock());
         if (player.isCreative()) {
             return;
         }
-        placed(player, event.getPlacedBlock(), event.getPos());
+        placedSurvival(player, event.getPlacedBlock(), event.getPos());
+    }
+
+    /** One paid placement per tick, and a human pace over a second: see {@link PlacementThrottle}. */
+    private static final PlacementThrottle PLACEMENTS = new PlacementThrottle();
+
+    /**
+     * A survival player's placement, after the guards. A machine's fake player is paid nothing. A
+     * tool that places a whole shape in one action (a wand, a building gadget) posts one event per
+     * block as the player, so only the first block of a tick pays, and never faster than a person
+     * could place by hand. The block is already marked as placed, so breaking it pays nothing.
+     */
+    public static void placedSurvival(ServerPlayer player, BlockState placed, BlockPos pos) {
+        if (dev.amman.proficiency.skill.SkillTools.isFakePlayer(player)) {
+            return;
+        }
+        long tick = player.level().getGameTime();
+        if (!PLACEMENTS.canPay(player.getUUID(), tick)) {
+            return;
+        }
+        // Only a placement that actually paid uses up the budget: a torch or a sign does not.
+        boolean[] paid = new boolean[1];
+        RefundGuard.placing(player, () -> paid[0] = placed(player, placed, pos));
+        if (paid[0]) {
+            PLACEMENTS.record(player.getUUID(), tick);
+        }
     }
 
     /**
      * What a survival player's placement pays. Split from the event so a GameTest can call it: the
      * mock player is always creative, and the event handler skips creative players.
      */
-    public static void placed(ServerPlayer player, BlockState placed, BlockPos pos) {
+    public static boolean placed(ServerPlayer player, BlockState placed, BlockPos pos) {
         if (alreadyPaidFor(player, pos)) {
-            return;
+            return false;
         }
 
         // Seeds, saplings and the like are farming. Half a harvest; no refund, proc or streak,
         // because a free seed is not what a farmer wants from the passive.
         XpMatch rule = dev.amman.proficiency.skill.BuildClassifier.placement(placed);
         if (rule == null || rule.paysNothing()) {
-            return;
+            return false;
         }
         if (rule.has("planting")) {
             SkillService.grant(player, rule.rule().skill, rule.xp(), placed.getBlock().getDescriptionId());
-            return;
+            return true;
         }
 
         // Setting up a contraption is the whole of Create; crafting the cogwheel is only half.
@@ -347,13 +381,13 @@ public final class ExpansionEvents {
             SkillService.grant(player, rule.rule().skill, rule.xp(), placed.getBlock().getDescriptionId());
             if (ProcService.fire(player, Skill.ENGINEERING, pos)) {
                 // Overclock: a free machine can come as two.
-                giveBack(player, placed, Math.max(1, ProcService.roundRandomly(
+                RefundGuard.giveBack(player, placed, pos, Math.max(1, ProcService.roundRandomly(
                         player, ProcService.power(player, Skill.ENGINEERING))));
             } else if (TalentService.rank(player, Skill.ENGINEERING, "blueprint") > 0
                     && player.getRandom().nextDouble() < 0.20) {
-                giveBack(player, placed, 1);
+                RefundGuard.giveBack(player, placed, pos, 1);
             }
-            return;
+            return true;
         }
 
         Skill skill = rule.rule().skill;
@@ -369,9 +403,9 @@ public final class ExpansionEvents {
         // Master Mason and Master Decorator build for free, which is what a builder actually wants
         // from a capstone.
         if (TalentService.hasSpecial(player, skill, "free_place")) {
-            giveBack(player, placed, 1);
+            RefundGuard.giveBack(player, placed, pos, 1);
             ProcService.fire(player, skill, pos);
-            return;
+            return true;
         }
 
         double refundChance = ProficiencyAttachments.of(player).bonus(skill);
@@ -402,8 +436,9 @@ public final class ExpansionEvents {
         }
 
         if (refunds > 0) {
-            giveBack(player, placed, refunds);
+            RefundGuard.giveBack(player, placed, pos, refunds);
         }
+        return true;
     }
 
     /**
@@ -416,19 +451,28 @@ public final class ExpansionEvents {
     }
 
 
-    private static void giveBack(ServerPlayer player, BlockState placed, int count) {
-        ItemStack refund = new ItemStack(placed.getBlock().asItem(), count);
-        if (refund.getItem() instanceof BlockItem) {
-            player.getInventory().placeItemBackInInventory(refund);
-        }
-    }
-
     // ---- Reach -------------------------------------------------------------------------------
+
+    /**
+     * Last in line on a right click on a block: if the block is one a refund talent paid for, the
+     * click is watched for a tick. A wrench that takes the block back without a break event is then
+     * charged the refund. See {@link RefundGuard}.
+     */
+    @SubscribeEvent(priority = dev.amman.proficiency.platform.bus.EventPriority.HIGHEST, receiveCanceled = true)
+    public static void onRightClickRefunded(PlayerInteractEvent.RightClickBlock event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) {
+            return;
+        }
+        RefundGuard.watchClick(player, event.getPos());
+    }
 
     /** Mining reaches further into the rock, Masonry further out into the air. */
     @SubscribeEvent
     public static void onPlayerTick(PlayerTickEvent.Post event) {
         Player player = event.getEntity();
+        if (player instanceof ServerPlayer serverPlayer) {
+            RefundGuard.tick(serverPlayer);
+        }
         AttributeInstance reach = player.getAttribute(Attributes.BLOCK_INTERACTION_RANGE);
         if (reach != null) {
             PlayerSkills skills = ProficiencyAttachments.of(player);
@@ -564,7 +608,10 @@ public final class ExpansionEvents {
             // Variants are one discovery: every village is a village.
             String canonical = StructureIds.canonical(raw.toString());
             String key = StructureIds.visitedKey(canonical);
-            if (!silent && StructureIds.alreadySeen(canonical, skills::hasVisited)) {
+            if (!silent && StructureIds.alreadySeen(canonical, skills.visitedKeys())) {
+                // Seen only under an old variant key: store the canonical key too, so the
+                // Discovery Journal (which counts canonical keys) agrees with the server.
+                skills.markVisited(key);
                 // The common case, every two seconds inside a village. Ask the cheap questions
                 // first: is the banner even on, and is this start off cooldown? Only then walk
                 // the pieces. getStructureAt looks at the start's box, not its pieces.
@@ -672,7 +719,7 @@ public final class ExpansionEvents {
             PlayerSkills theirs = ProficiencyAttachments.of(other);
             // A village found before variants were collapsed under another key still counts.
             if (kind == DiscoveryPayload.STRUCTURE
-                    && StructureIds.alreadySeen(id, theirs::hasVisited)) {
+                    && StructureIds.alreadySeen(id, theirs.visitedKeys())) {
                 continue;
             }
             if (theirs.markVisited(place)) {
@@ -713,11 +760,12 @@ public final class ExpansionEvents {
     @SubscribeEvent
     public static void onBlockBroken(BlockEvent.BreakEvent event) {
         Player player = event.getPlayer();
-        if (player == null || player.level().isClientSide()) {
+        if (player == null || player.level().isClientSide()
+                || dev.amman.proficiency.skill.SkillTools.isFakePlayer(player)) {
             return;
         }
         BlockState state = event.getState();
-        if (!state.is(Tags.Blocks.ORES)
+        if (GatheringEvents.cascading() || !state.is(Tags.Blocks.ORES)
                 || dev.amman.proficiency.skill.PlacedBlocks.isUnpaid(player.level(), event.getPos(), state)) {
             return;
         }
@@ -726,6 +774,11 @@ public final class ExpansionEvents {
             return;
         }
         double depthBonus = Math.max(0, (32 - event.getPos().getY())) / 32.0;
+        // An ore an area tool took along with the one you hit (a vein miner, a hammer): a share
+        // of the Spelunking XP like the Mining XP, and no proc roll, as for every extra block.
+        if (GatheringEvents.payAoeExtra(player, event.getPos(), Skill.SPELUNKING, 1.0 + depthBonus * 2.0, state)) {
+            return;
+        }
         SkillService.grant(player, Skill.SPELUNKING, 1.0 + depthBonus * 2.0, state.getBlock().getDescriptionId());
 
         if (ProcService.fire(player, Skill.SPELUNKING, event.getPos())

@@ -106,7 +106,14 @@
 
   "cast": [
     {
+      "match": "#proficiency:caster_items",
+      "kind": "item",
+      "skill": "spellcasting",
+      "xp": 0.5
+    },
+    {
       "match": ["ars_nouveau:*", "ars_additions:*", "arseng:*"],
+      "kind": "entity",
       "skill": "spellcasting",
       "xp": 0.5
     }
@@ -123,7 +130,8 @@
   ],
 
   "boss": [
-    { "match": "#proficiency:notable_bosses", "boss": true, "priority": -10 }
+    { "match": ["#proficiency:notable_bosses", "#c:bosses", "#neoforge:bosses", "#forge:bosses"],
+      "boss": true, "priority": -10 }
   ],
 
   "structure": [
@@ -146,7 +154,8 @@
       "priority": -10
     },
     { "match": "#forge:ores", "kind": "block", "multiplier": 2.0, "priority": -20 },
-    { "match": "#proficiency:notable_bosses", "kind": "entity", "multiplier": 10.0, "priority": -10 },
+    { "match": ["#proficiency:notable_bosses", "#c:bosses", "#neoforge:bosses", "#forge:bosses"],
+      "kind": "entity", "multiplier": 10.0, "priority": -10 },
     { "match": "*", "kind": "entity", "min_health": 100, "multiplier": 5.0, "priority": -20 },
     { "match": "*", "kind": "entity", "min_health": 40, "multiplier": 3.0, "priority": -30 },
     { "match": "#proficiency:builtin/rarity_epic", "kind": "item", "multiplier": 5.0, "priority": -10 },

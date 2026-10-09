@@ -54,6 +54,8 @@ public final class Telemetry {
     public static final String KIND_RESTED = "rested";
     /** Social XP a teacher was paid for what a student spent of the pool the teacher filled. */
     public static final String KIND_TEACHING = "teaching";
+    /** XP for the extra blocks an area tool (hammer, excavator, vein miner) broke with the first one. */
+    public static final String KIND_AOE = "aoe";
     public static final String KIND_OTHER = "other";
 
     private static final String SOURCE = "proficiency.xplog.source.";
@@ -220,8 +222,14 @@ public final class Telemetry {
     /** One XP grant. {@code level} is the skill's level after it, kept for the time-to-level estimate. */
     public synchronized void grant(UUID id, String name, Skill skill, String source, double base,
             double finalXp, int level, long nowMs) {
+        grant(id, name, skill, source, base, finalXp, level, nowMs, null);
+    }
+
+    /** As above; a non-null {@code kindOverride} files the grant under that kind instead of the source's. */
+    public synchronized void grant(UUID id, String name, Skill skill, String source, double base,
+            double finalXp, int level, long nowMs, String kindOverride) {
         SkillAgg agg = skill(player(id, name), skill);
-        String kind = kind(skill, source);
+        String kind = kindOverride != null ? kindOverride : kind(skill, source);
         KindAgg bucket = agg.kinds.get(kind);
         if (bucket == null) {
             bucket = new KindAgg();

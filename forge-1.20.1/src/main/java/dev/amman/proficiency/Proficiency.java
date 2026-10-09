@@ -33,6 +33,8 @@ public class Proficiency {
         dev.amman.proficiency.item.ProficiencyEnchantments.ENCHANTMENTS.register(modBus);
         dev.amman.proficiency.compat.DropsModifier.SERIALIZERS.register(modBus);
         ProficiencyNetwork.register();
+        // Forge resets the held stack around the place event, so refunds given there wait a tick.
+        dev.amman.proficiency.event.RefundGuard.deferPlacementRefunds = true;
         // Tactician's side of Hammer and Anvil hooks into Charger's first blood.
         dev.amman.proficiency.event.TacticianEvents.init();
         container.registerConfig(ModConfig.Type.SERVER, ProficiencyConfig.SPEC);

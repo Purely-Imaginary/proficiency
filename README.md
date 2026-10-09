@@ -36,6 +36,10 @@ One codebase builds three jars:
   is using it fills your rested pool in that skill 3 times as fast. When you spend what they put in,
   they earn Social XP. Three new Social talents (Quick Study, Wide Classroom, Teacher's Pride) tune
   it. The mentor XP bonus is +25% now, not +50%, so a student near a teacher is not paid twice.
+- **Fair with big tools and machines.** A hammer, excavator or vein miner pays full XP for the block
+  you aimed at and a quarter for the rest of the swing (`aoeXpShare` in the server config). Wands and
+  gadgets pay one placement per tick, refunded blocks cannot be farmed by picking them back up, and
+  target dummies, summons and machines' fake players pay nothing.
 - **Survival bonus.** +1% skill XP per active hour alive, up to +50%. A death wipes the bonus and
   the XP bars, never your levels or talents.
 - **Discovery.** Banners for new biomes, dimensions and structures, a one-time bonus for every new
@@ -76,9 +80,9 @@ in [CHANGELOG.md](CHANGELOG.md).
 ## Install
 
 Put the jar for your loader in the `mods/` folder of the **server and every client**. The mod
-registers items, so a client without it cannot join a server that has it. Version 1.4.0 speaks
-network protocol 6: a 1.3.0 or older client cannot join a 1.4.0 server, so update the server, the
-clients and any modpack together.
+registers items, so a client without it cannot join a server that has it. Versions 1.4.0 to 1.4.4
+speak network protocol 6: a 1.3.0 or older client cannot join a 1.4.x server, so update the server,
+the clients and any modpack together.
 
 An existing server keeps its saved `mentorBonus = 0.5`. The new default is 0.25: set it by hand in
 `config/proficiency-server.toml` if you want the new balance.

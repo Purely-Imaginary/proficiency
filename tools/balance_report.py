@@ -36,6 +36,7 @@ SKILLS = ("swords axes maces tridents unarmed blocking endurance archery crossbo
           "decorating social nightwalker courage guardian charger tactician").split()
 
 MIN_ACTIVE_S = 300          # a player needs five minutes in a skill before their rate counts
+DEAD_MIN_H = 10             # under this many active hours in total, "no XP" is too little data to call a skill dead
 RUNAWAY_FACTOR = 3.0
 SLOW_FACTOR = 1 / 3
 PROC_MIN_ROLLS = 30
@@ -344,7 +345,27 @@ def build(rows, files, bad, since, until, anon, skills):
         "players": players, "names": names, "table": table, "median_rate": mid,
         "curves": curves, "curve_text": curve_text(curves), "deaths": deaths, "worlds": sorted({k[0] for k in players}),
         "generated": dt.datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "span": data_span(rows), "active_h": sum(p["active_s"] for p in players.values()) / 3600,
     }
+
+
+def data_span(rows):
+    """First and last telemetry write in the window, local time: the window asked for can be far wider."""
+    ts = [r["t"] for r in rows if isinstance(r.get("t"), (int, float))]
+    if not ts:
+        return None
+    f = lambda ms: dt.datetime.fromtimestamp(ms / 1000).strftime("%Y-%m-%d %H:%M")
+    return f(min(ts)), f(max(ts))
+
+
+def dead_label(d):
+    if d["active_h"] < DEAD_MIN_H:
+        return "No XP yet (only %.1f active hours of data, too few to call a skill dead)" % d["active_h"]
+    return "Dead (no XP in the window)"
+
+
+def span_text(d):
+    return "data %s to %s" % d["span"] if d["span"] else "no data"
 
 
 # ---------------------------------------------------------------- markdown
@@ -355,8 +376,8 @@ def markdown(d):
     t = d["table"]
     w("# Proficiency balance report")
     w("")
-    w("Window %s to %s, %d day file(s), %d player(s) on %s. Generated %s.%s" % (
-        d["since"], d["until"], d["files"], len(d["players"]),
+    w("Window %s to %s (%s), %d day file(s), %d player(s) on %s. Generated %s.%s" % (
+        d["since"], d["until"], span_text(d), d["files"], len(d["players"]),
         ", ".join(d["worlds"]) or "no server", d["generated"],
         " Names anonymised." if d["anon"] else ""))
     if d["bad"]:
@@ -384,7 +405,7 @@ def markdown(d):
         "%s (%s)" % (r["skill"], fx(r["vs_median"])) for r in run) or "none"))
     w("- Slow (under a third of the median): %s." % (", ".join(
         "%s (%s)" % (r["skill"], fx(r["vs_median"])) for r in slow) or "none"))
-    w("- Dead (no XP in the window): %s." % (", ".join(dead) or "none"))
+    w("- %s: %s." % (dead_label(d), ", ".join(dead) or "none"))
     w("- Proc rate off its configured chance: %s." % (", ".join(r["skill"] for r in off) or "none"))
     all_xp = sum(r["xp"] for r in t)
     w("- Rested XP: %.0f of %.0f XP (%s); teaching paid %.0f Social XP." % (
@@ -424,6 +445,9 @@ def markdown(d):
     w("")
     w("## Dead skills")
     w("")
+    if d["active_h"] < DEAD_MIN_H:
+        w("%s." % dead_label(d))
+        w("")
     w(", ".join(dead) if dead else "None: every skill paid XP in the window.")
     w("")
     w("## Time to level at the current rate")
@@ -520,8 +544,8 @@ def page(d):
     w("<meta name=viewport content='width=device-width,initial-scale=1'>")
     w("<title>Proficiency balance</title><style>%s</style></head><body><main>" % CSS)
     w("<h1>Proficiency balance</h1>")
-    w("<p class=sub>%s to %s &middot; %d day file(s) &middot; %s%s &middot; generated %s</p>" % (
-        h(d["since"]), h(d["until"]), d["files"], h(", ".join(d["worlds"]) or "no server"),
+    w("<p class=sub>%s to %s &middot; %s &middot; %d day file(s) &middot; %s%s &middot; generated %s</p>" % (
+        h(d["since"]), h(d["until"]), h(span_text(d)), d["files"], h(", ".join(d["worlds"]) or "no server"),
         " &middot; names anonymised" if d["anon"] else "", h(d["generated"])))
     if not d["players"]:
         w("<p>No telemetry in the window. It needs this version of the mod and a session in the "
@@ -537,7 +561,8 @@ def page(d):
     w("<div class=cards>")
     for big, small in ((len(d["players"]), "players"), ("%.1f" % active_h, "active hours"),
                        (f1(d["median_rate"]), "median XP per active hour"), (deaths, "deaths"),
-                       (len(run), "runaway skills"), (len(dead), "dead skills")):
+                       (len(run), "runaway skills"),
+                       (len(dead), "dead skills" if d["active_h"] >= DEAD_MIN_H else "skills with no XP yet")):
         w("<div class=card><b>%s</b><span>%s</span></div>" % (h(big), h(small)))
     w("</div>")
     w("<div class='card list'><b style='font-size:1rem'>Findings</b>")
@@ -545,7 +570,7 @@ def page(d):
         "<b>%s</b> %s" % (h(r["skill"]), h(fx(r["vs_median"]))) for r in run) or "none"))
     w("<p>Slow (under a third): %s</p>" % (", ".join(
         "%s %s" % (h(r["skill"]), h(fx(r["vs_median"]))) for r in slow) or "none"))
-    w("<p>Dead (no XP in the window): %s</p>" % (h(", ".join(r["skill"] for r in dead)) or "none"))
+    w("<p>%s: %s</p>" % (h(dead_label(d)), h(", ".join(r["skill"] for r in dead)) or "none"))
     w("<p>Proc rate off its chance: %s</p></div>" % (
         h(", ".join(r["skill"] for r in off)) or "none"))
     top = max([r["rate"] or 0 for r in t] + [1])
@@ -582,7 +607,8 @@ def page(d):
         w("<tr><td>%s<td><div class=mixbar>%s</div><td style='text-align:left'>%s</tr>" % (
             h(r["skill"]), segs, h(mix_text(r["mix"]))))
     w("</table></div>")
-    w("<h2>Dead skills</h2><p>%s</p>" % (
+    w("<h2>Dead skills</h2>%s<p>%s</p>" % (
+        "<p class=note>%s.</p>" % h(dead_label(d)) if d["active_h"] < DEAD_MIN_H else "",
         h(", ".join(r["skill"] for r in dead)) if dead else "None: every skill paid XP in the window."))
     w("<h2>Time to level at the current rate</h2><p class=note>Curve %s, from the "
       "server's own settings. Hours of use of that skill.</p><div class=tablewrap><table>"

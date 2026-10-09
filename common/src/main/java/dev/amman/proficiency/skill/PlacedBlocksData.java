@@ -13,6 +13,9 @@ public final class PlacedBlocksData extends SavedData {
 
     final PlacedBlockStore store = new PlacedBlockStore();
 
+    /** Blocks a refund talent paid for: position to (block hash with the refunded count in the low byte). */
+    final PlacedBlockStore refunded = new PlacedBlockStore();
+
     public static PlacedBlocksData create() {
         return new PlacedBlocksData();
     }
@@ -23,6 +26,11 @@ public final class PlacedBlocksData extends SavedData {
         for (int i = 0; i < chunks.size(); i++) {
             CompoundTag chunk = chunks.getCompound(i);
             data.store.decode(chunk.getLong("c"), chunk.getLongArray("e"));
+        }
+        ListTag refunds = tag.getList("refunded", 10);
+        for (int i = 0; i < refunds.size(); i++) {
+            CompoundTag chunk = refunds.getCompound(i);
+            data.refunded.decode(chunk.getLong("c"), chunk.getLongArray("e"));
         }
         return data;
     }
@@ -37,6 +45,14 @@ public final class PlacedBlocksData extends SavedData {
             chunks.add(chunk);
         }
         tag.put("chunks", chunks);
+        ListTag refunds = new ListTag();
+        for (long key : refunded.chunkKeys()) {
+            CompoundTag chunk = new CompoundTag();
+            chunk.putLong("c", key);
+            chunk.putLongArray("e", refunded.encode(key));
+            refunds.add(chunk);
+        }
+        tag.put("refunded", refunds);
         return tag;
     }
 

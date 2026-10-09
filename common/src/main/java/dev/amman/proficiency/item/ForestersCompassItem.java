@@ -201,7 +201,7 @@ public class ForestersCompassItem extends Item {
         CompoundTag tag = data.copyTag();
         String structure = tag.getString(TARGET_STRUCTURE_KEY);
         if (!structure.isEmpty()) {
-            if (StructureIds.alreadySeen(structure, key -> ProficiencyAttachments.of(player).hasVisited(key))) {
+            if (StructureIds.alreadySeen(structure, ProficiencyAttachments.of(player).visitedKeys())) {
                 clearTarget(stack);
                 player.displayClientMessage(Component.translatable("proficiency.compass.arrived",
                         structureName(structure)).withStyle(ChatFormatting.GREEN), true);
@@ -376,7 +376,7 @@ public class ForestersCompassItem extends Item {
             }
         }
         List<Holder<Structure>> wanted = new ArrayList<>();
-        for (String raw : StructureIds.unvisitedTargets(local, key -> skills.hasVisited(key))) {
+        for (String raw : StructureIds.unvisitedTargets(local, skills.visitedKeys())) {
             ResourceLocation id = ResourceLocation.tryParse(raw);
             if (id != null) {
                 registry.getHolder(id).ifPresent(h -> wanted.add((Holder<Structure>) h));

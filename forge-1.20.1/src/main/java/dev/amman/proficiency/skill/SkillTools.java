@@ -49,11 +49,25 @@ public final class SkillTools {
     }
 
     /**
+     * A machine's stand-in player (Create deployers, Mekanism miners, Ars turrets, rituals): it earns
+     * nothing and gets nothing. Also true for a player with no connection, which could never be sent
+     * a packet. See {@link FakeActors}.
+     */
+    public static boolean isFakePlayer(net.minecraft.world.entity.player.Player player) {
+        return FakeActors.isFake(player)
+                || (player instanceof net.minecraft.server.level.ServerPlayer server && server.connection == null);
+    }
+
+    /**
      * Whether breaking this crop is a harvest. Stems never are; a CropBlock (modded subclasses
      * included) asks its own isMaxAge; any other block with an "age" property is ripe at its top
      * value (nether wart 3, cocoa 2, berries); blocks with no age are always ripe.
      */
     public static boolean isRipe(BlockState state) {
+        if (dev.amman.proficiency.compat.AgriCraftCompat.isCropBlock(state)) {
+            // Its growth is in a block entity: without a level nothing can be known, so it is not ripe.
+            return false;
+        }
         if (state.getBlock() instanceof net.minecraft.world.level.block.StemBlock) {
             return false;
         }
@@ -76,10 +90,29 @@ public final class SkillTools {
         return match != null && match.has("crop") && isRipe(state);
     }
 
-    /** The rule that decides what breaking this block pays, or null when none applies. */
+    /** As {@link #isRipeCrop(BlockState)}, and it can read an AgriCraft crop's block entity. */
+    public static boolean isRipeCrop(net.minecraft.world.level.Level level, net.minecraft.core.BlockPos pos,
+            BlockState state) {
+        if (dev.amman.proficiency.compat.AgriCraftCompat.isCropBlock(state)) {
+            return dev.amman.proficiency.compat.AgriCraftCompat.maturePlant(level, pos);
+        }
+        return isRipeCrop(state);
+    }
+
+    /**
+     * The rule that decides what breaking this block pays, or null when none applies. An AgriCraft
+     * crop is always a crop: a rule of its own (a datapack's) decides, and without one it pays what
+     * wheat pays, whatever tag-based rule (mineable/axe) would otherwise have caught the block.
+     */
     @Nullable
     public static XpMatch breakMatch(BlockState state, double hardness) {
-        return XpSources.table().match(XpDomain.BREAK, XpSubjects.block(state, hardness));
+        XpMatch match = XpSources.table().match(XpDomain.BREAK, XpSubjects.block(state, hardness));
+        if (dev.amman.proficiency.compat.AgriCraftCompat.isCropBlock(state)
+                && (match == null || (!match.paysNothing() && !match.has("crop")))) {
+            return XpSources.table().match(XpDomain.BREAK,
+                    XpSubjects.block(net.minecraft.world.level.block.Blocks.WHEAT.defaultBlockState(), hardness));
+        }
+        return match;
     }
 
     /**
@@ -113,8 +146,8 @@ public final class SkillTools {
         return switch (kind) {
             case "pickaxe" -> isPickaxe(tool);
             case "shovel" -> isShovel(tool);
-            case "axe" -> tool.is(ItemTags.AXES) || tool.getItem() instanceof AxeItem;
-            case "hoe" -> tool.is(ItemTags.HOES) || tool.getItem() instanceof HoeItem;
+            case "axe" -> isAxe(tool);
+            case "hoe" -> isHoe(tool);
             default -> true;
         };
     }
@@ -131,11 +164,43 @@ public final class SkillTools {
         return stack.getItem() instanceof dev.amman.proficiency.item.MaceItem || stack.is(MACES_TAG);
     }
 
+    /**
+     * Paxels (a pickaxe, shovel and axe in one) are tagged {@code c:tools/paxels} or
+     * {@code forge:tools/paxels} by the mods that make them. A tag that does not exist is simply empty.
+     */
+    private static final net.minecraft.tags.TagKey<net.minecraft.world.item.Item> PAXELS_C =
+            ItemTags.create(new net.minecraft.resources.ResourceLocation("c", "tools/paxels"));
+    private static final net.minecraft.tags.TagKey<net.minecraft.world.item.Item> PAXELS_FORGE =
+            ItemTags.create(new net.minecraft.resources.ResourceLocation("forge", "tools/paxels"));
+
+    public static boolean isPaxel(ItemStack stack) {
+        return stack.is(PAXELS_C) || stack.is(PAXELS_FORGE);
+    }
+
+    /**
+     * What a tool can do is also read from the tool itself, so a hammer, an excavator, a paxel or a
+     * Meka-Tool counts whatever it is tagged: the loader's tool actions ("can this dig like a
+     * pickaxe?"). The tags and the vanilla classes stay as fallbacks. A paxel is a pickaxe, a shovel
+     * and an axe at once; the block decides which skill the swing pays, so it never pays twice.
+     * Weapons are not read this way: {@link #meleeSkill} keeps its own rule.
+     */
     public static boolean isPickaxe(ItemStack stack) {
-        return stack.is(ItemTags.PICKAXES) || stack.getItem() instanceof PickaxeItem;
+        return stack.is(ItemTags.PICKAXES) || stack.getItem() instanceof PickaxeItem || isPaxel(stack)
+                || stack.canPerformAction(net.minecraftforge.common.ToolActions.PICKAXE_DIG);
     }
 
     public static boolean isShovel(ItemStack stack) {
-        return stack.is(ItemTags.SHOVELS) || stack.getItem() instanceof ShovelItem;
+        return stack.is(ItemTags.SHOVELS) || stack.getItem() instanceof ShovelItem || isPaxel(stack)
+                || stack.canPerformAction(net.minecraftforge.common.ToolActions.SHOVEL_DIG);
+    }
+
+    public static boolean isAxe(ItemStack stack) {
+        return stack.is(ItemTags.AXES) || stack.getItem() instanceof AxeItem || isPaxel(stack)
+                || stack.canPerformAction(net.minecraftforge.common.ToolActions.AXE_DIG);
+    }
+
+    public static boolean isHoe(ItemStack stack) {
+        return stack.is(ItemTags.HOES) || stack.getItem() instanceof HoeItem
+                || stack.canPerformAction(net.minecraftforge.common.ToolActions.HOE_DIG);
     }
 }

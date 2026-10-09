@@ -22,6 +22,10 @@ count() {  # project
         || FAIL=1
 }
 
+# Forge keeps a hand copy of RefundGuard: it may differ only in the two platform lines.
+if ! diff <(sed -e 's/compat\.BlockDropsEvent/platform.event.level.BlockDropsEvent/' -e 's/isSameItemSameTags/isSameItemSameComponents/' forge-1.20.1/src/main/java/dev/amman/proficiency/event/RefundGuard.java) common/src/main/java/dev/amman/proficiency/event/RefundGuard.java > /dev/null; then
+    echo "RefundGuard: forge-1.20.1 copy has drifted from common/"; FAIL=1
+fi
 run build build
 for p in core common forge-1.20.1; do count $p; done
 run neoforge-gametest :neoforge:runGameTestServer

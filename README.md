@@ -19,7 +19,8 @@ One codebase builds three jars:
 - **35 skills** in six categories, each from 0 to 100. Gathering, crafting, combat, movement,
   construction and survival.
 - **A passive per skill** that grows with the level, and a **signature proc** from level 25. Mining
-  hits a Motherlode, Woodcutting fells the whole tree, Swords land a Perfect Strike.
+  hits a Motherlode, Woodcutting fells the whole tree, Swords land a Perfect Strike. The proc and
+  the ability switch on only once the first node of the skill's tree is filled.
 - **A talent tree per skill.** One point per level, and every tree can be filled completely by
   level 100. Branch choices set priority, never a lockout. A respec costs 1 XP level per 10 points.
 - **158 synergies** between trees. Every skill takes part in 9 or 10. Most are numeric boosts; about
@@ -43,7 +44,7 @@ One codebase builds three jars:
   they earn Social XP. Three new Social talents (Quick Study, Wide Classroom, Teacher's Pride) tune
   it. The mentor XP bonus is +25% now, not +50%, so a student near a teacher is not paid twice.
 - **Fair with big tools and machines.** A hammer, excavator or vein miner pays full XP for the block
-  you aimed at and a quarter for the rest of the swing (`aoeXpShare` in the server config). Wands and
+  you aimed at and 10% for each other block of the swing (`aoeXpShare` in the server config). Wands and
   gadgets pay one placement per tick, refunded blocks cannot be farmed by picking them back up, and
   target dummies, summons and machines' fake players pay nothing.
 - **The Hearth.** A campfire on a stone platform, lit with flint and steel, becomes a group's

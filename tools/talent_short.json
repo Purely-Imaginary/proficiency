@@ -1,11 +1,13 @@
 {
- "root": "Fill it to open the branches.",
+ "root": "Fill it to open the branches, the signature move and the ability.",
  "swords.parry": "Sometimes turns a hit aside completely.",
+ "swords.lunge": "Sprinting hits can land as critical hits.",
  "swords.hemorrhage": "Perfect Strike makes the target bleed.",
  "swords.executioner": "Hit weakened foes harder.",
  "swords.duelist": "Hit harder when you fight one foe alone.",
  "swords.sword_saint": "A Perfect Strike can chain into the next.",
  "axes.berserker": "The more hurt you are, the harder you hit.",
+ "axes.rend": "Critical hits leave a wound that takes more damage.",
  "axes.sunder": "Cleave leaves its targets weakened.",
  "axes.bloodrush": "An axe kill makes you faster and stronger.",
  "axes.undying_rage": "Now and then, a killing blow leaves you at 1.",
@@ -19,6 +21,7 @@
  "tridents.conductor": "A proc in a thunderstorm calls lightning.",
  "tridents.sea_king": "A trident in water gives Conduit Power.",
  "unarmed.combo": "Quick punches in a row hit harder.",
+ "unarmed.flow": "Critical punches give a burst of speed.",
  "unarmed.stagger": "The knockout blow leaves the target weakened.",
  "unarmed.iron_skin": "Take less damage with an empty hand.",
  "unarmed.one_inch_punch": "The knockout blow sends foes flying.",
@@ -185,5 +188,13 @@
  "tactician.quartermaster": "A kill on your mark can return the arrow.",
  "tactician.painted_target": "Your mark lasts longer and hurts more.",
  "tactician.focus_fire": "When your mark dies, it jumps to the next foe.",
- "tactician.field_marshal": "Longer mark; kills on it speed your ability."
+ "tactician.field_marshal": "Longer mark; kills on it speed your ability.",
+ "homebuilder.tidy_home": "Pulls items to you at home.",
+ "homebuilder.scaffolder": "Falls at home hurt less.",
+ "homebuilder.long_pull": "The magnet reaches further.",
+ "homebuilder.warm_welcome": "Warmth fills faster.",
+ "homebuilder.storyteller": "Bank more Tales on your trips.",
+ "homebuilder.open_house": "Longer House Proud that reaches further.",
+ "homebuilder.night_watch": "See siege mobs; hear sieges coming early.",
+ "homebuilder.homeward": "Once a day, recall to your Hearth."
 }

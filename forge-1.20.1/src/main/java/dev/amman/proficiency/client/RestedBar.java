@@ -11,8 +11,9 @@ import java.util.List;
 
 /**
  * Rested XP on the client: the blue segment of a bar and the tooltip lines. The segment starts
- * where the filled part ends and is as long as the XP that will pay double, so it shows how far
- * the pool reaches. Both the HUD line and the skills panel use it.
+ * where the filled part ends and is as long as the stretch of bar the pool carries
+ * ({@link RestedMath#reach}), so it shows how far the pool carries the bar. Both the HUD line and
+ * the skills panel use it.
  */
 public final class RestedBar {
 

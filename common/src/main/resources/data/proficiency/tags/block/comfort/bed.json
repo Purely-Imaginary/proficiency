@@ -1,0 +1,6 @@
+{
+  "_comment": "Comfort kind: a bed. Packs add their beds here (docs/HEARTH-SPEC.md, Comfort).",
+  "values": [
+    "#minecraft:beds"
+  ]
+}

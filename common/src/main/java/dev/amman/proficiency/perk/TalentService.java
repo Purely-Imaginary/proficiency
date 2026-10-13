@@ -139,6 +139,9 @@ public final class TalentService {
         }
         skills.addRank(talent);
         announceChanges(player, before, activeIds(skills));
+        if (fills) {
+            dev.amman.proficiency.skill.SignatureNotice.rootFilled(player, talent);
+        }
 
         return new Attempt(TalentOutcome.OK, Component.translatable("proficiency.talent.msg.invested",
                         Component.translatable(talent.nameKey()), skills.rank(talent), talent.maxRank())

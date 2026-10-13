@@ -17,6 +17,10 @@ public final class ProficiencyNeoForge {
         NeoForgePlatform.ATTACHMENTS.register(modBus);
         // Class init hands every item and the tab to the deferred registers.
         ProficiencyItems.init();
+        // The Hearth's block, block entity and items (docs/HEARTH-CONTRACT.md).
+        dev.amman.proficiency.hearth.HearthBlocks.init();
+        NeoForgePlatform.BLOCKS.register(modBus);
+        NeoForgePlatform.BLOCK_ENTITIES.register(modBus);
         NeoForgePlatform.ITEMS.register(modBus);
         NeoForgePlatform.TABS.register(modBus);
         modBus.addListener(NeoForgeNetwork::register);

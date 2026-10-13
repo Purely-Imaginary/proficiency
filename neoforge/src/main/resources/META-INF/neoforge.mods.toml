@@ -23,6 +23,7 @@ description='''${mod_description}'''
     ordering="NONE"
     side="BOTH"
 
-# Client only: Nightwalker's Dark Sight in the light map. Not required; see LightTextureMixin.
+# Nightwalker's Dark Sight in the light map (client) and the Hearth's Workshop station speed
+# (furnaces, brewing stands; both sides). Not required; see LightTextureMixin and HearthFurnaceMixin.
 [[mixins]]
 config="proficiency.mixins.json"

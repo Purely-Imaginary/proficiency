@@ -63,4 +63,13 @@ class TalentMathTest {
         }
         assertTrue(streak.place("minecraft:dirt"));
     }
+
+    @Test
+    void seismicSurveyPulsesTwiceAsOftenAndReachesTwoFurther() {
+        assertEquals(200, TalentMath.echoInterval(false));
+        assertEquals(100, TalentMath.echoInterval(true));
+        assertEquals(6, TalentMath.echoRadius(3, false));
+        assertEquals(8, TalentMath.echoRadius(3, true));
+        assertEquals(0, TalentMath.echoRadius(0, true));
+    }
 }

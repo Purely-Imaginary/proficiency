@@ -1,0 +1,14 @@
+{
+  "replace": false,
+  "values": [
+    { "id": "#handcrafted:chairs", "required": false },
+    { "id": "#handcrafted:benches", "required": false },
+    { "id": "#handcrafted:couches", "required": false },
+    { "id": "#handcrafted:dining_benches", "required": false },
+    { "id": "#another_furniture:chairs", "required": false },
+    { "id": "#another_furniture:benches", "required": false },
+    { "id": "#another_furniture:sofas", "required": false },
+    { "id": "#another_furniture:stools", "required": false },
+    { "id": "#another_furniture:tall_stools", "required": false }
+  ]
+}

@@ -72,7 +72,7 @@ class AoeBreaksTest {
 
     @Test
     void extraXpIsTheShareOfTheNormalXp() {
-        assertEquals(0.25, AoeBreaks.extraXp(1.0, AoeBreaks.DEFAULT_SHARE), 1e-12);
+        assertEquals(0.10, AoeBreaks.extraXp(1.0, AoeBreaks.DEFAULT_SHARE), 1e-12);
         assertEquals(2.0, AoeBreaks.extraXp(8.0, 0.25), 1e-12);
         assertEquals(0.0, AoeBreaks.extraXp(8.0, 0.0), 0.0);
         assertEquals(0.0, AoeBreaks.extraXp(0.0, 0.25), 0.0);
@@ -81,10 +81,10 @@ class AoeBreaksTest {
     }
 
     @Test
-    void aHammerSwingPaysOnePointTwoFiveBlocksWorthWithTheDefaultShare() {
-        // A 3x3 hammer: one full block and eight extras at 25% is 3 blocks' worth, not 9.
+    void aHammerSwingPaysOnePointEightBlocksWorthWithTheDefaultShare() {
+        // A 3x3 hammer: one full block and eight extras at 10% is 1.8 blocks' worth, not 9.
         double total = 1.0 + 8 * AoeBreaks.extraXp(1.0, AoeBreaks.DEFAULT_SHARE);
-        assertEquals(3.0, total, 1e-12);
+        assertEquals(1.8, total, 1e-12);
     }
 
     @Test

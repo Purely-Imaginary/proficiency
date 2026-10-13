@@ -104,6 +104,34 @@ public final class PlacedBlockStore {
         }
     }
 
+    /** Receives one marked block: its absolute position and the hash stored for it. */
+    @FunctionalInterface
+    public interface Visitor {
+        void visit(int x, int y, int z, int hash);
+    }
+
+    /**
+     * Calls {@code visitor} for every mark in one chunk column whose height is in {@code minY..maxY},
+     * in no particular order, without allocating a copy. The store must not change while this runs
+     * (collect what to clear, then clear it).
+     */
+    public void forEachInChunk(int chunkX, int chunkZ, int minY, int maxY, Visitor visitor) {
+        Long2IntOpenHashMap chunk = chunks.get(chunkKey(chunkX, chunkZ));
+        if (chunk == null) {
+            return;
+        }
+        int baseX = chunkX << 4;
+        int baseZ = chunkZ << 4;
+        for (Long2IntOpenHashMap.Entry e : chunk.long2IntEntrySet()) {
+            long local = e.getLongKey();
+            int y = (int) (local >> 8) - 2048;
+            if (y < minY || y > maxY) {
+                continue;
+            }
+            visitor.visit(baseX + (int) ((local >> 4) & 15), y, baseZ + (int) (local & 15), e.getIntValue());
+        }
+    }
+
     public static int chunkX(long chunkKey) {
         return (int) chunkKey;
     }

@@ -35,7 +35,16 @@ public final class ProficiencyClientSetup {
             DiscoveryBanner.clear();
             ClientVisited.clear();
             HudState.reset();
+            // The Hearth's client copies (the HUD packet, then the client lane's views) and Homebuilder's.
+            HomebuilderHud.reset();
+            // A tale panel still inside its five seconds must not greet the next world.
+            TalesPayInHud.reset();
+            dev.amman.proficiency.hearth.net.HearthClients.leaveWorld();
         });
+        // The Hearth's client lane installs its payload handler and HUD listeners.
+        dev.amman.proficiency.hearth.client.HearthClientInit.init();
+        // Homebuilder's channel ring, a friend's House Proud glow and the wheel's two slots.
+        HomebuilderHud.install();
     }
 
     /** Vanilla's needle maths, fed from the stack's stored target instead of a lodestone. */
@@ -64,5 +73,6 @@ public final class ProficiencyClientSetup {
     private static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
         event.register(ProficiencyClient.OPEN_SKILLS);
         event.register(ProficiencyClient.USE_ABILITY);
+        event.register(ProficiencyClient.HEARTH_MAP);
     }
 }

@@ -46,6 +46,21 @@ public final class NeoForgePlatform implements Platform {
                     .serialize(PlayerSkills.CODEC)
                     .build());
 
+    public static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks(Proficiency.MOD_ID);
+
+    public static final DeferredRegister<net.minecraft.world.level.block.entity.BlockEntityType<?>> BLOCK_ENTITIES =
+            DeferredRegister.create(Registries.BLOCK_ENTITY_TYPE, Proficiency.MOD_ID);
+
+    /**
+     * The player's Hearth state, saved with the player as {@code proficiency:hearth}. Not copied on
+     * death by the loader: the Hearth's Clone handler copies it and clears what a death costs.
+     */
+    public static final Supplier<AttachmentType<dev.amman.proficiency.hearth.PlayerHearth>> HEARTH =
+            ATTACHMENTS.register("hearth",
+                    () -> AttachmentType.builder(dev.amman.proficiency.hearth.PlayerHearth::new)
+                            .serialize(dev.amman.proficiency.hearth.PlayerHearth.CODEC)
+                            .build());
+
     @Override
     public String loaderName() {
         return "NeoForge";
@@ -127,5 +142,24 @@ public final class NeoForgePlatform implements Platform {
     @Override
     public CreativeModeTab.Builder tabBuilder() {
         return CreativeModeTab.builder();
+    }
+
+    @Override
+    public dev.amman.proficiency.hearth.PlayerHearth hearth(Player player) {
+        return player.getData(HEARTH.get());
+    }
+
+    @Override
+    public <T extends net.minecraft.world.level.block.Block> Supplier<T> registerBlock(String name,
+            Supplier<T> factory) {
+        return BLOCKS.register(name, factory);
+    }
+
+    @Override
+    public <T extends net.minecraft.world.level.block.entity.BlockEntity>
+            Supplier<net.minecraft.world.level.block.entity.BlockEntityType<T>> registerBlockEntity(String name,
+                    BlockEntityFactory<T> factory, Supplier<? extends net.minecraft.world.level.block.Block> block) {
+        return BLOCK_ENTITIES.register(name, () -> net.minecraft.world.level.block.entity.BlockEntityType.Builder
+                .<T>of(factory::create, block.get()).build(null));
     }
 }

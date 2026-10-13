@@ -75,4 +75,26 @@ public interface Platform {
 
     /** A creative tab builder; NeoForge and Fabric start it differently. */
     CreativeModeTab.Builder tabBuilder();
+
+    // ---- Hearth (docs/HEARTH-CONTRACT.md) ------------------------------------------------------
+
+    /** The player's Hearth state, the attachment {@code proficiency:hearth}, created empty on first use. */
+    dev.amman.proficiency.hearth.PlayerHearth hearth(Player player);
+
+    /** Registers a block now or at the loader's registration time. Call {@code get()} only after. */
+    <T extends net.minecraft.world.level.block.Block> Supplier<T> registerBlock(String name, Supplier<T> factory);
+
+    /**
+     * Registers a block entity type for one block. Vanilla's builder takes a package-private factory
+     * type, so each loader builds it its own way.
+     */
+    <T extends net.minecraft.world.level.block.entity.BlockEntity>
+            Supplier<net.minecraft.world.level.block.entity.BlockEntityType<T>> registerBlockEntity(String name,
+                    BlockEntityFactory<T> factory, Supplier<? extends net.minecraft.world.level.block.Block> block);
+
+    /** {@code new MyBlockEntity(pos, state)}. */
+    @FunctionalInterface
+    interface BlockEntityFactory<T extends net.minecraft.world.level.block.entity.BlockEntity> {
+        T create(net.minecraft.core.BlockPos pos, net.minecraft.world.level.block.state.BlockState state);
+    }
 }

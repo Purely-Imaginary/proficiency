@@ -229,7 +229,27 @@ public final class CraftingEvents {
                 player.getInventory().placeItemBackInInventory(result.copyWithCount(extraPortions(player)));
             }
         }
-        SkillService.grant(player, skill, Math.max(1, result.getCount()) * 1.0, result.getDescriptionId());
+        // Smithing pays by the recipe's own worth (SmeltXp): charcoal is fuel, not metalwork.
+        double perItem = isFood ? 1.0 : SmeltXp.perItem(smeltRecipeXp(player.level(), result));
+        SkillService.grant(player, skill, Math.max(1, result.getCount()) * perItem, result.getDescriptionId());
+    }
+
+    /** The highest experience of a smelting or blasting recipe that makes this item; -1 when none does. */
+    private static double smeltRecipeXp(net.minecraft.world.level.Level level, ItemStack result) {
+        net.minecraft.world.item.crafting.RecipeManager recipes = level.getRecipeManager();
+        double best = bestRecipeXp(recipes, net.minecraft.world.item.crafting.RecipeType.SMELTING, level, result, -1);
+        return bestRecipeXp(recipes, net.minecraft.world.item.crafting.RecipeType.BLASTING, level, result, best);
+    }
+
+    private static <T extends net.minecraft.world.item.crafting.AbstractCookingRecipe> double bestRecipeXp(
+            net.minecraft.world.item.crafting.RecipeManager recipes, net.minecraft.world.item.crafting.RecipeType<T> type,
+            net.minecraft.world.level.Level level, ItemStack result, double best) {
+        for (T recipe : recipes.getAllRecipesFor(type)) {
+            if (ItemStack.isSameItem(recipe.getResultItem(level.registryAccess()), result)) {
+                best = Math.max(best, recipe.getExperience());
+            }
+        }
+        return best;
     }
 
     /** A cooking proc's extra portions: two, and more with proc power (Banquet). */

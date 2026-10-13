@@ -18,7 +18,8 @@ import java.util.List;
  * apart.
  *
  * <p>It sits at the right edge, narrow enough to stay clear of the default chat width (the chat
- * draws over the HUD and the death lines fill it at exactly this moment).
+ * draws over the HUD and the death lines fill it at exactly this moment). It claims the rows it covers
+ * there ({@link RightEdge}), so the Hearth tracker steps clear of it.
  *
  * <p>The packet arrives from the server's respawn handler, a moment before the client has its new
  * body, so it only waits here; the clock starts on the first frame with no screen up.
@@ -156,7 +157,7 @@ public final class DeathRecapHud {
         int titleHeight = 5 + titleLines.size() * 9 + 4;
         int streakHeight = (hasStreak ? Math.max(ROW, streakLines.size() * 9) + 6 : 0)
                 + (hasRested ? restedLines.size() * 9 + 6 : 0);
-        panelTop = topFor(guiHeight);
+        panelTop = topFor(guiHeight, DiscoveryBanner.bottom());
         int top = panelTop;
         int room = guiHeight - 44 - top - titleHeight - streakHeight - 4;
         int rowsFit = Math.max(1, room / ROW);
@@ -184,17 +185,18 @@ public final class DeathRecapHud {
 
     /**
      * Where the panel starts: 30% down, or below the banner that is on screen when the panel is laid
-     * out (a respawn into a new place shows both), so the banner's XP line is not covered.
+     * out ({@code bannerBottom}, 0 with none: a respawn into a new place shows both), so the banner's XP line
+     * is not covered. The Tales panel starts at the same row ({@link RightEdge#panelTop}).
      */
-    private static int topFor(int guiHeight) {
-        int banner = DiscoveryBanner.bottom();
-        return Math.max(8, Math.max(Math.round(guiHeight * 0.30f), banner > 0 ? banner + 4 : 0));
+    static int topFor(int guiHeight, int bannerBottom) {
+        return RightEdge.panelTop(guiHeight, bannerBottom);
     }
 
     public static void reset() {
         pending = false;
         start = Long.MIN_VALUE / 2;
         entries = List.of();
+        RightEdge.release(RightEdge.DEATH_RECAP);
     }
 
     /** How far a row's bar has drained, 0 to 1 (eased), for row {@code index} at {@code elapsed} ms. */
@@ -211,6 +213,19 @@ public final class DeathRecapHud {
         float in = Math.min(1f, elapsed / (float) FADE_IN_MS);
         float out = Math.min(1f, (TOTAL_MS - elapsed) / (float) FADE_OUT_MS);
         return Math.min(in, out);
+    }
+
+    /**
+     * How strongly the panel is on screen now, 0 to 1 (its own fade; 0 while it waits for the death screen to
+     * go, or with the recap switched off). The Hearth tracker on the same right edge steps clear of the rows the
+     * panel claims ({@link RightEdge}): dying at home with the tracker on drew the recap's rows over the
+     * tracker's (polish pass, Forge 1.20.1 real client, 2026-10-10).
+     */
+    public static float showing() {
+        if (pending || start < 0 || !ProficiencyClientConfig.hudDeathRecap()) {
+            return 0f;
+        }
+        return opacity(System.currentTimeMillis() - start);
     }
 
     public static void render(GuiGraphics graphics, Minecraft minecraft, long now) {
@@ -258,6 +273,7 @@ public final class DeathRecapHud {
         int width = panelWidth;
         int x = graphics.guiWidth() - width - RIGHT_MARGIN;
         int y = panelTop;
+        RightEdge.claim(RightEdge.DEATH_RECAP, y, y + height, opacity, net.minecraft.Util.getMillis());
 
         graphics.fill(x, y, x + width, y + height, ((int) (alpha * 0.72f) << 24) | 0x0E1014);
         int border = (alpha << 24) | (RED & 0x00FFFFFF);

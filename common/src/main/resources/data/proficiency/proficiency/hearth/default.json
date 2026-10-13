@@ -1,0 +1,57 @@
+{
+  "_comment": "The Hearth's numbers (docs/HEARTH-SPEC.md, Data). Merged like xp_sources: a datapack file at data/<ns>/proficiency/hearth/<name>.json loads after this one and overrides key by key; \"replace\": true drops everything before it. HearthDataGoldenTest holds this file to HearthData.DEFAULTS.",
+  "pools": {
+    "hearty":     { "feeds": ["#category:gathering"], "boon": "hunger_slow", "values": [0.08, 0.15, 0.22, 0.28, 0.34, 0.40] },
+    "regen":      { "feeds": ["decorating"], "hold": 600, "boon": "regen_out_of_combat", "values": [14, 12, 10, 8, 6, 4],
+                    "absorptionPerTier": 0.10, "comfortCap": "half" },
+    "fortified":  { "feeds": ["masonry"], "hold": 600, "boon": "mob_damage_reduction", "values": [0.04, 0.07, 0.10, 0.13, 0.16, 0.20] },
+    "workshop":   { "feeds": ["#category:crafting"], "boon": "station_speed", "values": [0.08, 0.15, 0.22, 0.28, 0.34, 0.40],
+                    "refund": [0.02, 0.03, 0.04, 0.05, 0.06, 0.08] },
+    "homecoming": { "feeds": ["social", "#tales"], "boon": "readiness", "warmthSeconds": [55, 50, 45, 40, 35, 30],
+                    "provisionedMinutes": [16, 18, 20, 22, 25, 30], "comfortCap": "half" }
+  },
+  "thresholds": [200, 600, 1400, 2800, 5000, 8000],
+  "mirrorShare": 0.10,
+  "combatShare": 0.03,
+  "hourlyCap": 300,
+  "comfortForTier": { "5": 8, "6": 10 },
+  "decay": { "perHour": 0.02, "graceHours": 24 },
+  "warmth": { "riseSeconds": 60, "drainSeconds": 30 },
+  "combatSeconds": 5,
+  "tales": { "share": 0.05, "feeds": ["movement", "expedition"], "feedAll": false },
+  "provisioned": { "minutes": 15 },
+  "character": { "max": 50, "forStage": { "3": 8, "4": 14, "5": 24, "6": 40 } },
+  "chronicle": { "writeBonus": 0.25, "perStar": 0.05 },
+  "feast": { "windowSeconds": 30, "dinnerBellSeconds": 120, "chargePerExtraEater": 20, "dinnerTriggerSeconds": 60 },
+  "bell": { "alarmGlowSeconds": 10, "alarmCooldown": 30, "comeHomeSeconds": 60, "comeHomeCooldown": 300,
+            "homewardChannelSeconds": 5 },
+  "stages": [
+    { "build": "proficiency:hearth/stage/firepit", "offering": "minecraft:flint_and_steel" },
+    { "build": "proficiency:hearth/stage/hearth", "offering": "minecraft:copper_block" },
+    { "build": "proficiency:hearth/stage/homestead", "offering": "minecraft:iron_block" },
+    { "build": "proficiency:hearth/stage/hall", "offering": "minecraft:gold_block" },
+    { "build": "proficiency:hearth/stage/gathering_place", "offering": "minecraft:diamond_block" },
+    { "build": "proficiency:hearth/stage/heart_of_the_home", "offering": "minecraft:heart_of_the_sea" }
+  ],
+  "comfort": {
+    "kinds": ["bed", "seat", "carpet", "banner", "fire", "light", "plant", "art", "books", "music", "storage", "trophy"],
+    "scanCooldownSeconds": 30,
+    "rescanSeconds": 300
+  },
+  "siege": {
+    "requiresFirstHorn": true, "cooldownPlayHours": 4, "cooldownDays": 2, "rampHours": 6, "pMax": 0.02, "pityHours": 16,
+    "hornCooldownPlayHours": 1, "postponeNights": 2,
+    "waves": 3, "baseMobs": { "3": 4, "4": 6, "5": 9, "6": 12, "7": 15 }, "perExtraPlayer": 0.5,
+    "burst": 0.10, "streakBonus": 0.05, "streakCap": 5, "dousedLoss": 0.10,
+    "warningTicks": 24000, "hornMinDelaySeconds": 120, "nextWaveAt": 0.5, "rollSeconds": 60,
+    "mobs": {
+      "3": ["minecraft:zombie", "minecraft:skeleton", "minecraft:spider"],
+      "4": ["minecraft:pillager"],
+      "5": ["minecraft:vindicator", "minecraft:witch"],
+      "6": ["minecraft:evoker"],
+      "7": ["minecraft:ravager"]
+    },
+    "douseRadius": 3.0, "dousePerMobSecond": 1.0, "douseMax": 100, "abandonGraceSeconds": 10,
+    "spawnClearance": 6, "onePerWave": ["minecraft:evoker", "minecraft:ravager"]
+  }
+}

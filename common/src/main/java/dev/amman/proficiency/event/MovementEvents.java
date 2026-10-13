@@ -6,6 +6,7 @@ import dev.amman.proficiency.skill.ProcService;
 import dev.amman.proficiency.skill.Skill;
 import dev.amman.proficiency.skill.SkillService;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
@@ -13,7 +14,6 @@ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.food.FoodConstants;
-import net.minecraft.world.food.FoodData;
 import net.minecraft.world.phys.Vec3;
 import dev.amman.proficiency.platform.bus.SubscribeEvent;
 import dev.amman.proficiency.platform.bus.EventBusSubscriber;
@@ -146,17 +146,17 @@ public final class MovementEvents {
     /**
      * Long Haul, whose node id is still "endurance". There is no exhaustion event, so this hands
      * back its share of what vanilla just charged for the same metres (0.1 per metre on the
-     * ground, 0.2 per sprint-jump). A refund that lands on the tick the food bar rolls over is
-     * lost, which is a sliver of one hunger point.
+     * ground, 0.2 per sprint-jump). The refund goes through the one exhaustion watcher, which scales
+     * it by the same shares the charge was shaved by (Hearty, Night Owl, Lean Times), so the shares
+     * multiply and a refund can never take back more than the charge left. A refund that lands on the
+     * tick the food bar rolls over is lost, which is a sliver of one hunger point.
      */
     private static void refundSprintHunger(Player player, double charged) {
         int rank = TalentService.rank(player, Skill.RUNNING, "endurance");
-        if (rank <= 0 || charged <= 0) {
+        if (rank <= 0 || charged <= 0 || !(player instanceof ServerPlayer server)) {
             return;
         }
-        FoodData food = player.getFoodData();
-        double refund = charged * Math.min(1.0, rank * 0.10);
-        food.setExhaustion((float) Math.max(0.0, food.getExhaustionLevel() - refund));
+        ExhaustionWatch.refund(server, charged * Math.min(1.0, rank * 0.10));
     }
 
     /**
@@ -260,12 +260,21 @@ public final class MovementEvents {
             event.setDamageMultiplier((float) (event.getDamageMultiplier() * softer));
         }
         TalentMovementEvents.stomp(player, fallen);
+        freerunner(player, fallen);
         // Only worth announcing on a fall that was going to hurt.
         if (event.getDistance() > 3.5f && ProcService.fire(player, Skill.JUMPING)) {
             event.setDistance(0f);
             if (TalentService.rank(player, Skill.JUMPING, "bounce") > 0) {
                 TalentMovementEvents.bounce(player);
             }
+        }
+    }
+
+    /** Freerunner (Running + Jumping): a 4+ block landing at a sprint keeps the sprint and gives Speed II for 2 s. */
+    public static void freerunner(Player player, float fallen) {
+        if (fallen >= 4.0f && player.isSprinting() && TalentService.hasSynergy(player, "freerunner")) {
+            player.setSprinting(true);
+            player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, 40, 1, false, false, true));
         }
     }
 

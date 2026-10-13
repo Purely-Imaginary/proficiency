@@ -1,0 +1,6 @@
+{
+  "_comment": "Entities of the trophy kind. An armour stand counts only while it wears armour.",
+  "values": [
+    "minecraft:armor_stand"
+  ]
+}

@@ -238,6 +238,13 @@ public final class ProcFx {
                 l(Kind.SOUL, 10, Anchor.SELF_COLUMN, 0.3f, 0.03f, 0, 6),
                 l(Kind.SMOKE, 6, Anchor.BODY, 0.4f, 0.02f),
                 l(Kind.SOUL_FIRE_FLAME, 4, Anchor.FEET, 0.3f, 0.03f, 2, 3));
+
+        // Homebuilder: Hearthglow is an ember puff on the Hearth itself (the proc's focus).
+        put(Skill.HOMEBUILDER, "minecraft:campfire",
+                l(Kind.FLAME, 6, Anchor.FOCUS, 0.25f, 0.02f, 0, 3),
+                l(Kind.LAVA, 3, Anchor.FOCUS, 0.2f, 0.0f, 1, 2),
+                l(Kind.CAMPFIRE_SMOKE, 2, Anchor.FOCUS, 0.15f, 0.01f, 2, 4),
+                l(Kind.SMALL_FLAME, 6, Anchor.BODY, 0.35f, 0.02f, 2, 4));
     }
 
     private ProcFx() {

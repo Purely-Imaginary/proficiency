@@ -206,7 +206,7 @@ public final class CourageGameTests {
         player.knockback(1.0, 1.0, 0.0);
         helper.assertTrue(player.getDeltaMovement().lengthSqr() > 0, "the mock player cannot be knocked back at all");
 
-        helper.assertTrue(ActiveService.activate(player, Skill.COURAGE) == null, "Stand Your Ground did not start");
+        helper.assertTrue(ActiveService.activate(GameTestRoots.open(player, Skill.COURAGE), Skill.COURAGE) == null, "Stand Your Ground did not start");
         double standing = CourageEvents.damageMultiplier(player, target);
         helper.assertTrue(standing > crowded * 1.2, "Stand Your Ground added too little: " + standing + " vs " + crowded);
         player.setDeltaMovement(Vec3.ZERO);
@@ -269,7 +269,7 @@ public final class CourageGameTests {
 
         // Rallying Cry and Lionheart: an outnumbered kill with a Rally buffs the friend within 8
         // blocks and takes 5 s off Stand Your Ground's cooldown.
-        helper.assertTrue(ActiveService.activate(player, Skill.COURAGE) == null, "Stand Your Ground did not start");
+        helper.assertTrue(ActiveService.activate(GameTestRoots.open(player, Skill.COURAGE), Skill.COURAGE) == null, "Stand Your Ground did not start");
         long before = ActiveService.cooldownRemaining(player, Skill.COURAGE);
         plain.removeAllEffects();
         CourageEvents.noteHurtBy(player, s1, s2);

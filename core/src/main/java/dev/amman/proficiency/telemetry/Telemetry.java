@@ -56,14 +56,33 @@ public final class Telemetry {
     public static final String KIND_TEACHING = "teaching";
     /** XP for the extra blocks an area tool (hammer, excavator, vein miner) broke with the first one. */
     public static final String KIND_AOE = "aoe";
+    /** Homebuilder's share of the XP earned at home (source {@code proficiency.xplog.source.home}). */
+    public static final String KIND_HOME = "home";
     public static final String KIND_OTHER = "other";
+
+    /**
+     * Hearth event kinds (docs/HEARTH-SPEC.md, "Telemetry"; Homebuilder's {@code homeward}). These
+     * are not XP kinds: {@link #hearth} counts them on their own {@code "type":"hearth"} lines. A
+     * kind not listed here is ignored, so add new ones to this list.
+     */
+    public static final String HEARTH_CHARGE = "hearth_charge";
+    public static final String HEARTH_BOON = "hearth_boon";
+    public static final String HEARTH_WARM = "hearth_warm";
+    public static final String STREAK_PAUSED = "streak_paused";
+    public static final String HEARTH_ABSORB = "hearth_absorb";
+    public static final String HEARTH_TALES = "hearth_tales";
+    public static final String HEARTH_SIEGE = "hearth_siege";
+    public static final String TALE_RATING = "tale_rating";
+    public static final String HOMEWARD = "homeward";
+    public static final java.util.Set<String> HEARTH_KINDS = java.util.Set.of(HEARTH_CHARGE, HEARTH_BOON,
+            HEARTH_WARM, STREAK_PAUSED, HEARTH_ABSORB, HEARTH_TALES, HEARTH_SIEGE, TALE_RATING, HOMEWARD);
 
     private static final String SOURCE = "proficiency.xplog.source.";
 
     /** Kinds that pay with no one at the controls (or are an operator's), so they prove no activity. */
     static boolean isPassive(String kind) {
         return KIND_SHARE.equals(kind) || KIND_MOVEMENT.equals(kind) || KIND_COMMAND.equals(kind)
-                || KIND_TEACHING.equals(kind);
+                || KIND_TEACHING.equals(kind) || KIND_HOME.equals(kind);
     }
 
     /**
@@ -118,6 +137,9 @@ public final class Telemetry {
             }
             if (source.startsWith("teaching", at)) {
                 return KIND_TEACHING;
+            }
+            if (source.equals(SOURCE + "home")) {
+                return KIND_HOME;
             }
             if (source.startsWith("company", at) || source.startsWith("convoy", at)
                     || source.startsWith("darkness", at) || source.startsWith("night_out", at)) {
@@ -176,6 +198,27 @@ public final class Telemetry {
     }
 
     private final Map<UUID, PlayerAgg> players = new HashMap<>();
+
+    /** Hearth events: one bucket per (player, kind, label, source), each a count and a sum. */
+    private static final class HearthAgg {
+        final UUID id;
+        String name;
+        final String kind;
+        final String label;
+        final String source;
+        long n;
+        double sum;
+
+        HearthAgg(UUID id, String name, String kind, String label, String source) {
+            this.id = id;
+            this.name = name;
+            this.kind = kind;
+            this.label = label;
+            this.source = source;
+        }
+    }
+
+    private final Map<String, HearthAgg> hearth = new java.util.LinkedHashMap<>();
 
     /**
      * What a drain must not forget: per player and skill the last grant, the engaged-until clock and
@@ -363,8 +406,33 @@ public final class Telemetry {
         }
     }
 
+    /**
+     * One Hearth event: {@code kind} is one of {@link #HEARTH_KINDS}, {@code label} what was counted
+     * (a pool, "rolls", "paid", a boon), {@code source} where it came from (a skill id, "siege", or
+     * ""). {@code id} null files it under the world, not a player (a siege roll). Counted as one more
+     * event and {@code value} added to the bucket's sum. Unknown kinds and non-finite values are ignored.
+     */
+    public synchronized void hearth(UUID id, String name, String kind, String label, String source, double value) {
+        if (kind == null || !HEARTH_KINDS.contains(kind) || !Double.isFinite(value)) {
+            return;
+        }
+        String l = label == null ? "" : label;
+        String src = source == null ? "" : source;
+        String key = (id == null ? "" : id.toString()) + "|" + kind + "|" + l + "|" + src;
+        HearthAgg agg = hearth.get(key);
+        if (agg == null) {
+            agg = new HearthAgg(id, name == null ? "" : name, kind, l, src);
+            hearth.put(key, agg);
+        } else if (name != null && !name.isEmpty()) {
+            agg.name = name;
+        }
+        agg.n++;
+        agg.sum += value;
+    }
+
     /** Forgets everything, counters and carried timing alike (a new session must not inherit the last one). */
     public synchronized void reset() {
+        hearth.clear();
         players.clear();
         carry.clear();
         inputs.clear();
@@ -372,7 +440,7 @@ public final class Telemetry {
 
     /** Whether anything was counted since the last drain. */
     public synchronized boolean isEmpty() {
-        return players.isEmpty();
+        return players.isEmpty() && hearth.isEmpty();
     }
 
     /**
@@ -381,11 +449,18 @@ public final class Telemetry {
      */
     public synchronized List<String> drain(long nowMs, String metaFields) {
         List<String> lines = new ArrayList<>();
-        if (players.isEmpty()) {
+        if (players.isEmpty() && hearth.isEmpty()) {
             return lines;
         }
         lines.add("{\"v\":" + SCHEMA + ",\"t\":" + nowMs + ",\"type\":\"meta\""
                 + (metaFields == null || metaFields.isEmpty() ? "" : "," + metaFields) + "}");
+        for (HearthAgg h : hearth.values()) {
+            String who = h.id == null ? "" : ",\"player\":" + str(h.name) + ",\"uuid\":\"" + h.id + "\"";
+            lines.add("{\"v\":" + SCHEMA + ",\"t\":" + nowMs + who + ",\"type\":\"hearth\",\"kind\":"
+                    + str(h.kind) + ",\"label\":" + str(h.label) + ",\"source\":" + str(h.source)
+                    + ",\"n\":" + h.n + ",\"value\":" + num(h.sum) + "}");
+        }
+        hearth.clear();
         for (Map.Entry<UUID, PlayerAgg> entry : players.entrySet()) {
             PlayerAgg p = entry.getValue();
             String head = "{\"v\":" + SCHEMA + ",\"t\":" + nowMs + ",\"player\":" + str(p.name)

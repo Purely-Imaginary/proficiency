@@ -110,6 +110,8 @@ public final class NightwalkerService {
             double tier) {
         if (skill == Skill.NIGHTWALKER || COMMAND_SOURCE.equals(source)
                 || SocialService.SOURCE.equals(source)
+                // Homebuilder's share is itself a share of grants; it must not be shared again.
+                || dev.amman.proficiency.homebuilder.HomebuilderXp.SHARE_SOURCE.equals(source)
                 || !ProficiencyConfig.enabled(Skill.NIGHTWALKER) || !isDark(player)) {
             return;
         }

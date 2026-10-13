@@ -73,6 +73,9 @@ public final class RestedGameTests {
     public static void aGrantFromAPoolPaysDoubleAndDrainsIt(GameTestHelper helper) {
         ServerPlayer rested = player(helper);
         ServerPlayer plain = player(helper);
+        // Side by side, away from the batch: a mock player stays where the server spawned it, so another
+        // test's player could give one of the two a Social company or mentor bonus (common's fix, 5bb62ef).
+        isolate(5, rested, plain);
         PlayerSkills restedSkills = setup(rested, 40, true, 0);
         setup(plain, 40, false, 0);
         float before = restedSkills.rested(Skill.MINING);
@@ -90,6 +93,8 @@ public final class RestedGameTests {
     public static void restedAddsToTheSurvivalBonusInsteadOfMultiplyingIt(GameTestHelper helper) {
         ServerPlayer rested = player(helper);
         ServerPlayer plain = player(helper);
+        // Side by side, away from the batch (see aGrantFromAPoolPaysDoubleAndDrainsIt).
+        isolate(6, rested, plain);
         setup(rested, 40, true, 20);
         setup(plain, 40, false, 20);
 
@@ -117,6 +122,8 @@ public final class RestedGameTests {
     public static void atLevelOneHundredRestedFeedsTheStarBar(GameTestHelper helper) {
         ServerPlayer rested = player(helper);
         ServerPlayer plain = player(helper);
+        // Side by side, away from the batch (see aGrantFromAPoolPaysDoubleAndDrainsIt).
+        isolate(7, rested, plain);
         PlayerSkills restedSkills = setup(rested, SkillMath.MAX_LEVEL, true, 0);
         PlayerSkills plainSkills = setup(plain, SkillMath.MAX_LEVEL, false, 0);
         helper.assertTrue(restedSkills.rested(Skill.MINING) > 0f && Mastery.maxStars() > 0,

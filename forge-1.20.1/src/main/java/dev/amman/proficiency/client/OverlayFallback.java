@@ -19,8 +19,18 @@ public final class OverlayFallback {
     private OverlayFallback() {
     }
 
+    /**
+     * For an action-bar message: when it is one of ours and too wide, it goes to the chat and the
+     * action-bar copy is dropped. Also drops the Hearth's tier-up chat line while the Hearth tracker may
+     * show the same moment ({@code HearthChat} holds it and lets it through a little later if the
+     * tracker does not).
+     */
     @SubscribeEvent
     public static void onSystemMessage(ClientChatReceivedEvent.System event) {
+        if (dev.amman.proficiency.hearth.client.HearthChat.hold(event.getMessage(), event.isOverlay())) {
+            event.setCanceled(true);
+            return;
+        }
         if (event.isOverlay() && tooWide(event.getMessage())) {
             event.setCanceled(true);
             Minecraft.getInstance().gui.getChat().addMessage(event.getMessage());

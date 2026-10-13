@@ -14,7 +14,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/** Falling sand and gravel carry the placed-block mark from where they fell to where they land. */
+/** Falling sand and gravel carry the placed-block marks (gathering, comfort) from where they fell to where they land. */
 @Mixin(FallingBlockEntity.class)
 public abstract class FallingBlockEntityMixin {
 
@@ -23,9 +23,11 @@ public abstract class FallingBlockEntityMixin {
     @Inject(method = "fall", at = @At("RETURN"))
     private static void proficiency$pickUp(Level level, BlockPos pos, BlockState state,
             CallbackInfoReturnable<FallingBlockEntity> cir) {
-        if (level instanceof ServerLevel server && cir.getReturnValue() != null
-                && PlacedBlocks.pickUp(server, pos, state)) {
-            EntityData.of(cir.getReturnValue()).putBoolean(PROFICIENCY$TAG, true);
+        if (level instanceof ServerLevel server && cir.getReturnValue() != null) {
+            int marks = PlacedBlocks.pickUp(server, pos, state);
+            if (marks != 0) {
+                EntityData.of(cir.getReturnValue()).putInt(PROFICIENCY$TAG, marks);
+            }
         }
     }
 
@@ -33,11 +35,12 @@ public abstract class FallingBlockEntityMixin {
     private void proficiency$land(CallbackInfo ci) {
         FallingBlockEntity self = (FallingBlockEntity) (Object) this;
         if (self.level() instanceof ServerLevel server && self.getRemovalReason() == Entity.RemovalReason.DISCARDED
-                && EntityData.of(self).getBoolean(PROFICIENCY$TAG)) {
+                && EntityData.of(self).getInt(PROFICIENCY$TAG) != 0) {
+            int marks = EntityData.of(self).getInt(PROFICIENCY$TAG);
             EntityData.of(self).remove(PROFICIENCY$TAG);
             BlockState there = server.getBlockState(self.blockPosition());
             if (there.is(self.getBlockState().getBlock())) {
-                PlacedBlocks.land(server, self.blockPosition(), there);
+                PlacedBlocks.land(server, self.blockPosition(), there, marks);
             }
         }
     }

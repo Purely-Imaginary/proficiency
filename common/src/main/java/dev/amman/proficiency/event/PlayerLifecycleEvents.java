@@ -210,6 +210,8 @@ public final class PlayerLifecycleEvents {
                 dev.amman.proficiency.skill.SocialService.tick(player);
                 // Nightwalker: the dark-share pot, the outdoor night trickle, and Eclipse.
                 dev.amman.proficiency.skill.NightwalkerService.tick(player);
+                // The Hearth's per-player second: Warmth, the streak hold, edge cues (lanes fill it).
+                dev.amman.proficiency.hearth.HearthHooks.onPlayerSecond(player);
             }
             dev.amman.proficiency.skill.TelemetryService.afterPlayers(event.getServer());
             dev.amman.proficiency.skill.TeachingService.saveIfDue(event.getServer());

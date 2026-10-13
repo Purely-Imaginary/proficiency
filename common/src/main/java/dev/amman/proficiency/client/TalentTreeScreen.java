@@ -40,7 +40,12 @@ public final class TalentTreeScreen extends Screen {
     private static final int COLUMNS = 5;
     private static final int ROWS = 6;
     private static final int SIDE_GAP = 14;
-    private static final int SYNERGY_ROW = 12;
+    /** Compact rows: about ten synergies per tree have to share the side column with the XP log. */
+    private static final int SYNERGY_ROW = 10;
+    /** The recent-XP list is guaranteed this many rows; the synergy list gives way to it, not the other way round. */
+    private static final int LOG_MIN_ROWS = 3;
+    /** The "feeds" lines a node tooltip shows before it folds the rest into "and N more" (Shift shows all). */
+    private static final int FEEDS_SHOWN = 2;
     private static final int LOG_ROW = 10;
     /** Gap between the last synergy and the recent-XP header. */
     private static final int LOG_GAP = 6;
@@ -87,6 +92,20 @@ public final class TalentTreeScreen extends Screen {
     private int panelY;
     /** Where the synergy list ended on the last frame; the recent-XP list starts below it. */
     private int synergiesBottom;
+    /** First synergy row on the last frame, and how many were drawn (the layout demo hovers these). */
+    private int synergyRowsTop;
+    private int synergyRowsShown;
+    /** How many rows the list is scrolled down; whole rows, set by the mouse wheel over the side column. */
+    private int synergyScroll;
+    /** The side column's area on the last frame (screen units), for the wheel. */
+    private int synergyAreaBottom;
+    /** The synergies that did not fit on the last frame, in list order; the "+N more" row lists them. */
+    private List<SynergyRow> synergyHidden = List.of();
+    private boolean moreHovered;
+
+    /** One synergy with the state the list sorts and draws by. */
+    private record SynergyRow(int index, Synergy synergy, boolean active, int met, int total, String name) {
+    }
 
     /** A header line: its text, colour and which block (0 title, 1 summary, 2 signature move, 3 numbers). */
     private record HLine(String text, int colour, int block) {
@@ -103,6 +122,11 @@ public final class TalentTreeScreen extends Screen {
     private int layoutHeight = -1;
     /** Tooltip chosen during the scaled pass, drawn after it at the real pointer position. */
     private List<Component> pendingTip = List.of();
+    /** The Hearth guide button on the Homebuilder tree, right of the title (screen units, set each frame). */
+    private static final int GUIDE_H = 11;
+    private int guideX;
+    private int guideY;
+    private int guideW;
 
     public TalentTreeScreen(Skill skill, @Nullable Screen parent) {
         super(Component.translatable("proficiency.tree.title",
@@ -143,9 +167,7 @@ public final class TalentTreeScreen extends Screen {
             lines.add(chance > 0
                     ? Component.translatable("proficiency.stats.proc", SkillNumbers.pct(chance),
                             SkillNumbers.times(skills.procPower(skill))).withStyle(ChatFormatting.LIGHT_PURPLE)
-                    : Component.translatable("proficiency.tooltip.proc_locked",
-                            dev.amman.proficiency.config.ProficiencyConfig.procUnlockLevel())
-                            .withStyle(ChatFormatting.DARK_PURPLE));
+                    : procLocked(skills));
             return TooltipDetail.withHint(lines, true);
         }
         lines.add(name);
@@ -153,10 +175,19 @@ public final class TalentTreeScreen extends Screen {
         lines.add(chance > 0
                 ? Component.translatable("proficiency.stats.proc", SkillNumbers.pct(chance),
                         SkillNumbers.times(skills.procPower(skill))).withStyle(ChatFormatting.LIGHT_PURPLE)
-                : Component.translatable("proficiency.tooltip.proc_locked",
-                        dev.amman.proficiency.config.ProficiencyConfig.procUnlockLevel())
-                        .withStyle(ChatFormatting.DARK_PURPLE));
+                : procLocked(skills));
         return lines;
+    }
+
+    /** Why there is no proc yet: the level, or (with the level there) this tree's root. */
+    private Component procLocked(PlayerSkills skills) {
+        int unlock = dev.amman.proficiency.config.ProficiencyConfig.procUnlockLevel();
+        if (skills.level(skill) >= unlock && !skills.rootOpen(skill)) {
+            return Component.translatable("proficiency.tooltip.proc_root", SkillNumbers.rootName(skill))
+                    .withStyle(ChatFormatting.DARK_PURPLE);
+        }
+        return Component.translatable("proficiency.tooltip.proc_locked", unlock)
+                .withStyle(ChatFormatting.DARK_PURPLE);
     }
 
     private Component summaryLine(PlayerSkills skills) {
@@ -239,7 +270,9 @@ public final class TalentTreeScreen extends Screen {
         List<HLine> lines = new java.util.ArrayList<>();
         int accent = accent();
         int starRoom = treeStars > 0 ? MasteryStars.width(treeStars) + 4 : 0;
-        lines.add(new HLine(TextFit.clip(this.font, title, width - SkillIcons.advance(SkillIcons.LARGE) - starRoom), accent, 0));
+        int guideRoom = hasGuide() ? guideWidth() + 6 : 0;
+        lines.add(new HLine(TextFit.clip(this.font, title, width - SkillIcons.advance(SkillIcons.LARGE) - starRoom - guideRoom),
+                accent, 0));
         boolean[] cut = new boolean[1];
         for (String line : TextFit.pack(this.font, summary, width, 2, cut, TextFit.DOT_RE, TextFit.DOT)) {
             lines.add(new HLine(line, SkillPalette.TEXT_DIM, 1));
@@ -273,10 +306,30 @@ public final class TalentTreeScreen extends Screen {
                 Math.round((panelY + padV + headerH + row * rowStep + node / 2) * uiScale)};
     }
 
-    /** Screen position of the i-th synergy line; the layout demo hovers it. */
+    /** Centre of the Hearth guide button (real GUI pixels), or null on a tree without one; the layout demo uses it. */
+    @Nullable
+    int[] guidePoint() {
+        if (!hasGuide() || guideW <= 0) {
+            return null;
+        }
+        return new int[] {Math.round((guideX + guideW / 2) * uiScale), Math.round((guideY + GUIDE_H / 2) * uiScale)};
+    }
+
+    /** Screen position of the i-th drawn synergy line (after sorting and scrolling); the layout demo hovers it. */
     int[] synergyPoint(int index) {
+        int row = Math.max(0, Math.min(index, synergyRowsShown - 1));
         return new int[] {Math.round((panelX + PADDING + gridW + SIDE_GAP + 20) * uiScale),
-                Math.round((synergyTop() + discLines * SYNERGY_ROW + 4 + index * SYNERGY_ROW + 4) * uiScale)};
+                Math.round((synergyRowsTop + row * SYNERGY_ROW + 4) * uiScale)};
+    }
+
+    /** The "+N more" row (real GUI pixels), or null when every synergy fits; the layout demo hovers it. */
+    @Nullable
+    int[] morePoint() {
+        if (synergyHidden.isEmpty()) {
+            return null;
+        }
+        return new int[] {Math.round((panelX + PADDING + gridW + SIDE_GAP + 20) * uiScale),
+                Math.round((synergyRowsTop + synergyRowsShown * SYNERGY_ROW + 4) * uiScale)};
     }
 
     /** A point on the header's numbers line (real GUI pixels); the layout demo hovers it. */
@@ -433,6 +486,7 @@ public final class TalentTreeScreen extends Screen {
             }
         }
 
+        boolean guideHovered = drawGuideButton(graphics, mouseX, mouseY);
         Synergy hoveredSynergy = drawSynergies(graphics, skills, mouseX, mouseY);
         ClientXpLog.Line hoveredLog = drawXpLog(graphics, synergiesBottom + LOG_GAP, mouseX, mouseY);
 
@@ -446,7 +500,10 @@ public final class TalentTreeScreen extends Screen {
 
         boolean starsHovered = treeStars > 0 && inside(mouseX, mouseY, starsX, starsY,
                 MasteryStars.width(treeStars), 9);
-        if (starsHovered && hovered == null) {
+        if (guideHovered) {
+            pendingTip = List.of(Component.translatable("proficiency.hearth.guide.title").withStyle(st -> st.withColor(accent())),
+                    Component.translatable("proficiency.hearth.guide.button.tip").withStyle(ChatFormatting.GRAY));
+        } else if (starsHovered && hovered == null) {
             pendingTip = new ArrayList<>(MasteryStars.tooltip(skills, skill));
             pendingTip.add(0, Component.translatable(skill.translationKey()).withStyle(st -> st.withColor(accent())));
         } else if (statsHovered && hovered == null) {
@@ -457,9 +514,45 @@ public final class TalentTreeScreen extends Screen {
             pendingTip = nodeTooltip(hovered, skills, fxOn ? fx.shownRank(idx(hovered), now) : skills.rank(hovered));
         } else if (hoveredSynergy != null) {
             pendingTip = synergyTooltip(hoveredSynergy, skills);
+        } else if (moreHovered) {
+            pendingTip = moreTooltip();
         } else if (hoveredLog != null) {
             pendingTip = logTooltip(hoveredLog);
         }
+    }
+
+    /** The Homebuilder tree carries the Hearth guide: the home skill is where a player asks how a Hearth is built. */
+    private boolean hasGuide() {
+        return skill == Skill.HOMEBUILDER;
+    }
+
+    private int guideWidth() {
+        return this.font.width(Component.translatable("proficiency.hearth.guide.button")) + 10
+                + (dev.amman.proficiency.client.HudKit.iconsOn() ? 11 : 0);
+    }
+
+    /** The guide button, top right of the panel on the title's line; true while the pointer is on it. */
+    private boolean drawGuideButton(GuiGraphics graphics, int mouseX, int mouseY) {
+        if (!hasGuide()) {
+            guideW = 0;
+            return false;
+        }
+        guideW = guideWidth();
+        guideX = panelX + panelW - PADDING - guideW;
+        guideY = panelY + padV - 1;
+        boolean hover = inside(mouseX, mouseY, guideX, guideY, guideW, GUIDE_H);
+        graphics.fill(guideX, guideY, guideX + guideW, guideY + GUIDE_H,
+                hover ? (accent() & 0x00FFFFFF) | 0x55000000 : 0xFF181B20);
+        border(graphics, guideX, guideY, guideW, GUIDE_H, hover ? SkillPalette.MAXED : accent());
+        int x = guideX + 5;
+        if (dev.amman.proficiency.client.HudKit.iconsOn()) {
+            dev.amman.proficiency.client.HudKit.icon(graphics, dev.amman.proficiency.hearth.client.HearthGuide.buttonIcon(),
+                    x, guideY + 1, 9, 255);
+            x += 11;
+        }
+        graphics.drawString(this.font, Component.translatable("proficiency.hearth.guide.button"), x, guideY + 2,
+                hover ? SkillPalette.MAXED : SkillPalette.TEXT, false);
+        return hover;
     }
 
     /** Elbow from the bottom of one node to the top of the next: down, across, down. */
@@ -590,24 +683,20 @@ public final class TalentTreeScreen extends Screen {
             String text = i == discLines - 1 && disc.size() > discLines
                     ? TextFit.clip(this.font, String.join(" ", disc.subList(i, disc.size())), sideW) : disc.get(i);
             graphics.drawString(this.font, text, x, y, discipline > 0 ? SkillPalette.TEXT : SkillPalette.TEXT_DIM, false);
-            y += SYNERGY_ROW - 2;
+            y += SYNERGY_ROW;
         }
         y += 6;
 
-        Synergy hovered = null;
         long now = System.currentTimeMillis();
         boolean fxOn = ProficiencyClientConfig.screensUnlockFx();
+        // Awake first, then the most parts met, then by name. Each keeps its index in the tree's own
+        // list, which is what the unlock effect tracks it by.
+        List<SynergyRow> rows = new ArrayList<>();
         int index = -1;
         for (Synergy synergy : synergies) {
             index++;
             boolean active = Synergies.isActive(skills, synergy);
             fx.observeSynergy(index, active, now);
-            float pulse = fxOn ? fx.pulse(index, now) : -1f;
-            if (pulse >= 0f) {
-                // Once, in the synergy colour, as the line switches on.
-                int alpha = (int) (Math.sin(pulse * Math.PI) * 0x70);
-                graphics.fill(x - 3, y - 2, x + sideW, y + SYNERGY_ROW - 2, 0xB98BE0 | (alpha << 24));
-            }
             int met = 0;
             for (Synergy.Need need : synergy.requires()) {
                 if (skills.rank(need.talent()) >= need.minRank()) {
@@ -619,23 +708,71 @@ public final class TalentTreeScreen extends Screen {
                 met = Math.min(skills.grandmasters(), synergy.grandmastersNeeded());
                 total = synergy.grandmastersNeeded();
             }
-            String marker = active ? "\u2726 " : met + "/" + total + " ";
+            rows.add(new SynergyRow(index, synergy, active, met, total, Component.translatable(synergy.nameKey()).getString()));
+        }
+        rows.sort(java.util.Comparator.comparing((SynergyRow row) -> !row.active())
+                .thenComparing(row -> -row.met()).thenComparing(SynergyRow::name));
+
+        // Room: down to the grid's bottom, minus the gap and the rows the XP log is promised. When
+        // not everything fits, the last row becomes "+N more" and the wheel scrolls the rest in.
+        int bottom = panelY + padV + headerH + gridH;
+        int room = Math.max(1, (bottom - y - LOG_GAP - 11 - LOG_MIN_ROWS * LOG_ROW) / SYNERGY_ROW);
+        int visible = rows.size() <= room ? rows.size() : Math.max(1, room - 1);
+        synergyScroll = Math.max(0, Math.min(synergyScroll, rows.size() - visible));
+        List<SynergyRow> shown = rows.subList(synergyScroll, synergyScroll + visible);
+        List<SynergyRow> hidden = new ArrayList<>(rows);
+        hidden.removeAll(shown);
+        synergyHidden = hidden;
+        synergyRowsTop = y;
+        synergyRowsShown = shown.size();
+        synergyAreaBottom = bottom;
+
+        Synergy hovered = null;
+        for (SynergyRow row : shown) {
+            float pulse = fxOn ? fx.pulse(row.index(), now) : -1f;
+            if (pulse >= 0f) {
+                // Once, in the synergy colour, as the line switches on.
+                int alpha = (int) (Math.sin(pulse * Math.PI) * 0x70);
+                graphics.fill(x - 3, y - 1, x + sideW, y + SYNERGY_ROW - 1, 0xB98BE0 | (alpha << 24));
+            }
+            String marker = row.active() ? "\u2726 " : row.met() + "/" + row.total() + " ";
             // The marker stays whole; the name is cut with an ellipsis, and the hover has all of it.
-            String name = Component.translatable(synergy.nameKey()).getString();
-            int room = sideW - this.font.width(marker);
-            String shown = TextFit.clip(this.font, name, room);
-            if (!shown.equals(name)) {
+            int room2 = sideW - this.font.width(marker);
+            String text = TextFit.clip(this.font, row.name(), room2);
+            if (!text.equals(row.name())) {
                 TextFit.note("tree.synergy");
             }
-            graphics.drawString(this.font, marker + shown,
-                    x, y, active ? 0xFFD9B8FF : met > 0 ? SkillPalette.TEXT : SkillPalette.TEXT_DIM, false);
+            graphics.drawString(this.font, marker + text,
+                    x, y, row.active() ? 0xFFD9B8FF : row.met() > 0 ? SkillPalette.TEXT : SkillPalette.TEXT_DIM, false);
             if (inside(mouseX, mouseY, x, y - 1, sideW, SYNERGY_ROW)) {
-                hovered = synergy;
+                hovered = row.synergy();
             }
+            y += SYNERGY_ROW;
+        }
+        moreHovered = false;
+        if (!hidden.isEmpty()) {
+            String more = TextFit.clip(this.font,
+                    Component.translatable("proficiency.tree.synergies_more", hidden.size()).getString(), sideW);
+            graphics.drawString(this.font, more, x, y, SkillPalette.TEXT_DIM, false);
+            moreHovered = hovered == null && inside(mouseX, mouseY, x, y - 1, sideW, SYNERGY_ROW);
             y += SYNERGY_ROW;
         }
         synergiesBottom = y;
         return hovered;
+    }
+
+    /** The synergies that did not fit: their names with how far each is, and how to reach them. */
+    private List<Component> moreTooltip() {
+        List<Component> lines = new ArrayList<>();
+        lines.add(Component.translatable("proficiency.tree.synergies_more.tip", synergyHidden.size())
+                .withStyle(ChatFormatting.LIGHT_PURPLE));
+        for (SynergyRow row : synergyHidden) {
+            String marker = row.active() ? "\u2726 " : row.met() + "/" + row.total() + " ";
+            lines.add(Component.literal(marker + row.name())
+                    .withStyle(row.active() ? ChatFormatting.LIGHT_PURPLE
+                            : row.met() > 0 ? ChatFormatting.WHITE : ChatFormatting.DARK_GRAY));
+        }
+        return lines;
     }
 
     /**
@@ -799,8 +936,12 @@ public final class TalentTreeScreen extends Screen {
         String tail = key.substring(key.lastIndexOf('.') + 1).replace('_', ' ');
         String fallback = tail.isEmpty() ? key
                 : Character.toUpperCase(tail.charAt(0)) + tail.substring(1);
-        return Component.translatableWithFallback(key, fallback).getString();
+        // Empty arguments: a modded name built from slots ("%s%sBarrel" for a Sophisticated Storage barrel,
+        // filled from the stack's wood) reads as "Barrel" here, not as its raw template.
+        return Component.translatableWithFallback(key, fallback, NO_ARGS).getString().trim();
     }
+
+    private static final Object[] NO_ARGS = {"", "", "", ""};
 
     private static String ago(long millis) {
         long seconds = millis / 1000L;
@@ -895,13 +1036,21 @@ public final class TalentTreeScreen extends Screen {
         }
 
         // Which synergies elsewhere this node feeds, so the tree shows where it leads.
+        // Several nodes feed two or three: the tooltip shows the first few and folds the rest ("Shift" has all).
+        int fed = 0;
         for (Synergy synergy : Synergies.all()) {
             for (Synergy.Need need : synergy.requires()) {
                 if (need.skill() == skill && need.talentId().equals(talent.id())) {
-                    lines.add(Component.translatable("proficiency.tree.feeds", Component.translatable(synergy.nameKey()),
-                            need.minRank()).withStyle(ChatFormatting.DARK_PURPLE));
+                    if (fed++ < FEEDS_SHOWN || TooltipDetail.detailed()) {
+                        lines.add(Component.translatable("proficiency.tree.feeds", Component.translatable(synergy.nameKey()),
+                                need.minRank()).withStyle(ChatFormatting.DARK_PURPLE));
+                    }
                 }
             }
+        }
+        if (fed > FEEDS_SHOWN && !TooltipDetail.detailed()) {
+            lines.add(Component.translatable("proficiency.tree.feeds_more", fed - FEEDS_SHOWN)
+                    .withStyle(ChatFormatting.DARK_PURPLE));
         }
         return lines;
     }
@@ -953,12 +1102,37 @@ public final class TalentTreeScreen extends Screen {
         return (percent >= 0 ? "+" : "") + percent + "%";
     }
 
+    /** The wheel over the side column scrolls the synergy list when it does not all fit. */
+    private boolean scrollSynergies(double mouseX, double mouseY, double scrollY) {
+        if (synergyHidden.isEmpty() || scrollY == 0) {
+            return false;
+        }
+        double px = mouseX / uiScale;
+        double py = mouseY / uiScale;
+        int x = panelX + PADDING + gridW + SIDE_GAP;
+        if (!inside(px, py, x - 3, synergyTop(), sideW + 6, synergyAreaBottom - synergyTop())) {
+            return false;
+        }
+        synergyScroll = Math.max(0, synergyScroll - (int) Math.signum(scrollY));
+        return true;
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        return scrollSynergies(mouseX, mouseY, scrollY) || super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+    }
+
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         PlayerSkills skills = playerSkills();
         if (button == 0 && skills != null) {
             double px = mouseX / uiScale;
             double py = mouseY / uiScale;
+            if (guideW > 0 && inside(px, py, guideX, guideY, guideW, GUIDE_H) && this.minecraft != null) {
+                this.minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0f));
+                this.minecraft.setScreen(new dev.amman.proficiency.hearth.client.HearthGuideScreen(this));
+                return true;
+            }
             for (Talent talent : Talents.of(skill)) {
                 if (!inside(px, py, nodeX(talent), nodeY(talent), node, node)) {
                     continue;

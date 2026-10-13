@@ -7,11 +7,16 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BedBlock;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.piston.PistonStructureResolver;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BedPart;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
+import net.minecraft.world.level.chunk.LevelChunk;
+import org.jetbrains.annotations.Nullable;
+
+import it.unimi.dsi.fastutil.longs.LongArrayList;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -47,27 +52,149 @@ public final class PlacedBlocks {
         if (ProficiencyConfig.placedBlocksPayXp()) {
             return;
         }
-        mark(level, pos, state);
+        markHalves(level, store(level), pos, state);
+    }
+
+    /** Writes the mark for a block and for the other half of a door, a tall plant or a bed. */
+    private static void markHalves(ServerLevel level, PlacedBlockStore into, BlockPos pos, BlockState state) {
+        put(level, into, pos, state);
         if (state.hasProperty(BlockStateProperties.DOUBLE_BLOCK_HALF)
                 && state.getValue(BlockStateProperties.DOUBLE_BLOCK_HALF) == DoubleBlockHalf.LOWER) {
             BlockPos above = pos.above();
             BlockState other = level.getBlockState(above);
             if (other.is(state.getBlock())) {
-                mark(level, above, other);
+                put(level, into, above, other);
             }
         } else if (state.getBlock() instanceof BedBlock && state.hasProperty(BedBlock.PART)
                 && state.getValue(BedBlock.PART) == BedPart.FOOT) {
             BlockPos head = pos.relative(state.getValue(BedBlock.FACING));
             BlockState other = level.getBlockState(head);
             if (other.is(state.getBlock())) {
-                mark(level, head, other);
+                put(level, into, head, other);
             }
         }
     }
 
-    private static void mark(ServerLevel level, BlockPos pos, BlockState state) {
-        store(level).mark(pos.getX(), pos.getY(), pos.getZ(), hash(state));
+    private static void put(ServerLevel level, PlacedBlockStore into, BlockPos pos, BlockState state) {
+        into.mark(pos.getX(), pos.getY(), pos.getZ(), hash(state));
         dirty(level);
+    }
+
+    private static void mark(ServerLevel level, BlockPos pos, BlockState state) {
+        put(level, store(level), pos, state);
+    }
+
+    // ---- The comfort mark (the Hearth's Comfort and Character) --------------------------------
+
+    private static PlacedBlockStore comfortStore(ServerLevel level) {
+        return PlacedBlocksData.get(level).comfort;
+    }
+
+    /**
+     * A player put this block here, for the Hearth: written on every player placement whatever
+     * {@code placedBlocksPayXp} says (the gathering mark above is not written when that option is
+     * on). Doors, beds and tall plants mark both halves.
+     */
+    public static void markComfort(ServerLevel level, BlockPos pos, BlockState state) {
+        markHalves(level, comfortStore(level), pos, state);
+    }
+
+    /** The block is gone (a player broke it): drops its comfort mark. Returns whether there was one. */
+    public static boolean clearComfort(ServerLevel level, BlockPos pos) {
+        PlacedBlockStore store = comfortStore(level);
+        if (store.isEmpty() || !store.clear(pos.getX(), pos.getY(), pos.getZ())) {
+            return false;
+        }
+        dirty(level);
+        return true;
+    }
+
+    /**
+     * A player broke {@code state} at {@code pos}: drops its comfort mark and the one of the other half of
+     * a door, a tall plant or a bed, which the game removes with it (both halves were marked on placement).
+     */
+    public static void clearComfortPlacement(ServerLevel level, BlockPos pos, BlockState state) {
+        clearComfort(level, pos);
+        BlockPos other = otherHalf(pos, state);
+        if (other != null) {
+            clearComfort(level, other);
+        }
+    }
+
+    /** The position of the other half of a door, tall plant or bed, or null for a block of one piece. */
+    @Nullable
+    private static BlockPos otherHalf(BlockPos pos, BlockState state) {
+        if (state.hasProperty(BlockStateProperties.DOUBLE_BLOCK_HALF)) {
+            return state.getValue(BlockStateProperties.DOUBLE_BLOCK_HALF) == DoubleBlockHalf.LOWER
+                    ? pos.above() : pos.below();
+        }
+        if (state.getBlock() instanceof BedBlock && state.hasProperty(BedBlock.PART)) {
+            Direction facing = state.getValue(BedBlock.FACING);
+            return state.getValue(BedBlock.PART) == BedPart.FOOT ? pos.relative(facing) : pos.relative(facing.getOpposite());
+        }
+        return null;
+    }
+
+    /** Whether a comfort mark is stored here, whatever block stands there now. */
+    public static boolean rawComfortMarked(ServerLevel level, BlockPos pos) {
+        return comfortStore(level).isMarked(pos.getX(), pos.getY(), pos.getZ());
+    }
+
+    /**
+     * A chunk has loaded: drops the comfort marks whose block is no longer the one placed (burnt, blown
+     * up, washed away, popped off when its support broke, taken by an enderman, the far half of a door).
+     * Only a break by a player or a scan of a Hearth cleans a mark otherwise, so without this the marks of
+     * blocks destroyed outside every Hearth's range would stay in the save for good. Returns how many went.
+     */
+    public static int sweepComfort(ServerLevel level, LevelChunk chunk) {
+        PlacedBlockStore store = comfortStore(level);
+        if (store.isEmpty()) {
+            return 0;
+        }
+        LongArrayList stale = new LongArrayList();
+        BlockPos.MutableBlockPos at = new BlockPos.MutableBlockPos();
+        store.forEachInChunk(chunk.getPos().x, chunk.getPos().z, level.getMinBuildHeight(), level.getMaxBuildHeight() - 1,
+                (x, y, z, hash) -> {
+                    BlockState there = chunk.getBlockState(at.set(x, y, z));
+                    // A block mid-push is a moving piston for three ticks; its mark already went with it.
+                    if (hash(there) != hash && !there.is(Blocks.MOVING_PISTON)) {
+                        stale.add(at.asLong());
+                    }
+                });
+        for (int i = 0; i < stale.size(); i++) {
+            BlockPos gone = BlockPos.of(stale.getLong(i));
+            store.clear(gone.getX(), gone.getY(), gone.getZ());
+        }
+        if (!stale.isEmpty()) {
+            dirty(level);
+        }
+        return stale.size();
+    }
+
+    /** One placed block found by {@link #forEachPlaced}; {@code comfortMark} is false for a gathering mark alone. */
+    @FunctionalInterface
+    public interface PlacedVisitor {
+        void visit(int x, int y, int z, int hash, boolean comfortMark);
+    }
+
+    /**
+     * Every player-placed mark of one chunk column in the height band: the comfort marks, then the
+     * gathering marks that have no comfort mark at the same spot (blocks placed before the comfort
+     * mark existed). The hash is the stored one: the caller compares it with the block standing
+     * there. The stores must not change while this runs.
+     */
+    public static void forEachPlaced(ServerLevel level, int chunkX, int chunkZ, int minY, int maxY,
+            PlacedVisitor visitor) {
+        PlacedBlockStore comfort = comfortStore(level);
+        comfort.forEachInChunk(chunkX, chunkZ, minY, maxY, (x, y, z, hash) -> visitor.visit(x, y, z, hash, true));
+        PlacedBlockStore legacy = store(level);
+        if (!legacy.isEmpty()) {
+            legacy.forEachInChunk(chunkX, chunkZ, minY, maxY, (x, y, z, hash) -> {
+                if (!comfort.isMarked(x, y, z)) {
+                    visitor.visit(x, y, z, hash, false);
+                }
+            });
+        }
     }
 
     /** Whether a raw mark is stored here, ignoring what block stands there now. */
@@ -178,7 +305,7 @@ public final class PlacedBlocks {
             return;
         }
         PlacedBlocksData data = PlacedBlocksData.get(server);
-        if (data.store.isEmpty() && data.refunded.isEmpty()) {
+        if (data.store.isEmpty() && data.refunded.isEmpty() && data.comfort.isEmpty()) {
             return;
         }
         PistonStructureResolver resolver = new PistonStructureResolver(level, pistonPos, facing, extending);
@@ -188,6 +315,7 @@ public final class PlacedBlocks {
         Direction move = extending ? facing : facing.getOpposite();
         movePushed(data.store, resolver, move);
         movePushed(data.refunded, resolver, move);
+        movePushed(data.comfort, resolver, move);
         data.setDirty();
     }
 
@@ -215,9 +343,30 @@ public final class PlacedBlocks {
         }
     }
 
-    /** A falling block starts to fall from here: take the mark off the origin. Returns whether it had one. */
-    public static boolean pickUp(ServerLevel level, BlockPos origin, BlockState falling) {
-        PlacedBlockStore store = store(level);
+    /** A mark a falling block carries: the gathering mark. */
+    public static final int MARK_GATHERING = 1;
+
+    /** A mark a falling block carries: the comfort mark. */
+    public static final int MARK_COMFORT = 2;
+
+    /**
+     * A falling block starts to fall from here: take the marks off the origin. Returns which it had
+     * ({@link #MARK_GATHERING}, {@link #MARK_COMFORT}, both or 0), so that {@link #land} puts back exactly
+     * those: with {@code placedBlocksPayXp} on only the comfort mark exists, and a landed block must not
+     * gain a gathering mark it never had.
+     */
+    public static int pickUp(ServerLevel level, BlockPos origin, BlockState falling) {
+        int marks = 0;
+        if (takeMark(level, store(level), origin, falling)) {
+            marks |= MARK_GATHERING;
+        }
+        if (takeMark(level, comfortStore(level), origin, falling)) {
+            marks |= MARK_COMFORT;
+        }
+        return marks;
+    }
+
+    private static boolean takeMark(ServerLevel level, PlacedBlockStore store, BlockPos origin, BlockState falling) {
         if (store.isEmpty() || !store.isMarked(origin.getX(), origin.getY(), origin.getZ())
                 || store.hashAt(origin.getX(), origin.getY(), origin.getZ()) != hash(falling)) {
             return false;
@@ -227,8 +376,13 @@ public final class PlacedBlocks {
         return true;
     }
 
-    /** The falling block landed here: put the mark back. */
-    public static void land(ServerLevel level, BlockPos pos, BlockState landed) {
-        mark(level, pos, landed);
+    /** The falling block landed here: put back the marks {@link #pickUp} took ({@code marks}). */
+    public static void land(ServerLevel level, BlockPos pos, BlockState landed, int marks) {
+        if ((marks & MARK_GATHERING) != 0) {
+            mark(level, pos, landed);
+        }
+        if ((marks & MARK_COMFORT) != 0) {
+            put(level, comfortStore(level), pos, landed);
+        }
     }
 }

@@ -58,6 +58,13 @@ public final class TalentMeleeEvents {
     /** Slowness VI is -90% speed: a crawl, not a stop, so the target can still be knocked about. */
     private static final int CRAWL_AMPLIFIER = 5;
     private static final double LAUNCH_SPEED = 0.9;
+    /** Reaver's Rush: how long after an axe charge the next axe hit is a certain Cleave. */
+    private static final long REAVERS_RUSH_WINDOW = 60;
+    /** Earthbound Oath: how long a Cratermaker smash locks the mobs it hits onto you. */
+    private static final int OATH_TAUNT_TICKS = 80;
+    /** Nerve Strike: Slowness IV and Weakness for 2 s. */
+    private static final int NERVE_TICKS = 40;
+    private static final int NERVE_SLOW_AMPLIFIER = 3;
 
     /** Game time until which a player's next sword hit is a chained Perfect Strike. */
     private static final Map<UUID, Long> CHAIN_UNTIL = new ConcurrentHashMap<>();
@@ -65,6 +72,10 @@ public final class TalentMeleeEvents {
     private static final Map<UUID, long[]> COMBO = new ConcurrentHashMap<>();
     private static final Map<UUID, Long> WIND_RIDER_UNTIL = new ConcurrentHashMap<>();
     private static final Map<UUID, Long> UNDYING_READY_AT = new ConcurrentHashMap<>();
+    /** Reaver's Rush: game time until which a player's next axe hit is a forced Cleave. */
+    private static final Map<UUID, Long> REAVERS_RUSH_UNTIL = new ConcurrentHashMap<>();
+    /** Earthbound Oath: set while the hit that Cratermaker forced is being resolved. */
+    private static final ThreadLocal<Boolean> CRATER_HIT = ThreadLocal.withInitial(() -> false);
 
     /**
      * Anything that moves or hurts the target of the hit in progress waits here for the end of the
@@ -88,9 +99,16 @@ public final class TalentMeleeEvents {
                 if (executioner > 0 && target.getHealth() < target.getMaxHealth() * 0.3f) {
                     multiplier *= 1.0f + 0.10f * executioner;
                 }
-                if (TalentService.rank(player, Skill.SWORDS, "duelist") > 0
-                        && hostilesNear(player, target) == 0) {
-                    multiplier *= DUELIST_MULTIPLIER;
+                if (TalentService.rank(player, Skill.SWORDS, "duelist") > 0) {
+                    // Single Combat: only the hostiles that are after you break the duel.
+                    boolean hunters = TalentService.hasSynergy(player, "single_combat");
+                    if (hostilesNear(player, target, hunters) == 0) {
+                        multiplier *= DUELIST_MULTIPLIER;
+                        if (hunters && hostilesNear(player, target, false) > 0) {
+                            cue(player, target, net.minecraft.core.particles.ParticleTypes.CRIT,
+                                    SoundEvents.PLAYER_ATTACK_SWEEP, 0.7f);
+                        }
+                    }
                 }
             }
             case AXES -> multiplier *= berserkerMultiplier(
@@ -124,11 +142,34 @@ public final class TalentMeleeEvents {
      * Hostiles other than the target within Duelist's radius. The target counts as the one foe
      * whatever it is, so a duel with a player or a cow still is one.
      */
-    private static int hostilesNear(Player player, LivingEntity target) {
+    private static int hostilesNear(Player player, LivingEntity target, boolean onlyHunters) {
         return player.level().getEntitiesOfClass(LivingEntity.class,
                 player.getBoundingBox().inflate(DUELIST_RADIUS),
                 entity -> entity != target && entity instanceof Enemy && entity.isAlive()
+                        && (!onlyHunters || (entity instanceof net.minecraft.world.entity.Mob mob
+                                && mob.getTarget() == player))
                         && entity.distanceToSqr(player) <= DUELIST_RADIUS * DUELIST_RADIUS).size();
+    }
+
+    /** The small sound and sparks that say a synergy just did something, at the target. */
+    private static void cue(Player player, LivingEntity at, net.minecraft.core.particles.ParticleOptions particle,
+            net.minecraft.sounds.SoundEvent sound, float pitch) {
+        if (!(player.level() instanceof ServerLevel level)) {
+            return;
+        }
+        level.playSound(null, at.getX(), at.getY(), at.getZ(), sound, SoundSource.PLAYERS, 0.7f, pitch);
+        level.sendParticles(particle, at.getX(), at.getY() + at.getBbHeight() * 0.6, at.getZ(),
+                8, 0.3, 0.3, 0.3, 0.1);
+    }
+
+    /**
+     * Reaver's Rush: an axe charge hit arms the next axe hit within 3 s as a certain Cleave. Called
+     * from the Charger code, which runs after the charging hit's own roll.
+     */
+    static void armReaversRush(Player player) {
+        REAVERS_RUSH_UNTIL.put(player.getUUID(), player.level().getGameTime() + REAVERS_RUSH_WINDOW);
+        player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
+                SoundEvents.PLAYER_ATTACK_KNOCKBACK, SoundSource.PLAYERS, 0.6f, 0.8f);
     }
 
     /**
@@ -149,9 +190,17 @@ public final class TalentMeleeEvents {
                 return true;
             }
         }
+        if (skill == Skill.AXES) {
+            Long until = REAVERS_RUSH_UNTIL.remove(player.getUUID());
+            if (until != null && player.level().getGameTime() <= until
+                    && TalentService.hasSynergy(player, "reavers_rush")) {
+                ProcService.forceNext(player, Skill.AXES);
+            }
+        }
         if (skill == Skill.MACES && player.fallDistance >= CRATER_FALL
                 && TalentService.rank(player, Skill.MACES, "crater") > 0) {
             ProcService.forceNext(player, Skill.MACES);
+            CRATER_HIT.set(true);
         }
         return false;
     }
@@ -159,6 +208,7 @@ public final class TalentMeleeEvents {
     /** Everything that happens on a landed main hit, whether or not it procced. */
     static void afterHit(Player player, LivingEntity target, Skill skill, boolean procced, boolean chained) {
         long now = player.level().getGameTime();
+        CRATER_HIT.set(false);
         switch (skill) {
             case SWORDS -> {
                 if (!procced) {
@@ -180,6 +230,12 @@ public final class TalentMeleeEvents {
                 if (TalentService.rank(player, Skill.MACES, "wind_rider") > 0) {
                     WIND_RIDER_UNTIL.put(player.getUUID(), now + WIND_RIDER_WINDOW);
                 }
+                // Falling Hammer: a Shockwave from a 3+ block fall lands a Stomp as well. After the
+                // hit, so the stomp's damage is not eaten by the mob's own invulnerability frames.
+                float fallen = player.fallDistance;
+                if (procced && fallen >= 3.0f && TalentService.hasSynergy(player, "falling_hammer")) {
+                    AFTER_HIT.add(() -> TalentMovementEvents.stomp(player, fallen, true));
+                }
             }
             case TRIDENTS -> {
                 if (procced) {
@@ -189,6 +245,18 @@ public final class TalentMeleeEvents {
             case UNARMED -> {
                 if (TalentService.rank(player, Skill.UNARMED, "fist_heal") > 0) {
                     player.heal(1.0f);
+                }
+                // Nerve Strike: a crouched punch from behind numbs the target.
+                if (player.isCrouching() && TalentService.hasSynergy(player, "nerve_strike")) {
+                    Vec3 facing = Vec3.directionFromRotation(0.0f, target.yBodyRot);
+                    if (TalentMovementEvents.behind(facing.x, facing.z,
+                            player.getX() - target.getX(), player.getZ() - target.getZ())) {
+                        target.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, NERVE_TICKS,
+                                NERVE_SLOW_AMPLIFIER), player);
+                        target.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, NERVE_TICKS, 0), player);
+                        cue(player, target, net.minecraft.core.particles.ParticleTypes.CRIT,
+                                SoundEvents.PLAYER_ATTACK_CRIT, 1.4f);
+                    }
                 }
             }
             default -> {
@@ -244,6 +312,16 @@ public final class TalentMeleeEvents {
 
     /** One thing a Cleave or Shockwave hit, the main target included. */
     static void onSplashHit(Player player, LivingEntity entity, Skill skill, boolean mainTarget) {
+        // Earthbound Oath: a Cratermaker smash turns everything it touches onto you for 4 s.
+        if (skill == Skill.MACES && CRATER_HIT.get() && player instanceof ServerPlayer guardian
+                && entity instanceof net.minecraft.world.entity.Mob mob
+                && TalentService.hasSynergy(player, "earthbound_oath")
+                && !(mob instanceof net.minecraft.world.entity.OwnableEntity owned
+                        && owned.getOwnerUUID() != null && owned.getOwnerUUID().equals(player.getUUID()))) {
+            GuardianEvents.tauntFor(guardian, mob, OATH_TAUNT_TICKS);
+            cue(player, entity, net.minecraft.core.particles.ParticleTypes.ANGRY_VILLAGER,
+                    SoundEvents.PLAYER_ATTACK_KNOCKBACK, 0.6f);
+        }
         if (skill == Skill.AXES) {
             int sunder = TalentService.rank(player, Skill.AXES, "sunder");
             if (sunder > 0) {
@@ -306,6 +384,14 @@ public final class TalentMeleeEvents {
                 event.setCanceled(true);
                 player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
                         SoundEvents.SHIELD_BLOCK, SoundSource.PLAYERS, 0.8f, 1.4f);
+                // Turn and Thrust: the riposte is certain. Not while a frenzy is already landing
+                // every roll, where the flag would sit unused until after it.
+                if (TalentService.hasSynergy(player, "turn_and_thrust")
+                        && !ActiveService.isFrenzied(player, Skill.SWORDS)) {
+                    ProcService.forceNext(player, Skill.SWORDS);
+                    player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
+                            SoundEvents.PLAYER_ATTACK_SWEEP, SoundSource.PLAYERS, 0.6f, 1.5f);
+                }
                 return;
             }
         }
@@ -430,6 +516,7 @@ public final class TalentMeleeEvents {
         COMBO.remove(id);
         WIND_RIDER_UNTIL.remove(id);
         UNDYING_READY_AT.remove(id);
+        REAVERS_RUSH_UNTIL.remove(id);
     }
 
     // ---- Pure arithmetic, unit tested -----------------------------------------------------------

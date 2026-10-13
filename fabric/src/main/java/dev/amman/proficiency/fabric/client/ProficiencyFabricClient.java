@@ -60,6 +60,11 @@ public final class ProficiencyFabricClient implements ClientModInitializer {
                 (payload, context) -> ClientWiring.onProcFx(payload));
         ClientPlayNetworking.registerGlobalReceiver(DeathRecapPayload.TYPE,
                 (payload, context) -> ClientWiring.onDeathRecap(payload));
+        FabricHearthClientNetwork.register();
+        // The Hearth's flame planes are cut out; NeoForge reads render_type from the model, Fabric needs this.
+        net.fabricmc.fabric.api.blockrenderlayer.v1.BlockRenderLayerMap.INSTANCE.putBlock(
+                dev.amman.proficiency.hearth.HearthBlocks.HEARTH.get(),
+                net.minecraft.client.renderer.RenderType.cutout());
         ClientReceiveMessageEvents.ALLOW_GAME.register((message, overlay) ->
                 !OverlayFallback.reroute(message, overlay));
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> ClientWiring.onLeaveWorld());

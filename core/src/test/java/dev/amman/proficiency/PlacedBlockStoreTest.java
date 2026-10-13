@@ -58,4 +58,27 @@ class PlacedBlockStoreTest {
             assertTrue(encoded[i - 1] < encoded[i]);
         }
     }
+
+    @Test
+    void forEachInChunkVisitsAbsolutePositionsInTheHeightBand() {
+        PlacedBlockStore store = new PlacedBlockStore();
+        int[][] spots = {{-17, 70, 33}, {-20, 12, 40}, {-18, 300, 47}, {-1, 70, 33}, {5, 70, 33}};
+        for (int i = 0; i < spots.length; i++) {
+            store.mark(spots[i][0], spots[i][1], spots[i][2], 100 + i);
+        }
+        java.util.Map<String, Integer> seen = new java.util.HashMap<>();
+        // Chunk (-2, 2) holds x -32..-17 and z 32..47: the first three spots.
+        store.forEachInChunk(-2, 2, 0, 100, (x, y, z, hash) -> seen.put(x + "," + y + "," + z, hash));
+        assertEquals(2, seen.size(), "the band 0..100 leaves out the mark at y 300: " + seen);
+        assertEquals(100, seen.get("-17,70,33"));
+        assertEquals(101, seen.get("-20,12,40"));
+        seen.clear();
+        store.forEachInChunk(-2, 2, -64, 319, (x, y, z, hash) -> seen.put(x + "," + y + "," + z, hash));
+        assertEquals(3, seen.size());
+        assertEquals(102, seen.get("-18,300,47"));
+        seen.clear();
+        store.forEachInChunk(0, 2, -64, 319, (x, y, z, hash) -> seen.put(x + "," + y + "," + z, hash));
+        assertEquals(java.util.Map.of("5,70,33", 104), seen);
+        store.forEachInChunk(9, 9, -64, 319, (x, y, z, hash) -> org.junit.jupiter.api.Assertions.fail("an empty chunk"));
+    }
 }

@@ -79,12 +79,22 @@ public final class XpGainDots {
      * first observation or a move down snaps instead.
      */
     public void gain(double from, double to, long now) {
+        gain(from, to, now, MAX_LIVE);
+    }
+
+    /**
+     * {@link #gain(double, double, long)} with at most {@code maxNew} new dots, for an owner that
+     * shares one budget across several instances (the Hearth tracker: 6 dots in the air across all
+     * its rows). Launches start at {@code now} or later, so a caller can delay a flight by passing
+     * a time in the future. A gain that gets no dot reaches the bar through the fill.
+     */
+    public void gain(double from, double to, long now, int maxNew) {
         if (shown < 0 || !(to > from)) {
             snap(to, now);
             return;
         }
         double gain = to - from;
-        int count = Math.min(dotCount(gain), MAX_LIVE - dots.size());
+        int count = Math.min(Math.min(dotCount(gain), MAX_LIVE - dots.size()), maxNew);
         if (count <= 0) {
             // The sky is full: let the bar take this one directly through the fill lerp.
             return;
@@ -129,6 +139,11 @@ public final class XpGainDots {
             shown = target;
         }
         return shown;
+    }
+
+    /** How many dots are in the air or waiting for their launch slot. */
+    public int inAir() {
+        return dots.size();
     }
 
     /** The dots still in the air (including ones waiting for their launch slot). */

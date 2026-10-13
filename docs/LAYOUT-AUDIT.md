@@ -14,6 +14,7 @@ The language decides how long a text is, so nothing is cut at a fixed pixel coun
 | Skills panel columns | widest skill name | wider panel; one scrolling column when two do not fit; whole rows only above the footer |
 | Skills panel footer | panel width | a text pair that does not fit side by side goes on two lines |
 | Death recap | longest name, up to 60% of the screen | wider panel, wrapped lines (the survival line and the rested XP line each up to 3), fewer rows plus "+N more" when the window is short |
+| Hearth tales panel (a homecoming, a page set down, a tale retold) | longest line, up to 60% of the screen | wider panel at the death recap's top (30%, clear of a top-right minimap); the title and each line wrap to 2 lines, the last ends in an ellipsis; on a short window the place rows fold away first (`tales.rows_folded`), never the amount; it steps under a discovery banner that would cover it (the first Tales at a Hearth come with Homebuilder's first-time banner); the Hearth tracker steps under it where there is room, as under the death recap (`client.RightEdge`) |
 | XP feed | to the right edge | the source is cut, the numbers are not; the factor line wraps to 2 |
 | Banner | window | kicker and XP line wrap; a title shrinks to 1.4x, then goes on two lines |
 | Ability wheel | the disc | each centre line is cut to the chord at its height; slots shrink on a crowded ring |
@@ -25,6 +26,10 @@ The language decides how long a text is, so nothing is cut at a fixed pixel coun
 | Teacher toast (action bar) | window | one short line; the longer login line goes to chat, which wraps |
 | Item tooltips of the mod | 240 px | wrapped |
 | Action bar messages of the mod wider than the window | window | sent to the chat, which wraps |
+| Hearth panel | 400 px in two columns, 280 in one | the tabs go under the title when both do not fit; a boon wraps to 2 lines; missing Comfort kinds 3 lines, the Character note 2 and the sieges line 4, each with a hover for the rest |
+| Hearth-keepers tab | panel width | "mostly ..." sources end in an ellipsis; the two window buttons become one toggle when the footer is too narrow |
+| Hearth tracker | a third of the screen | the bars shrink from 40 to 24 px first, then the need text is cut; it slides under (or over) a death recap or Tales panel that would cover it, and fades with the panel only where neither fits (`hearth.tracker.gives_way`) |
+| Siege panel | 2/5 of the screen | lines are cut, but an outcome's recap line wraps to 3 lines; it steps under a discovery banner that would cover it |
 
 Line breaking keeps a number with its unit ("20 s") and never starts a CJK line with closing
 punctuation. `TextBreakTest` covers it.
@@ -42,3 +47,15 @@ punctuation. `TextBreakTest` covers it.
 
 The demo (client/LayoutDemo) is on all three lines (shared code since the monorepo; Forge 1.20.1 keeps its own copy). It needs a private X display (Xvfb) and a throwaway instance. Do not use the real desktop.
 GUI sizes below 320 x 240 do not exist in the game, so the smallest setup is 960 x 720 at scale 3.
+
+Forge 1.20.1 run of the Hearth sites (2026-10-10, groups `hearth`, `panel`, `hud`, `tales`, `wheel`, en_us
+and pl_pl, all five setups, the lean throwaway instance HearthF): the same clips as the 1.21.1 run and
+nothing else (`hearth.panel.single_column` and the skills panel's single column at 320 x 240,
+`tales.rows_folded` on short windows).
+
+Forge 1.20.1 run in the full Reclamation pack (2026-10-10, polish-forge, instance ProfReclamationTest with
+172 mods, groups `hearth`, `panel`, `hud`, `tales`, `wheel`, en_us and pl_pl, all five setups): the clips
+of the HearthF run and nothing new for the Hearth, plus `feed.line` (the debug XP feed's source cut at
+320 x 240 in Polish, as designed: the numbers are kept). `tales.rows_folded` came from the rule that kept the
+panel above the tracker; the tracker now steps aside instead (since its code review, under the panel where
+there is room: LayoutDemo's `hearth-tales` shot).

@@ -84,6 +84,10 @@ public final class TalentGatheringEvents {
     /** Sunken Treasure's book is enchanted like a vanilla treasure catch's. */
     private static final int TREASURE_BOOK_LEVELS = 30;
 
+    /** The vanilla fishing table, found the way each game version keeps its loot tables. */
+    private static final java.util.function.Function<ServerLevel, net.minecraft.world.level.storage.loot.LootTable> LOOT_FISHING =
+            level -> level.getServer().getLootData().getLootTable(net.minecraft.world.level.storage.loot.BuiltInLootTables.FISHING);
+
     /** Who is wearing Dark Sight's Night Vision right now, so it is only ever ours we take off. */
     private static final Set<UUID> DARK_SIGHTED = ConcurrentHashMap.newKeySet();
 
@@ -222,7 +226,7 @@ public final class TalentGatheringEvents {
      * so a modded {@code x_log} with an {@code x_sapling} next to it works; anything else, a mangrove
      * or a nether stem, is skipped quietly. Call only once the log is gone.
      */
-    static void replantSapling(ServerLevel level, BlockPos pos, Block log) {
+    public static void replantSapling(ServerLevel level, Player player, BlockPos pos, Block log) {
         ResourceLocation logId = BuiltInRegistries.BLOCK.getKey(log);
         String saplingPath = GatheringMath.saplingPathFor(logId.getPath());
         if (saplingPath == null || !isBottomLog(level, pos) || !level.getBlockState(pos).isAir()) {
@@ -235,8 +239,107 @@ public final class TalentGatheringEvents {
         }
         BlockState planted = sapling.get().defaultBlockState();
         if (planted.canSurvive(level, pos)) {
+            // Orchard Keeper: it goes in one growth stage ahead (stage 1 grows on the next random tick).
+            boolean ahead = TalentService.hasSynergy(player, "orchard_keeper")
+                    && planted.hasProperty(net.minecraft.world.level.block.SaplingBlock.STAGE);
+            if (ahead) {
+                planted = planted.setValue(net.minecraft.world.level.block.SaplingBlock.STAGE, 1);
+            }
             level.setBlockAndUpdate(pos, planted);
+            if (ahead) {
+                level.sendParticles(ParticleTypes.HAPPY_VILLAGER, pos.getX() + 0.5, pos.getY() + 0.4,
+                        pos.getZ() + 0.5, 6, 0.25, 0.2, 0.25, 0.02);
+            }
         }
+    }
+
+    /** How many of an item the player carries, for Charcoal Burner's before and after. */
+    public static int countInPack(Player player, net.minecraft.world.item.Item item) {
+        int count = 0;
+        var inventory = player.getInventory();
+        for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
+            if (inventory.getItem(slot).is(item)) {
+                count += inventory.getItem(slot).getCount();
+            }
+        }
+        return count;
+    }
+
+    /**
+     * Charcoal Burner: one log in eight of the felled tree goes into the nearest furnace, blast
+     * furnace or smoker within four blocks, taken out of the drops lying where the tree stood.
+     * Only fuel the furnace can take, into an empty fuel slot or one holding the same log.
+     */
+    public static int charcoalBurner(ServerLevel level, Player player, net.minecraft.world.phys.AABB treeBox,
+            Block kind, int felled, int packBefore) {
+        int want = GatheringMath.charcoalLogs(felled);
+        net.minecraft.world.item.Item log = kind.asItem();
+        if (want <= 0 || log == Items.AIR) {
+            return 0;
+        }
+        net.minecraft.world.level.block.entity.AbstractFurnaceBlockEntity best = null;
+        double bestDistance = Double.MAX_VALUE;
+        BlockPos centre = player.blockPosition();
+        for (BlockPos pos : BlockPos.betweenClosed(centre.offset(-4, -4, -4), centre.offset(4, 4, 4))) {
+            double distance = pos.distSqr(centre);
+            if (distance > 16 || distance >= bestDistance
+                    || !(level.getBlockEntity(pos) instanceof net.minecraft.world.level.block.entity.AbstractFurnaceBlockEntity furnace)) {
+                continue;
+            }
+            ItemStack held = furnace.getItem(1);
+            if ((held.isEmpty() || held.is(log)) && furnace.canPlaceItem(1, new ItemStack(log))
+                    && GatheringMath.fuelRoom(want, held.getCount(), log.getMaxStackSize()) > 0) {
+                best = furnace;
+                bestDistance = distance;
+            }
+        }
+        if (best == null) {
+            return 0;
+        }
+        int room = GatheringMath.fuelRoom(want, best.getItem(1).getCount(), log.getMaxStackSize());
+        int taken = 0;
+        for (net.minecraft.world.entity.item.ItemEntity drop : level.getEntitiesOfClass(
+                net.minecraft.world.entity.item.ItemEntity.class, treeBox, e -> e.getItem().is(log))) {
+            if (taken >= room) {
+                break;
+            }
+            int take = Math.min(room - taken, drop.getItem().getCount());
+            drop.getItem().shrink(take);
+            if (drop.getItem().isEmpty()) {
+                drop.discard();
+            }
+            taken += take;
+        }
+        if (taken < room) {
+            // Sawmill already swept the logs into the pack: take back what this felling added there.
+            int gained = Math.max(0, countInPack(player, log) - packBefore);
+            int fromPack = Math.min(room - taken, gained);
+            var inventory = player.getInventory();
+            for (int slot = 0; slot < inventory.getContainerSize() && fromPack > 0; slot++) {
+                ItemStack stack = inventory.getItem(slot);
+                if (stack.is(log)) {
+                    int take = Math.min(fromPack, stack.getCount());
+                    stack.shrink(take);
+                    fromPack -= take;
+                    taken += take;
+                }
+            }
+        }
+        if (taken <= 0) {
+            return 0;
+        }
+        ItemStack fuel = best.getItem(1);
+        if (fuel.isEmpty()) {
+            best.setItem(1, new ItemStack(log, taken));
+        } else {
+            fuel.grow(taken);
+        }
+        best.setChanged();
+        BlockPos at = best.getBlockPos();
+        level.sendParticles(ParticleTypes.FLAME, at.getX() + 0.5, at.getY() + 1.0, at.getZ() + 0.5, 6, 0.2, 0.1, 0.2, 0.01);
+        level.playSound(null, at, net.minecraft.sounds.SoundEvents.FURNACE_FIRE_CRACKLE,
+                net.minecraft.sounds.SoundSource.BLOCKS, 0.8f, 1.0f);
+        return taken;
     }
 
     /** Woodland Stride: three seconds of Speed per rank after each Timber. */
@@ -444,7 +547,7 @@ public final class TalentGatheringEvents {
                     }
                 } else if (state.is(BlockTags.LOGS) && isBottomLog(level, pos)
                         && random.nextDouble() < replantChance(player)) {
-                    replantSapling(level, pos, state.getBlock());
+                    replantSapling(level, player, pos, state.getBlock());
                 }
             }
             case EXCAVATION -> {
@@ -526,11 +629,13 @@ public final class TalentGatheringEvents {
      * Fresh Catch: raw fish come up cooked. Cooked by the furnace recipe rather than a table, so a
      * modded fish with one cooks too, and a pufferfish, which has none, stays raw.
      */
-    static void freshCatch(ServerLevel level, Player player, List<ItemStack> drops) {
+    public static boolean freshCatch(ServerLevel level, Player player, List<ItemStack> drops) {
         int rank = TalentService.rank(player, Skill.FISHING, "fresh_catch");
-        if (rank <= 0 || player.getRandom().nextDouble() >= GatheringMath.perRank(rank, 0.20)) {
-            return;
+        // Shore Supper: by a lit campfire it is no longer a chance.
+        if (rank <= 0 || (!shoreSupper(player) && player.getRandom().nextDouble() >= GatheringMath.perRank(rank, 0.20))) {
+            return false;
         }
+        boolean cookedAny = false;
         for (int i = 0; i < drops.size(); i++) {
             ItemStack raw = drops.get(i);
             if (!raw.is(ItemTags.FISHES)) {
@@ -544,8 +649,24 @@ public final class TalentGatheringEvents {
                 ItemStack replacement = cooked.copy();
                 replacement.setCount(Math.min(raw.getCount(), replacement.getMaxStackSize()));
                 drops.set(i, replacement);
+                cookedAny = true;
             }
         }
+        return cookedAny;
+    }
+
+    /** Shore Supper: the synergy is awake and a lit campfire is within three blocks. */
+    public static boolean shoreSupper(Player player) {
+        if (!TalentService.hasSynergy(player, "shore_supper")) {
+            return false;
+        }
+        BlockPos centre = player.blockPosition();
+        for (BlockPos pos : BlockPos.betweenClosed(centre.offset(-3, -3, -3), centre.offset(3, 3, 3))) {
+            if (net.minecraft.world.level.block.CampfireBlock.isLitCampfire(player.level().getBlockState(pos))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Rain Dancer: the XP multiplier for a catch while it rains. */
@@ -585,5 +706,81 @@ public final class TalentGatheringEvents {
     @SubscribeEvent
     public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
         DARK_SIGHTED.remove(event.getEntity().getUUID());
+        FISHING_TRIP.remove(event.getEntity().getUUID());
+    }
+
+    // ---- Synergies on a proc -----------------------------------------------------------------
+
+    /** Fishing Trip: until what game tick each friend's next Fishing roll is certain. */
+    private static final java.util.Map<UUID, Long> FISHING_TRIP = new ConcurrentHashMap<>();
+    private static final double FISHING_TRIP_RADIUS = 16.0;
+    private static final double HARPOONEER_CHANCE = 0.25;
+
+    /** Harpooneer (Riptide Strike on a mob in water) and Fishing Trip (a friend's Treasure Haul). */
+    @SubscribeEvent
+    public static void onProc(dev.amman.proficiency.skill.SkillProcEvent event) {
+        ServerPlayer player = event.player();
+        if (event.skill() == Skill.TRIDENTS) {
+            harpooneer(player, event.target());
+        } else if (event.skill() == Skill.FISHING) {
+            fishingTrip(player);
+        }
+    }
+
+    /** Rolls the vanilla fishing table once at a mob standing in water and drops the catch there. */
+    private static void harpooneer(ServerPlayer player, net.minecraft.world.entity.LivingEntity target) {
+        if (target == null || !target.isInWater() || !(player.level() instanceof ServerLevel level)
+                || !TalentService.hasSynergy(player, "harpooneer")
+                || level.getRandom().nextDouble() >= HARPOONEER_CHANCE) {
+            return;
+        }
+        net.minecraft.world.phys.Vec3 at = target.position();
+        net.minecraft.world.level.storage.loot.LootParams params = new net.minecraft.world.level.storage.loot.LootParams.Builder(level)
+                .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.ORIGIN, at)
+                .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.TOOL, new ItemStack(Items.FISHING_ROD))
+                .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.THIS_ENTITY, player)
+                .withLuck(player.getLuck())
+                .create(net.minecraft.world.level.storage.loot.parameters.LootContextParamSets.FISHING);
+        for (ItemStack catchItem : LOOT_FISHING.apply(level).getRandomItems(params)) {
+            level.addFreshEntity(new net.minecraft.world.entity.item.ItemEntity(level, at.x, at.y + 0.5, at.z, catchItem));
+        }
+        level.sendParticles(ParticleTypes.FISHING, at.x, at.y + 0.5, at.z, 10, 0.3, 0.2, 0.3, 0.05);
+        level.playSound(null, at.x, at.y, at.z, net.minecraft.sounds.SoundEvents.FISHING_BOBBER_SPLASH,
+                net.minecraft.sounds.SoundSource.PLAYERS, 0.8f, 1.1f);
+    }
+
+    /**
+     * Fishing Trip: a Treasure Haul by anyone makes the next Fishing roll certain for every other
+     * friend with the synergy within 16 blocks. A friend whose own proc is the one this granted does
+     * not pass it back, or two anglers would feed each other forever.
+     */
+    private static void fishingTrip(ServerPlayer caster) {
+        long now = caster.level().getGameTime();
+        Long granted = FISHING_TRIP.remove(caster.getUUID());
+        if (granted != null && now <= granted) {
+            return;
+        }
+        for (ServerPlayer friend : caster.serverLevel().players()) {
+            if (friend == caster || friend.distanceToSqr(caster) > FISHING_TRIP_RADIUS * FISHING_TRIP_RADIUS
+                    || !TalentService.hasSynergy(friend, "fishing_trip")) {
+                continue;
+            }
+            dev.amman.proficiency.skill.ProcService.forceNext(friend, Skill.FISHING);
+            FISHING_TRIP.put(friend.getUUID(), now + GatheringMath.FISHING_TRIP_TICKS);
+            caster.serverLevel().sendParticles(ParticleTypes.HAPPY_VILLAGER, friend.getX(), friend.getY() + 1.8,
+                    friend.getZ(), 5, 0.3, 0.2, 0.3, 0.02);
+        }
+    }
+
+    /**
+     * Called before a Fishing roll: a Fishing Trip grant that has gone stale (over 60 s) is taken
+     * back, so "your next one is certain" does not wait forever.
+     */
+    public static void fishingTripExpire(Player player) {
+        Long until = FISHING_TRIP.get(player.getUUID());
+        if (until != null && player.level().getGameTime() > until) {
+            FISHING_TRIP.remove(player.getUUID());
+            dev.amman.proficiency.skill.ProcService.unforceNext(player, Skill.FISHING);
+        }
     }
 }

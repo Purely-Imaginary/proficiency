@@ -38,4 +38,23 @@ class GatheringMathTest {
         assertEquals(1.0, GatheringMath.perRank(3, 0.50), 1e-9);
         assertEquals(0.0, GatheringMath.perRank(0, 0.10), 1e-9);
     }
+
+    @Test
+    void charcoalBurnerTakesOneLogInEight() {
+        assertEquals(0, GatheringMath.charcoalLogs(7));
+        assertEquals(2, GatheringMath.charcoalLogs(16));
+        assertEquals(2, GatheringMath.charcoalLogs(23));
+        assertEquals(0, GatheringMath.charcoalLogs(-3));
+        assertEquals(2, GatheringMath.fuelRoom(2, 0, 64));
+        assertEquals(1, GatheringMath.fuelRoom(5, 63, 64));
+        assertEquals(0, GatheringMath.fuelRoom(5, 64, 64));
+    }
+
+    @Test
+    void dredgerUndoesExactlyTheVanillaPenalties() {
+        assertEquals(1f, GatheringMath.dredgeFactor(1f, false), 0f);
+        assertEquals(5f, GatheringMath.dredgeFactor(0.2f, false), 1e-5f);
+        assertEquals(5f, GatheringMath.dredgeFactor(1f, true), 0f);
+        assertEquals(25f, GatheringMath.dredgeFactor(0.2f, true), 1e-4f);
+    }
 }

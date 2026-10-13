@@ -104,4 +104,34 @@ public final class SkillIcons {
             RenderSystem.disableBlend();
         }
     }
+
+    /**
+     * Any 16x16 icon drawn the way the skill icons are (nearest sampling, fades with {@code alpha}):
+     * the Hearth's GUI icons ({@code textures/gui/hearth/...}) go through here.
+     */
+    public static void drawTexture(GuiGraphics graphics, ResourceLocation texture, int x, int y, int size, int alpha) {
+        if (texture == null || size <= 0 || alpha <= 8) {
+            return;
+        }
+        boolean blendWasOn = GL11.glIsEnabled(GL11.GL_BLEND);
+        if (!blendWasOn) {
+            RenderSystem.enableBlend();
+            RenderSystem.defaultBlendFunc();
+        }
+        float[] colour = RenderSystem.getShaderColor();
+        float r = colour[0];
+        float g = colour[1];
+        float b = colour[2];
+        float a = colour[3];
+        if (alpha < 255) {
+            RenderSystem.setShaderColor(r, g, b, a * (alpha / 255f));
+        }
+        graphics.blit(texture, x, y, size, size, 0f, 0f, 16, 16, 16, 16);
+        if (alpha < 255) {
+            RenderSystem.setShaderColor(r, g, b, a);
+        }
+        if (!blendWasOn) {
+            RenderSystem.disableBlend();
+        }
+    }
 }

@@ -24,6 +24,16 @@ public final class ProficiencyClient {
             GLFW.GLFW_KEY_GRAVE_ACCENT,
             "key.categories.misc");
 
+    /**
+     * Shows or hides the Hearths' ranges on Xaero's World Map (docs/HEARTH-REACH-SPEC.md). F8 is
+     * bound by nothing in Reclamation.
+     */
+    public static final KeyMapping HEARTH_MAP = new KeyMapping(
+            "key.proficiency.hearth_map",
+            InputConstants.Type.KEYSYM,
+            GLFW.GLFW_KEY_F8,
+            "key.categories.misc");
+
     private ProficiencyClient() {
     }
 }

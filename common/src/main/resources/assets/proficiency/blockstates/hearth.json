@@ -1,0 +1,40 @@
+{
+  "variants": {
+    "smouldering=false,stage=1": {
+      "model": "proficiency:block/hearth_stage_1"
+    },
+    "smouldering=true,stage=1": {
+      "model": "proficiency:block/hearth_stage_1_smouldering"
+    },
+    "smouldering=false,stage=2": {
+      "model": "proficiency:block/hearth_stage_2"
+    },
+    "smouldering=true,stage=2": {
+      "model": "proficiency:block/hearth_stage_2_smouldering"
+    },
+    "smouldering=false,stage=3": {
+      "model": "proficiency:block/hearth_stage_3"
+    },
+    "smouldering=true,stage=3": {
+      "model": "proficiency:block/hearth_stage_3_smouldering"
+    },
+    "smouldering=false,stage=4": {
+      "model": "proficiency:block/hearth_stage_4"
+    },
+    "smouldering=true,stage=4": {
+      "model": "proficiency:block/hearth_stage_4_smouldering"
+    },
+    "smouldering=false,stage=5": {
+      "model": "proficiency:block/hearth_stage_5"
+    },
+    "smouldering=true,stage=5": {
+      "model": "proficiency:block/hearth_stage_5_smouldering"
+    },
+    "smouldering=false,stage=6": {
+      "model": "proficiency:block/hearth_stage_6"
+    },
+    "smouldering=true,stage=6": {
+      "model": "proficiency:block/hearth_stage_6_smouldering"
+    }
+  }
+}

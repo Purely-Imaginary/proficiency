@@ -15,13 +15,18 @@ public final class ProficiencyNetwork {
     }
 
     /**
-     * Network protocol 5. NeoForge negotiates it as the channel version; Fabric has no channel
+     * Network protocol 7. NeoForge negotiates it as the channel version; Fabric has no channel
      * version, so it rides on the sync packet instead ({@link SyncSkillsPayload#VERSIONED_CODEC}).
      * Version 2: DiscoveryPayload gained a trailing string. Version 3: the sync packet carries the
      * running frenzies and the death recap packet exists. Version 4: the proc effect packet. Version 5: Mastery stars (the sync packet
-     * carries stars and the overflow bar, the level-up packet a star count).
+     * carries stars and the overflow bar, the level-up packet a star count). Version 6: rested XP.
+     * Version 7: the Hearth's payloads (hearth_state, hearth_tracker, hearth_gain, hearth_ledger,
+     * siege_panel, hearth_ping, hearth_hud, hearth_request) and its block, block entity and items.
+     * Version 8: Expertise (the sync packet carries its ranks; the expertise payload).
+     * Version 9: crit talents (Lunge, Rend, Flow) and the Leaping Blade synergy in the shared
+     * talent table, and the crit XP factor; a 1.6.0 client would not know them.
      */
-    public static final int PROTOCOL = 6;
+    public static final int PROTOCOL = 9;
 
     /** Client side, on the client thread: the server's numbers replace ours. */
     public static void onSync(SyncSkillsPayload payload, Player player) {
@@ -69,6 +74,25 @@ public final class ProficiencyNetwork {
         if (attempt.outcome() == dev.amman.proficiency.perk.TalentOutcome.MISSING_MATERIALS) {
             player.sendSystemMessage(attempt.message());
         } else {
+            player.displayClientMessage(attempt.message(), true);
+        }
+        if (attempt.ok()) {
+            sendFullSync(player);
+        }
+    }
+
+    /** Server thread: a click in the Expertise screen, one rank or the respec button. */
+    public static void onExpertise(ExpertisePayload payload, ServerPlayer player) {
+        dev.amman.proficiency.perk.TalentService.Attempt attempt;
+        if (payload.action() == ExpertisePayload.RESPEC) {
+            attempt = dev.amman.proficiency.perk.ExpertiseService.respec(player);
+            player.sendSystemMessage(attempt.message());
+        } else {
+            var node = dev.amman.proficiency.perk.Expertise.byId(payload.node());
+            if (node == null) {
+                return;
+            }
+            attempt = dev.amman.proficiency.perk.ExpertiseService.tryInvest(player, node);
             player.displayClientMessage(attempt.message(), true);
         }
         if (attempt.ok()) {

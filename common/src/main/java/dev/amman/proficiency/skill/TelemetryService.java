@@ -42,6 +42,29 @@ public final class TelemetryService {
                 level, System.currentTimeMillis(), kindOverride);
     }
 
+    /**
+     * A Hearth event ({@code Telemetry.HEARTH_*}, {@code TALE_RATING}, {@code HOMEWARD}): counted once
+     * and {@code value} summed per player, kind, label and source. {@code player} null files it under
+     * the world (a siege roll).
+     */
+    public static void hearth(@Nullable ServerPlayer player, String kind, String label, String source,
+            double value) {
+        hearth(player == null ? null : player.getUUID(), player == null ? null : player.getGameProfile().getName(),
+                kind, label, source, value);
+    }
+
+    /**
+     * As above for a player who may be offline (a held Masonry credit landing after they left):
+     * {@code id} null files it under the world.
+     */
+    public static void hearth(@Nullable java.util.UUID id, @Nullable String name, String kind, String label,
+            String source, double value) {
+        if (!ProficiencyConfig.telemetryEnabled()) {
+            return;
+        }
+        data().hearth(id, name, kind, label, source, value);
+    }
+
     /** The extra XP a grant gained from the rested pool: its own telemetry kind. */
     public static void rested(ServerPlayer player, Skill skill, double xp) {
         if (ProficiencyConfig.telemetryEnabled()) {

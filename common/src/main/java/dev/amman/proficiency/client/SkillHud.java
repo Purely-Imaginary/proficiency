@@ -81,8 +81,27 @@ public final class SkillHud {
     private static String cOld = "";
     private static int cOldW;
 
+    // The empty-hand line (HudSkillPick): when Unarmed last gained, from what, and the last jump.
+    private static double unarmedSeen = -1;
+    private static double unarmedFrom = -1;
+    private static long unarmedGainAt = Long.MIN_VALUE / 2;
+    private static long jumpAt = Long.MIN_VALUE / 2;
+    private static double groundY = Double.MAX_VALUE;
+
     /** The XP-gain dots and the animated fill; see {@link XpGainDots}. */
     private static final XpGainDots DOTS = new XpGainDots();
+
+    /**
+     * Where the held skill's bar ended its fill on the last frame it was drawn, and which skill it
+     * was: the Hearth tracker launches its dots from here (docs/HEARTH-SPEC.md, "Gain animation").
+     * {@code anchorAt} is on the monotonic clock ({@code Util.getMillis}), like the callers' {@code now}.
+     */
+    private static int anchorX = -1;
+    private static int anchorY = -1;
+    private static long anchorAt = Long.MIN_VALUE / 2;
+    private static Skill anchorSkill;
+    /** How long a drawn line counts as still on screen for {@link #showing}. */
+    private static final long ANCHOR_FRESH_MS = 250;
 
     private SkillHud() {
     }
@@ -105,6 +124,60 @@ public final class SkillHud {
         cPercent = -1;
         cOldLevel = -1;
         DOTS.snap(0, 0);
+        anchorSkill = null;
+        anchorAt = Long.MIN_VALUE / 2;
+        unarmedSeen = -1;
+        unarmedFrom = -1;
+        unarmedGainAt = Long.MIN_VALUE / 2;
+        jumpAt = Long.MIN_VALUE / 2;
+        groundY = Double.MAX_VALUE;
+    }
+
+    /**
+     * The skill the line shows. The held item's, except for an empty hand: Unarmed only while it
+     * earns XP or its ability runs, else Jumping just after a jump and Running otherwise.
+     */
+    @org.jetbrains.annotations.Nullable
+    private static Skill lineSkill(net.minecraft.world.entity.player.Player player, PlayerSkills skills,
+            @org.jetbrains.annotations.Nullable Skill context, long now) {
+        double unarmed = BarValue.value(skills, Skill.UNARMED);
+        if (unarmedSeen >= 0 && unarmed > unarmedSeen) {
+            unarmedFrom = unarmedSeen;
+            unarmedGainAt = now;
+        }
+        unarmedSeen = unarmed;
+        // A jump is being in the air above where the feet left the ground. Height, not the
+        // take-off velocity, so a slow frame rate cannot miss it; stepping off an edge goes down.
+        if (player.onGround() || player.isInWater() || player.getAbilities().flying || player.isPassenger()) {
+            groundY = player.getY();
+        } else if (player.getY() > groundY + 0.25) {
+            jumpAt = now;
+        }
+        return dev.amman.proficiency.skill.HudSkillPick.pick(context, player.getMainHandItem().isEmpty(),
+                now - unarmedGainAt, ActiveService.isFrenzied(player, Skill.UNARMED), now - jumpAt);
+    }
+
+    /**
+     * The x the Hearth tracker's dots leave from: the skill bar's fill edge when the line was just
+     * drawn, else the middle of where the bar sits.
+     */
+    public static int dotAnchorX(int guiWidth, long now) {
+        return now - anchorAt <= ANCHOR_FRESH_MS && anchorX >= 0 ? anchorX : guiWidth / 2;
+    }
+
+    /** The y the Hearth tracker's dots leave from: the skill bar's middle row. */
+    public static int dotAnchorY(int guiHeight, long now) {
+        return now - anchorAt <= ANCHOR_FRESH_MS && anchorY >= 0 ? anchorY : guiHeight - LINE_FROM_BOTTOM + 12;
+    }
+
+    /** True when the line is on screen for this skill right now (its own dots fly into it). */
+    public static boolean showing(Skill skill, long now) {
+        return skill != null && skill == anchorSkill && now - anchorAt <= ANCHOR_FRESH_MS;
+    }
+
+    /** Baseline row of the skill line for a GUI height: the Hearth glyph sits here when it is alone. */
+    public static int lineY(int guiHeight) {
+        return guiHeight - LINE_FROM_BOTTOM;
     }
 
     @SubscribeEvent
@@ -133,7 +206,9 @@ public final class SkillHud {
 
         GuiGraphics graphics = event.getGuiGraphics();
         PlayerSkills skills = ProficiencyAttachments.of(minecraft.player);
-        Skill held = AbilityContext.current(minecraft.player);
+        // The ability key's skill drives the ability effects; the line may show another (lineSkill).
+        Skill context = AbilityContext.current(minecraft.player);
+        Skill held = lineSkill(minecraft.player, skills, context, now);
 
         // Every skill but the one the line shows keeps its last-seen level equal to the real one,
         // so a level gained while it was not on show (a borrowed line, another world) is never
@@ -145,8 +220,9 @@ public final class SkillHud {
             }
         }
         StreakBadge.observe(SurvivalStreak.percent(SurvivalStreak.stacks(skills)), now);
-        AbilityFx.render(graphics, minecraft.player, skills, held, event.getPartialTick().getGameTimeDeltaPartialTick(false), now);
+        AbilityFx.render(graphics, minecraft.player, skills, context, event.getPartialTick().getGameTimeDeltaPartialTick(false), now);
         DeathRecapHud.render(graphics, minecraft, now);
+        ProcCallout.render(graphics, minecraft, now);
 
         // A level gained on a skill the HUD is not showing borrows the line for a moment.
         Skill queued = LevelUpFx.takeQueuedSkill();
@@ -188,16 +264,29 @@ public final class SkillHud {
         // 0.0 both sides of the respawn, and without this the line would never come back.
         if (skill != lastSkill || progress != lastProgress || level != lastLevel || stars != lastStars) {
             boolean animate = skill == lastSkill && ProficiencyClientConfig.hudXpDots();
+            // The punch that brought Unarmed onto the line flies its own dots in.
+            boolean punchedIn = skill != lastSkill && skill == Skill.UNARMED && unarmedFrom >= 0
+                    && now - unarmedGainAt < 250 && ProficiencyClientConfig.hudXpDots();
             if (animate) {
                 DOTS.gain(BarValue.value(lastLevel, lastProgress, lastStars), real, now);
+            } else if (punchedIn) {
+                DOTS.snap(unarmedFrom, now);
+                DOTS.gain(unarmedFrom, real, now);
             } else {
                 DOTS.snap(real, now);
             }
+            // An empty hand falling back to Running after a jump or a punch only relabels the line;
+            // it is not news, so it does not bring the line back up by itself.
+            boolean quietSwap = skill != lastSkill && skill == Skill.RUNNING
+                    && (lastSkill == Skill.JUMPING || lastSkill == Skill.UNARMED)
+                    && minecraft.player.getMainHandItem().isEmpty();
             lastSkill = skill;
             lastProgress = progress;
             lastLevel = level;
             lastStars = stars;
-            shownAt = now;
+            if (!quietSwap) {
+                shownAt = now;
+            }
         }
         if (!ProficiencyClientConfig.hudXpDots()) {
             DOTS.snap(real, now);
@@ -359,6 +448,7 @@ public final class SkillHud {
                 graphics.drawString(font, cPct, badgeX + StreakBadge.WIDTH, y, (badgeAlpha << 24) | pctColour,
                         true);
             }
+            cursor = badgeX + StreakBadge.WIDTH + cPctW;
         }
 
         int barLeft = centreX - BAR_WIDTH / 2;
@@ -372,11 +462,12 @@ public final class SkillHud {
         if (filled > 0) {
             graphics.fill(barLeft, barTop, barLeft + filled, barTop + 2, a24 | barRgb);
         }
-        // Rested XP: a blue segment after the fill, as long as the XP that will pay double.
-        int restedPx = RestedBar.pixels(skills.restedReach(skill), BAR_WIDTH, filled);
-        if (restedPx > 0) {
+        // Rested XP: a faint segment after the fill, as long as the XP that will pay double. Its far
+        // end is fixed to the real value, so an animating gain eats into it instead of pushing it.
+        int[] rested = RestedSpan.of(shown, BarValue.value(skills, skill), skills.restedReach(skill), BAR_WIDTH);
+        if (rested != null) {
             int restedAlpha = Math.round(alpha * 0.9f) << 24;
-            graphics.fill(barLeft + filled, barTop, barLeft + filled + restedPx, barTop + 2,
+            graphics.fill(barLeft + rested[0], barTop, barLeft + rested[1], barTop + 2,
                     restedAlpha | (SkillPalette.RESTED_BAR & 0x00FFFFFF));
         }
         if (flash > 0f) {
@@ -390,7 +481,12 @@ public final class SkillHud {
             levelUpBurst(graphics, centreX, barTop + 1, accent, gold, alpha, now);
         }
         if (dots) {
-            drawDots(graphics, barLeft + filled, barTop + 1, accent, a24, now);
+            DotFlight.fromRightEdge(graphics.guiWidth(), barTop + 1).draw(graphics, DOTS, barLeft + filled,
+                    barTop + 1, accent, brighten(accent), alpha, now);
+            anchorX = barLeft + filled;
+            anchorY = barTop + 1;
+            anchorAt = net.minecraft.Util.getMillis();
+            anchorSkill = skill;
         }
     }
 
@@ -487,51 +583,6 @@ public final class SkillHud {
             cPct = Component.translatable("proficiency.hud.streak", percent).getString();
             cPctW = font.width(cPct);
             cPercent = percent;
-        }
-    }
-
-    /**
-     * The dots: each flies on a quadratic curve from just past the right edge of the screen to
-     * the fill edge ({@code edgeX}, {@code edgeY}), with a two-pixel trail, and the edge glows
-     * when one lands. A few {@code fill} calls per dot and none at all when nothing is flying.
-     */
-    private static void drawDots(GuiGraphics graphics, int edgeX, int edgeY, int accent, int alpha,
-            long now) {
-        float flash = DOTS.flash(now);
-        int fade = alpha >>> 24;
-        if (flash > 0) {
-            int a = (int) (fade * flash);
-            graphics.fill(edgeX - 1, edgeY - 2, edgeX + 1, edgeY + 2, (a << 24) | 0xFFFFFF);
-        }
-        if (DOTS.dots().isEmpty()) {
-            return;
-        }
-        int head = (fade << 24) | (brighten(accent) & 0x00FFFFFF);
-        int startX = graphics.guiWidth() + 3;
-        for (XpGainDots.Dot dot : DOTS.dots()) {
-            double t = XpGainDots.progress(dot, now);
-            if (t < 0) {
-                continue;
-            }
-            float startY = edgeY - 34 + dot.lane() * 26;
-            // Control point above the straight line, so the dot arcs over and drops in.
-            float controlX = startX + (edgeX - startX) * 0.45f;
-            float controlY = Math.min(startY, edgeY) - 22 - dot.lane() * 12;
-            for (int step = 2; step >= 0; step--) {
-                double e = XpGainDots.ease(t - step * 0.045);
-                if (e <= 0) {
-                    continue;
-                }
-                double u = 1 - e;
-                int x = (int) Math.round(u * u * startX + 2 * u * e * controlX + e * e * edgeX);
-                int y = (int) Math.round(u * u * startY + 2 * u * e * controlY + e * e * edgeY);
-                if (step == 0) {
-                    graphics.fill(x - 1, y - 1, x + 1, y + 1, head);
-                } else {
-                    int a = (int) (fade * (step == 1 ? 0.55f : 0.25f));
-                    graphics.fill(x, y, x + 1, y + 1, (a << 24) | (accent & 0x00FFFFFF));
-                }
-            }
         }
     }
 

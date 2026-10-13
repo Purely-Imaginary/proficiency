@@ -70,30 +70,49 @@ public final class DiscoveryBanner {
     private static FormattedCharSequence[] prefixes = new FormattedCharSequence[] {FormattedCharSequence.EMPTY};
     private static boolean[] spaces = new boolean[0];
     private static ItemStack icon = ItemStack.EMPTY;
+    /** A Hearth banner's icon: the stage's GUI icon, drawn where an item icon goes. */
+    private static net.minecraft.resources.ResourceLocation iconTexture;
+
+    /** Hearth banners: an icon family of their own per stage (above every structure family). */
+    private static final int ICON_HEARTH = 100;
+    /** Ember for stages I-V, gold for the Heart of the Home. */
+    private static final int HEARTH_TINT = 0xFFA347;
 
     private static final Deque<Banner> QUEUE = new ArrayDeque<>();
     private static Banner current;
     private static long startedAt;
     /** Where the banner showing now ends, in GUI pixels; 0 with none. The XP feed starts below it. */
     private static int bottom;
+    /** Where the banner on screen starts (0 with none), for HUD panels above it. */
+    private static int top;
 
     private DiscoveryBanner() {
     }
 
-    /** Whether the player's settings let this kind of banner show. The XP is paid regardless. */
+    /**
+     * Whether the player's settings let this kind of banner show. The XP is paid regardless. Your
+     * first Hearth is a first-time moment (so are Homebuilder's milestones, sent as {@code FIRST}); a
+     * Hearth's stage banners are the home's own big moments, a handful per Hearth, so only the master
+     * switch hides them.
+     */
     static boolean allowed(int kind) {
         if (!ProficiencyClientConfig.bannersEnabled()) {
             return false;
         }
         return switch (kind) {
             case DiscoveryPayload.ENTER -> ProficiencyClientConfig.bannerEntry();
-            case DiscoveryPayload.FIRST -> ProficiencyClientConfig.bannerFirstTime();
+            case DiscoveryPayload.FIRST, DiscoveryPayload.HEARTH_FIRST -> ProficiencyClientConfig.bannerFirstTime();
+            case DiscoveryPayload.HEARTH -> true;
             default -> ProficiencyClientConfig.bannerDiscoveries();
         };
     }
 
     public static void show(DiscoveryPayload payload) {
         if (!allowed(payload.kind())) {
+            return;
+        }
+        if (payload.kind() == DiscoveryPayload.HEARTH || payload.kind() == DiscoveryPayload.HEARTH_FIRST) {
+            showHearth(payload);
             return;
         }
         if (payload.kind() == DiscoveryPayload.ENTER) {
@@ -133,6 +152,40 @@ public final class DiscoveryBanner {
         QUEUE.add(new Banner(payload.kind(), title, xp, kicker, skill, System.currentTimeMillis(),
                 tintFor(payload), payload.kind() == DiscoveryPayload.STRUCTURE
                         ? BannerStyle.iconFamily(payload.id()) : BannerStyle.ICON_NONE));
+    }
+
+    /**
+     * A Hearth stage sealed, or the first Hearth lit: the stage's name as the title, "Hearth · stage
+     * IV" (or "Your first Hearth") above it, who sealed it when it was someone else, the stage icon.
+     */
+    private static void showHearth(DiscoveryPayload payload) {
+        int stage = Math.max(1, DiscoveryPayload.hearthStage(payload.id()));
+        String roman = dev.amman.proficiency.hearth.HearthRules.roman(stage);
+        Component kicker = Component.translatable(payload.kind() == DiscoveryPayload.HEARTH_FIRST
+                ? "proficiency.hearth.stages.banner.first" : "proficiency.hearth.stages.banner.stage", roman);
+        if (!payload.with().isEmpty()) {
+            kicker = Component.translatable("proficiency.hearth.stages.banner.by", kicker, payload.with());
+        }
+        QUEUE.add(new Banner(payload.kind(), Component.translatable(payload.name()), null, kicker,
+                Skill.WAYFARING, System.currentTimeMillis(), stage >= 6 ? TITLE_COLOUR : HEARTH_TINT,
+                ICON_HEARTH + stage));
+    }
+
+    /** The siege banner's icon family: the siege GUI icon (apart from the stage families above it). */
+    private static final int ICON_SIEGE = ICON_HEARTH + 50;
+
+    /**
+     * A siege announced (the client lane, on the first countdown for a due time): this kicker and title,
+     * no XP line, in the siege's red, with the siege icon beside the title. The caller asks
+     * {@code hearth.siegePanel} (its tooltip says the switch covers this banner); here only the master
+     * switch applies, so turning off the discovery banners does not drop a siege's warning.
+     */
+    public static void showSiege(Component kicker, Component title) {
+        if (!ProficiencyClientConfig.bannersEnabled()) {
+            return;
+        }
+        QUEUE.add(new Banner(DiscoveryPayload.STRUCTURE, title, null, kicker, Skill.WAYFARING,
+                System.currentTimeMillis(), 0xE0584B, ICON_SIEGE));
     }
 
     /** A dimension banner takes its own colour; any other takes the dimension the player is in. */
@@ -190,7 +243,18 @@ public final class DiscoveryBanner {
                 return true;
             };
         }
-        icon = banner.iconFamily() == BannerStyle.ICON_NONE ? ItemStack.EMPTY : iconFor(banner.iconFamily());
+        if (banner.iconFamily() == ICON_SIEGE) {
+            iconTexture = net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(Proficiency.MOD_ID,
+                    "textures/gui/hearth/siege.png");
+            icon = ItemStack.EMPTY;
+        } else if (banner.iconFamily() > ICON_HEARTH) {
+            iconTexture = net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(Proficiency.MOD_ID,
+                    "textures/gui/hearth/stage/" + (banner.iconFamily() - ICON_HEARTH) + ".png");
+            icon = ItemStack.EMPTY;
+        } else {
+            iconTexture = null;
+            icon = banner.iconFamily() == BannerStyle.ICON_NONE ? ItemStack.EMPTY : iconFor(banner.iconFamily());
+        }
     }
 
     /** A new world starts clean; a banner from the last one must not play in this one. */
@@ -202,10 +266,16 @@ public final class DiscoveryBanner {
         prefixes = new FormattedCharSequence[] {FormattedCharSequence.EMPTY};
         spaces = new boolean[0];
         icon = ItemStack.EMPTY;
+        iconTexture = null;
     }
 
     static int bottom() {
         return current == null ? 0 : bottom;
+    }
+
+    /** The top of the banner on screen, or 0 with none (a HUD panel above it steps out of its way). */
+    static int top() {
+        return current == null || bottom == 0 ? 0 : top;
     }
 
     /**
@@ -294,6 +364,7 @@ public final class DiscoveryBanner {
         int bottomLocal = drawLocal(graphics, font, banner, a, ta, width / userScale, reveal, age);
         graphics.pose().popPose();
         bottom = topPx + Math.round(bottomLocal * userScale);
+        top = topPx;
     }
 
     /** Draws at origin (0, 0) = top centre, and returns the local y where the banner ends. */
@@ -334,7 +405,7 @@ public final class DiscoveryBanner {
         int titleWidth = font.width(banner.title());
         float full = banner.kind() == DiscoveryPayload.FIRST ? FIRST_SCALE
                 : banner.kind() == DiscoveryPayload.ENTER ? ENTER_SCALE : TITLE_SCALE;
-        boolean hasIcon = reveal && !icon.isEmpty();
+        boolean hasIcon = reveal && (!icon.isEmpty() || iconTexture != null);
         // The icon is about a text line tall (11 text units with its gap), and sits left of the title.
         float iconUnits = hasIcon ? 13f : 0f;
         // A long name shrinks to fit on one line, down to a readable size; below that it goes onto
@@ -384,7 +455,12 @@ public final class DiscoveryBanner {
                 // Centre of the icon's slot, so it grows from the middle.
                 graphics.pose().translate(shift - titleWidth / 2f - 7f, 4.5f, 0);
                 graphics.pose().scale(k, k, 1f);
-                graphics.renderItem(icon, -8, -8);
+                if (iconTexture != null) {
+                    // A Hearth stage icon fades with the title, like the skill icons beside text.
+                    SkillIcons.drawTexture(graphics, iconTexture, -8, -8, 16, ta);
+                } else {
+                    graphics.renderItem(icon, -8, -8);
+                }
                 graphics.pose().popPose();
             }
         }

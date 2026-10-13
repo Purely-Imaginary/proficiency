@@ -1,0 +1,14 @@
+{
+  "values": [
+    "minecraft:dirt",
+    "minecraft:coarse_dirt",
+    "minecraft:grass_block",
+    "minecraft:cobblestone",
+    "minecraft:cobbled_deepslate",
+    "minecraft:netherrack",
+    "minecraft:gravel",
+    "minecraft:sand",
+    "minecraft:red_sand",
+    "proficiency:hearth"
+  ]
+}

@@ -1,6 +1,7 @@
 // The Forge 1.20.1 jar for the Reclamation pack: core + this line's own Minecraft code. It cannot
-// share common/ (Minecraft 1.20.1 differs too much), but it compiles core's sources in, and it
-// takes the shared assets and lang files, with its own additions laid over the lang files.
+// share common/ (Minecraft 1.20.1 differs too much), but it compiles core's sources in (and the few
+// Hearth classes of common whose source is the same, copySharedHearth below), and it takes the
+// shared assets and lang files, with its own additions laid over the lang files.
 plugins {
     id 'java-library'
     id 'net.neoforged.moddev.legacyforge'
@@ -28,6 +29,9 @@ legacyForge {
         }
         gameTestServer {
             type = 'gameTestServer'
+            // Its own game directory: the run below writes a flat world into its server.properties and
+            // deletes its world, which must not touch the dev server's run/ (code review of fs01).
+            gameDirectory.set(project.file('run/gametest'))
             systemProperty 'forge.enabledGameTestNamespaces', mod_id
         }
     }
@@ -46,6 +50,76 @@ mixin {
 }
 
 sourceSets.main.java.srcDir project(':core').file('src/main/java')
+
+// The Hearth classes whose source is the same on both Minecraft versions: compiled from common's own
+// files instead of hand copies, so a master edit reaches this line (or fails its compile) rather than
+// drifting (review of the Forge foundation, 2026-10-09). HearthHooks differs only in the package of the
+// incoming-damage event, renamed on the copy. A class listed here must not also exist under
+// src/main/java (javac fails on the duplicate). docs/HEARTH-FORGE-CONTRACT.md, "Shared sources".
+def sharedHearthJava = [
+        'dev/amman/proficiency/hearth/HearthEvents.java',
+        'dev/amman/proficiency/hearth/HearthHooks.java',
+        'dev/amman/proficiency/hearth/HearthLook.java',
+        'dev/amman/proficiency/hearth/HearthRange.java',
+        'dev/amman/proficiency/hearth/HearthReload.java',
+        'dev/amman/proficiency/hearth/charge/ChargeText.java',
+        'dev/amman/proficiency/hearth/net/HearthClient.java',
+        'dev/amman/proficiency/hearth/net/HearthClients.java',
+        'dev/amman/proficiency/hearth/net/PoolRow.java',
+        'dev/amman/proficiency/homebuilder/HomebuilderApi.java',
+        'dev/amman/proficiency/homebuilder/HearthReachCharge.java',
+        // forge-server's classes whose source matched common's when the lane ported them (fix round of fs01).
+        'dev/amman/proficiency/hearth/charge/ChargeCommands.java',
+        'dev/amman/proficiency/hearth/charge/ChargeGrants.java',
+        'dev/amman/proficiency/hearth/charge/ChargeTick.java',
+        'dev/amman/proficiency/hearth/charge/ChargeTiers.java',
+        'dev/amman/proficiency/hearth/comfort/ComfortCue.java',
+        'dev/amman/proficiency/hearth/comfort/ComfortScanner.java',
+        'dev/amman/proficiency/hearth/comfort/ComfortTags.java',
+        'dev/amman/proficiency/hearth/effects/HearthStations.java',
+        'dev/amman/proficiency/hearth/effects/HearthStreak.java',
+        'dev/amman/proficiency/hearth/stages/HearthPresence.java',
+        'dev/amman/proficiency/hearth/stages/HearthStageCheck.java',
+        'dev/amman/proficiency/hearth/stages/StageBlocks.java',
+        'dev/amman/proficiency/hearth/stages/StageText.java',
+        // forge-client's classes whose source matched common's (fix round of fc01): the client lane's own,
+        // and the client helpers the Hearth's HUD and panel draw through.
+        'dev/amman/proficiency/client/DotFlight.java',
+        'dev/amman/proficiency/client/HudKit.java',
+        'dev/amman/proficiency/client/StreakAtHearth.java',
+        'dev/amman/proficiency/hearth/client/EmberDust.java',
+        'dev/amman/proficiency/hearth/client/HearthBlockFx.java',
+        'dev/amman/proficiency/hearth/client/HearthChat.java',
+        'dev/amman/proficiency/hearth/client/HearthClientImpl.java',
+        'dev/amman/proficiency/hearth/client/HearthRangeRing.java',
+        'dev/amman/proficiency/hearth/client/HearthText.java',
+        'dev/amman/proficiency/hearth/client/HearthView.java',
+        'dev/amman/proficiency/hearth/client/HearthGuide.java',
+        'dev/amman/proficiency/hearth/client/HearthGhost.java',
+        'dev/amman/proficiency/hearth/client/HearthVisualize.java',
+        'dev/amman/proficiency/hearth/client/HearthPreview.java',
+        'dev/amman/proficiency/hearth/client/HearthMapMarks.java',
+]
+def copySharedHearth = tasks.register('copySharedHearth', Sync) {
+    description = "Copies the Hearth classes both Minecraft versions compile unchanged from common's sources."
+    from(project(':common').file('src/main/java')) {
+        include sharedHearthJava
+    }
+    filesMatching('dev/amman/proficiency/hearth/HearthHooks.java') {
+        filter { String line ->
+            line.replace('dev.amman.proficiency.platform.event.entity.living.LivingIncomingDamageEvent',
+                    'dev.amman.proficiency.compat.LivingIncomingDamageEvent')
+        }
+    }
+    into layout.buildDirectory.dir('generated/sharedHearth')
+    doLast {
+        def missing = sharedHearthJava.findAll { !new File(destinationDir, it).exists() }
+        if (!missing.isEmpty()) {
+            throw new GradleException("copySharedHearth: not in common any more: ${missing}")
+        }
+    }
+}
+sourceSets.main.java.srcDir copySharedHearth
 
 // The shared assets (not common's data: 1.21 data files have another layout), and the lang files
 // merged by mergeLang below.
@@ -80,10 +154,26 @@ tasks.named('processResources', ProcessResources) {
         include 'assets/**'
         exclude 'assets/proficiency/lang/**'
     }
+    // The Hearth's datapack defaults: the folder layout is the mod's own, the same on 1.20.1, so every
+    // line ships the one file (its tags, loot tables and recipe are hand-copied under 1.20.1's plural
+    // folders; HearthForgeDataTest holds them to common's).
+    from(sharedResources) {
+        include 'data/proficiency/proficiency/hearth/**'
+    }
+    // The stage designs (core's HearthDesigns reads them from the classpath, on the server and the client).
+    from(sharedResources) {
+        include 'data/proficiency/hearth_designs/**'
+    }
     from(mergedLang)
 }
 
+repositories {
+    // Xaero's World Map, compile-only, for the Hearth range overlay (compat/XaeroHearthMap). Never bundled.
+    maven { name = 'Modrinth'; url = 'https://api.modrinth.com/maven'; content { includeGroup 'maven.modrinth' } }
+}
+
 dependencies {
+    compileOnly 'maven.modrinth:xaeros-world-map:forge-1.20.1-1.40.16'
     testImplementation "com.google.code.gson:gson:${gson_version}"
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
     compileOnly(annotationProcessor('io.github.llamalad7:mixinextras-common:0.4.1'))
@@ -114,6 +204,9 @@ tasks.named('compileTestJava') { dependsOn copyXpGolden }
 tasks.named('test') {
     // ReclamationMaterialsTest reads the pack override and the pack's item id list from here.
     inputs.dir('packs')
+    // HearthForgeDataTest compares this line's Hearth tags with common's (and the two immunity tags).
+    inputs.dir(project(':common').file('src/main/resources/data/proficiency/tags'))
+    inputs.dir(project(':common').file('src/main/resources/data/minecraft/tags'))
     // The lang tests read this line's merged lang files.
     dependsOn 'mergeLang'
     systemProperty 'proficiency.langDir', mergedLang.get().dir('assets/proficiency/lang').asFile.absolutePath
@@ -160,8 +253,20 @@ tasks.withType(JavaCompile).configureEach {
 
 // Every GameTest run starts from a fresh world: planted structure starts from a previous run stay
 // in the chunks and make the discovery tests see a structure "before it was planted".
+// The world is flat, as vanilla's own GameTestServer makes it and as the 1.21.1 lines run their tests:
+// Forge 1.20.1 builds the GameTest world from the game directory's server.properties, whose default
+// "normal" world put every test cell underground at y -60 (no sky light; an aquifer could flood a cell).
+// Both stay in run/gametest, the GameTest run's own directory; runServer's run/ is not touched.
 tasks.matching { it.name == 'runGameTestServer' }.configureEach {
     doFirst {
-        delete file('run/world')
+        delete file('run/gametest/world')
+        def props = new Properties()
+        def file = file('run/gametest/server.properties')
+        if (file.exists()) {
+            file.withInputStream { props.load(it) }
+        }
+        props.setProperty('level-type', 'minecraft:flat')
+        file.parentFile.mkdirs()
+        file.withOutputStream { props.store(it, 'Minecraft server properties (GameTest run: a flat world)') }
     }
 }

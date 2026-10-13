@@ -1,0 +1,15 @@
+{
+  "_comment": "Bulk filler never counts toward Character (docs/HEARTH-SPEC.md). The Hearth's own structure is skipped by position, not listed here.",
+  "values": [
+    "minecraft:dirt",
+    "minecraft:coarse_dirt",
+    "minecraft:grass_block",
+    "minecraft:cobblestone",
+    "minecraft:cobbled_deepslate",
+    "minecraft:netherrack",
+    "minecraft:gravel",
+    "minecraft:sand",
+    "minecraft:red_sand",
+    "proficiency:hearth"
+  ]
+}

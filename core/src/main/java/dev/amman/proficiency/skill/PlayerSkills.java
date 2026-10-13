@@ -3,6 +3,8 @@ package dev.amman.proficiency.skill;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
+import dev.amman.proficiency.perk.Expertise;
+import dev.amman.proficiency.perk.ExpertiseNode;
 import dev.amman.proficiency.perk.PerkEffect;
 import dev.amman.proficiency.perk.Synergies;
 import dev.amman.proficiency.perk.Talent;
@@ -77,7 +79,11 @@ public final class PlayerSkills {
                             .forGetter(PlayerSkills::restedMap),
                     Codec.unboundedMap(Codec.STRING, Codec.LONG)
                             .optionalFieldOf("usedDay", Map.of())
-                            .forGetter(PlayerSkills::usedDayMap)
+                            .forGetter(PlayerSkills::usedDayMap),
+                    // Expertise (protocol 8): node id to rank. An older save has no field and loads empty.
+                    Codec.unboundedMap(Codec.STRING, Codec.INT)
+                            .optionalFieldOf("expertise", Map.of())
+                            .forGetter(skills -> Map.copyOf(skills.expertise))
             ).apply(instance, PlayerSkills::fromParts));
 
     /**
@@ -122,6 +128,13 @@ public final class PlayerSkills {
             buf.writeVarInt(skills.usedDay[index] > 0
                     ? RestedMath.daysSince(skills.usedDay[index], today) : skills.idleDays[index]);
         }
+        // Expertise (protocol 8): the ranks bought, by node id. The points are worked out from the
+        // levels and stars above, on both sides alike.
+        buf.writeVarInt(skills.expertise.size());
+        skills.expertise.forEach((id, rank) -> {
+            buf.writeUtf(id);
+            buf.writeVarInt(rank);
+        });
     }
 
     /** Reads what {@link #write} wrote. */
@@ -155,6 +168,15 @@ public final class PlayerSkills {
             float pool = sane(buf.readFloat());
             skills.rested[index] = pool > 0f ? RestedPool.ofTotal(pool) : null;
             skills.idleDays[index] = Math.max(0, buf.readVarInt());
+        }
+        int expertiseCount = buf.readVarInt();
+        for (int i = 0; i < expertiseCount; i++) {
+            String id = buf.readUtf();
+            int rank = buf.readVarInt();
+            ExpertiseNode node = Expertise.byId(id);
+            if (node != null && rank > 0) {
+                skills.expertise.put(id, Math.min(rank, node.maxRank()));
+            }
         }
         return skills;
     }
@@ -194,6 +216,12 @@ public final class PlayerSkills {
      * Permanent: dying costs progress, never levels or talents.
      */
     private final Map<String, Integer> ranks = new HashMap<>();
+
+    /**
+     * Expertise node id to rank, only non-zero ranks kept. The points they were bought with are
+     * never stored: {@link #expertisePoints()} works them out from the levels and stars.
+     */
+    private final Map<String, Integer> expertise = new HashMap<>();
 
     /** Talents whose materials have been handed over once. Survives a respec on purpose. */
     private final Set<String> paid = new HashSet<>();
@@ -330,7 +358,22 @@ public final class PlayerSkills {
      * {@code ProcService} at roll time.
      */
     public double procChanceAt(Skill skill, int level) {
+        if (!rootOpen(skill)) {
+            return 0.0;
+        }
         return SkillMath.procChance(skill, level) * perkModifier(skill, PerkEffect.PROC_CHANCE);
+    }
+
+    /**
+     * Whether this tree's root is bought in full, or the server does not ask for it. The signature
+     * and the ability wait for it on top of their levels: levelling alone never switches them on.
+     */
+    public boolean rootOpen(Skill skill) {
+        if (!SkillTuning.current().signatureNeedsRoot()) {
+            return true;
+        }
+        Talent root = Talents.root(skill);
+        return root == null || isFull(root);
     }
 
     /** How hard the signature proc lands: a multiplier, 1.0 with no talents. */
@@ -340,10 +383,11 @@ public final class PlayerSkills {
 
     /**
      * One talent-driven multiplier taken apart: this tree's ranks ({@code 1 + sum}), the active
-     * synergies, Discipline (the passive only, 1.0 otherwise), and the clamped product that the
-     * game uses. The tree screen shows the parts; everything else reads {@link #perkModifier}.
+     * synergies, Discipline (the passive only, 1.0 otherwise), Expertise ({@code 1 + sum} of the
+     * Expertise nodes that reach this skill), and the clamped product that the game uses. The tree
+     * screen shows the parts; everything else reads {@link #perkModifier}.
      */
-    public record Modifier(double ranks, double synergies, double discipline, double total) {
+    public record Modifier(double ranks, double synergies, double discipline, double expertise, double total) {
     }
 
     public Modifier modifier(Skill skill, PerkEffect effect) {
@@ -351,9 +395,10 @@ public final class PlayerSkills {
         double synergies = Synergies.multiplier(this, skill, effect);
         double discipline = effect == PerkEffect.BONUS
                 ? 1.0 + Synergies.discipline(this, skill.category()) : 1.0;
-        double raw = ranks * synergies * discipline;
+        double expertisePart = effect == PerkEffect.DEATH_WARD ? 1.0 : 1.0 + expertiseSum(skill, effect);
+        double raw = ranks * synergies * discipline * expertisePart;
         double total = effect == PerkEffect.ABILITY_COOLDOWN ? Math.max(0.25, raw) : Math.max(0.0, raw);
-        return new Modifier(ranks, synergies, discipline, total);
+        return new Modifier(ranks, synergies, discipline, expertisePart, total);
     }
 
     /**
@@ -870,6 +915,7 @@ public final class PlayerSkills {
         java.util.Arrays.fill(xp, 0f);
         ranks.clear();
         paid.clear();
+        expertise.clear();
         visited.clear();
         buildFirst.clear();
         // Cooldowns too. A reset player is back at level 0, below the level an ability unlocks at,
@@ -883,6 +929,125 @@ public final class PlayerSkills {
         java.util.Arrays.fill(restedSent, 0f);
         streakTicks = 0;
         dirty = true;
+    }
+
+    // ---- Expertise -----------------------------------------------------------------------------
+
+    /** Every skill's level added up, 0 to 3,500. */
+    public int totalLevels() {
+        int sum = 0;
+        for (int level : levels) {
+            sum += level;
+        }
+        return sum;
+    }
+
+    /** Every skill's Mastery stars added up, as stored. */
+    public int totalStars() {
+        int sum = 0;
+        for (int star : stars) {
+            sum += star;
+        }
+        return sum;
+    }
+
+    /** Expertise points earned, worked out from levels and stars each time. See {@link Expertise}. */
+    public int expertisePoints() {
+        return Expertise.points(totalLevels(), totalStars());
+    }
+
+    public int expertiseSpent() {
+        int spent = 0;
+        for (Map.Entry<String, Integer> entry : expertise.entrySet()) {
+            ExpertiseNode node = Expertise.byId(entry.getKey());
+            if (node != null) {
+                spent += entry.getValue() * node.costPerRank();
+            }
+        }
+        return spent;
+    }
+
+    /** Clamped at zero: an op lowering levels can leave more spent than earned. Forgiving on purpose. */
+    public int expertiseAvailable() {
+        return Math.max(0, expertisePoints() - expertiseSpent());
+    }
+
+    public int expertiseRank(ExpertiseNode node) {
+        return expertise.getOrDefault(node.id(), 0);
+    }
+
+    public boolean isExpertiseFull(ExpertiseNode node) {
+        return expertiseRank(node) >= node.maxRank();
+    }
+
+    public Map<String, Integer> expertiseRanks() {
+        return java.util.Collections.unmodifiableMap(expertise);
+    }
+
+    /** Sets a rank without asking. Callers go through {@code ExpertiseService}; tests and ops do not. */
+    public void setExpertiseRank(ExpertiseNode node, int rank) {
+        int clamped = Math.max(0, Math.min(node.maxRank(), rank));
+        if (clamped == 0) {
+            expertise.remove(node.id());
+        } else {
+            expertise.put(node.id(), clamped);
+        }
+        dirty = true;
+    }
+
+    public void addExpertiseRank(ExpertiseNode node) {
+        setExpertiseRank(node, expertiseRank(node) + 1);
+    }
+
+    /** Fills every node, no checks. For tests and ops only. */
+    public void fillExpertise() {
+        for (ExpertiseNode node : Expertise.nodes()) {
+            setExpertiseRank(node, node.maxRank());
+        }
+    }
+
+    /** Empties the tree and returns the points it held. */
+    public int respecExpertise() {
+        int refunded = expertiseSpent();
+        expertise.clear();
+        dirty = true;
+        return refunded;
+    }
+
+    /** Whether one more rank can go into this node: full, parents, then points. Pure. */
+    public TalentOutcome checkExpertise(ExpertiseNode node) {
+        if (isExpertiseFull(node)) {
+            return TalentOutcome.MAXED;
+        }
+        for (String parent : node.parents()) {
+            ExpertiseNode before = Expertise.byId(parent);
+            if (before != null && !isExpertiseFull(before)) {
+                return TalentOutcome.PARENT_NOT_FULL;
+            }
+        }
+        if (expertiseAvailable() < node.costPerRank()) {
+            return TalentOutcome.NOT_ENOUGH_POINTS;
+        }
+        return TalentOutcome.OK;
+    }
+
+    /** Sum of one effect over the Expertise nodes that reach this skill. */
+    public double expertiseSum(Skill skill, PerkEffect effect) {
+        if (expertise.isEmpty()) {
+            return 0.0;
+        }
+        double sum = 0.0;
+        for (Map.Entry<String, Integer> entry : expertise.entrySet()) {
+            ExpertiseNode node = Expertise.byId(entry.getKey());
+            if (node == null || !node.appliesTo(skill)) {
+                continue;
+            }
+            Double perRank = node.perRank().get(effect);
+            if (perRank != null) {
+                sum += perRank * entry.getValue();
+            }
+        }
+        return sum;
     }
 
     public int rank(Talent talent) {
@@ -1058,6 +1223,8 @@ public final class PlayerSkills {
         this.ranks.putAll(other.ranks);
         this.paid.clear();
         this.paid.addAll(other.paid);
+        this.expertise.clear();
+        this.expertise.putAll(other.expertise);
         System.arraycopy(other.cooldownUntil, 0, this.cooldownUntil, 0, cooldownUntil.length);
         System.arraycopy(other.frenzyUntil, 0, this.frenzyUntil, 0, frenzyUntil.length);
         this.visited.clear();
@@ -1093,8 +1260,15 @@ public final class PlayerSkills {
             List<String> paid,
             Map<String, Long> cooldowns, List<String> visited, boolean onboarded, long streak, boolean xpFeed,
             long buildDay, Map<String, Integer> buildFirst, Map<String, MasteryState> mastery,
-            Map<String, RestedPool.State> rested, Map<String, Long> usedDay) {
+            Map<String, RestedPool.State> rested, Map<String, Long> usedDay, Map<String, Integer> expertise) {
         PlayerSkills skills = new PlayerSkills();
+        // A node that left the table is dropped, and a rank past a node's maximum is clamped.
+        expertise.forEach((id, rank) -> {
+            ExpertiseNode node = Expertise.byId(id);
+            if (node != null && rank != null && rank > 0) {
+                skills.expertise.put(id, Math.min(rank, node.maxRank()));
+            }
+        });
         skills.buildDay = buildDay;
         buildFirst.forEach((id, n) -> skills.buildFirst.put(id, Math.max(0, n)));
         skills.xpFeed = xpFeed;

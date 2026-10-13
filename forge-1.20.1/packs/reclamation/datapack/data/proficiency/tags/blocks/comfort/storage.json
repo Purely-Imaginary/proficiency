@@ -1,0 +1,26 @@
+{
+  "replace": false,
+  "values": [
+    { "id": "#mcwfurnitures:cabinet", "required": false },
+    { "id": "#mcwfurnitures:counter", "required": false },
+    { "id": "#mcwfurnitures:cupboard_counter", "required": false },
+    { "id": "#mcwfurnitures:drawer", "required": false },
+    { "id": "#mcwfurnitures:double_drawer", "required": false },
+    { "id": "#mcwfurnitures:drawer_counter", "required": false },
+    { "id": "#mcwfurnitures:double_drawer_counter", "required": false },
+    { "id": "#mcwfurnitures:large_drawer", "required": false },
+    { "id": "#mcwfurnitures:triple_drawer", "required": false },
+    { "id": "#mcwfurnitures:lower_triple_drawer", "required": false },
+    { "id": "#mcwfurnitures:wadrobe", "required": false },
+    { "id": "#mcwfurnitures:double_wardrobe", "required": false },
+    { "id": "#mcwfurnitures:modern_wardrobe", "required": false },
+    { "id": "#mcwfurnitures:table", "required": false },
+    { "id": "#mcwfurnitures:coffee_table", "required": false },
+    { "id": "#mcwfurnitures:end_table", "required": false },
+    { "id": "#mcwfurnitures:glass_table", "required": false },
+    { "id": "#mcwfurnitures:desk", "required": false },
+    { "id": "#mcwfurnitures:covered_desk", "required": false },
+    { "id": "#mcwfurnitures:modern_desk", "required": false },
+    { "id": "#farmersdelight:cabinets", "required": false }
+  ]
+}

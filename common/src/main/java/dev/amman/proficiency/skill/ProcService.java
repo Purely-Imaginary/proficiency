@@ -1,7 +1,6 @@
 package dev.amman.proficiency.skill;
 
 import dev.amman.proficiency.ProficiencyAttachments;
-import net.minecraft.ChatFormatting;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
@@ -45,6 +44,16 @@ public final class ProcService {
 
     public static boolean fire(Player player, Skill skill, @Nullable LivingEntity target,
             @Nullable BlockPos pos) {
+        return fire(player, skill, target, pos, 1.0);
+    }
+
+    /** As {@link #fire(Player, Skill, LivingEntity)}, with the chance scaled (a critical hit doubles it). */
+    public static boolean fire(Player player, Skill skill, @Nullable LivingEntity target, double chanceScale) {
+        return fire(player, skill, target, null, chanceScale);
+    }
+
+    private static boolean fire(Player player, Skill skill, @Nullable LivingEntity target,
+            @Nullable BlockPos pos, double chanceScale) {
         if (!(player instanceof ServerPlayer serverPlayer) || player.level().isClientSide()) {
             return false;
         }
@@ -59,8 +68,9 @@ public final class ProcService {
             NeoForge.EVENT_BUS.post(new SkillProcEvent(serverPlayer, skill, target, pos, true));
             return true;
         }
-        double chance = ProficiencyAttachments.of(player).procChance(skill)
-                * situational(serverPlayer, skill);
+        double chance = dev.amman.proficiency.skill.CritRules.scaledChance(
+                ProficiencyAttachments.of(player).procChance(skill) * situational(serverPlayer, skill),
+                chanceScale);
         if (chance <= 0) {
             return false;
         }
@@ -84,6 +94,14 @@ public final class ProcService {
 
     public static void forceNext(Player player, Skill skill) {
         FORCED.computeIfAbsent(player.getUUID(), id -> java.util.EnumSet.noneOf(Skill.class)).add(skill);
+    }
+
+    /** Takes back a {@link #forceNext} that has gone stale (Fishing Trip's 60 s). */
+    public static void unforceNext(Player player, Skill skill) {
+        var set = FORCED.get(player.getUUID());
+        if (set != null) {
+            set.remove(skill);
+        }
     }
 
     private static boolean forced(ServerPlayer player, Skill skill) {
@@ -129,12 +147,17 @@ public final class ProcService {
      * The synergies that care where you are rather than what you own. They cannot live in
      * {@link PlayerSkills#procChance}, which is pure data and has no world to look at.
      */
-    static double situational(ServerPlayer player, Skill skill) {
+    public static double situational(ServerPlayer player, Skill skill) {
         double multiplier = 1.0;
         if ((skill == Skill.TRIDENTS || skill == Skill.FISHING)
                 && player.isInWaterOrRain()
                 && TalentService.hasSynergy(player, "tidecaller")) {
             multiplier *= 2.0;
+        }
+        // Moon Garden: Bountiful Harvest fires half again as often once the sun is down.
+        if (skill == Skill.FARMING && NightwalkerService.isNight(player.level())
+                && TalentService.hasSynergy(player, "moon_garden")) {
+            multiplier *= 1.5;
         }
         // Charger: a charge that ends in a sprint attack breaches more often.
         if (skill == Skill.CHARGER && dev.amman.proficiency.event.ChargerEvents.sprintRoll()) {
@@ -161,11 +184,8 @@ public final class ProcService {
     public static void celebrate(ServerPlayer player, Skill skill, @Nullable LivingEntity target,
             @Nullable BlockPos pos) {
         TelemetryService.proc(player, skill);
-        player.displayClientMessage(
-                Component.translatable(skill.procKey())
-                        .withStyle(ChatFormatting.BOLD)
-                        .withStyle(style -> style.withColor(accent(skill))),
-                true);
+        // The name of the moment is drawn above the crosshair by the client (ProcCallout), from the
+        // same packet as the particles: where you are looking, not down on the action bar.
 
         ItemStack spoils = specialistDrop(skill);
         if (!spoils.isEmpty()) {
@@ -201,20 +221,6 @@ public final class ProcService {
             case WAYFARING -> new ItemStack(ProficiencyItems.WANDERERS_TOKEN.get());
             case ENGINEERING -> ItemStack.EMPTY;
             default -> ItemStack.EMPTY;
-        };
-    }
-
-    private static int accent(Skill skill) {
-        return switch (skill.category()) {
-            case COMBAT -> 0xD4695A;
-            case GATHERING -> 0x7FAE63;
-            case MOVEMENT -> 0x5F9EC4;
-            case CRAFTING -> 0xD2A249;
-            case MASTERY -> 0x9B7FC4;
-            case EXPEDITION -> 0xC98A4B;
-            case CONSTRUCTION -> 0x6FB0A6;
-            case SOCIAL -> 0xD98AB3;
-            case SURVIVAL -> 0x6F7FC9;
         };
     }
 

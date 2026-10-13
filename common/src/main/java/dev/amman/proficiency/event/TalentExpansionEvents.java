@@ -117,7 +117,9 @@ public final class TalentExpansionEvents {
             campfire(serverPlayer);
             deepSight(serverPlayer);
         }
-        if (serverPlayer.tickCount % 200 == 0) {
+        // Seismic Survey halves the pulse, so the gate is the short interval and the long one is
+        // checked inside.
+        if (serverPlayer.tickCount % TalentMath.ECHO_INTERVAL_SURVEY == 0) {
             echolocation(serverPlayer);
         }
     }
@@ -293,11 +295,24 @@ public final class TalentExpansionEvents {
     }
 
     /** Echolocation: a small Cave Sense on a timer. At rank 3 that is 13 cubed lookups every 10 s. */
-    private static void echolocation(ServerPlayer player) {
+    /** Returns the radius it revealed, or 0 when this tick is not a pulse (the GameTests read it). */
+    public static int echolocation(ServerPlayer player) {
+        return echoPulse(player, underground(player));
+    }
+
+    /** The pulse itself, with the underground check made by the caller (a GameTest cannot hide the sky). */
+    public static int echoPulse(ServerPlayer player, boolean underground) {
         int rank = TalentService.rank(player, Skill.SPELUNKING, "echolocation");
-        if (rank > 0 && underground(player)) {
-            ExpansionEvents.revealNearbyOre(player.serverLevel(), player.blockPosition(), 3 + rank);
+        if (rank <= 0) {
+            return 0;
         }
+        boolean survey = TalentService.hasSynergy(player, "seismic_survey");
+        if (player.tickCount % TalentMath.echoInterval(survey) == 0 && underground) {
+            int radius = TalentMath.echoRadius(rank, survey);
+            ExpansionEvents.revealNearbyOre(player.serverLevel(), player.blockPosition(), radius);
+            return radius;
+        }
+        return 0;
     }
 
     private static boolean underground(Player player) {
@@ -316,7 +331,20 @@ public final class TalentExpansionEvents {
         if (inspired > 0) {
             SkillService.inspire(player, TalentMath.perRank(inspired, 0.10), INSPIRED_TICKS);
         }
+        ranger(player);
     }
+
+    /** Ranger (Archery + Wayfaring): every new biome puts four arrows in your quiver. */
+    public static void ranger(ServerPlayer player) {
+        if (TalentService.hasSynergy(player, "ranger")) {
+            player.getInventory().placeItemBackInInventory(
+                    new ItemStack(net.minecraft.world.item.Items.ARROW, RANGER_ARROWS));
+            player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
+                    net.minecraft.sounds.SoundEvents.ITEM_PICKUP, net.minecraft.sounds.SoundSource.PLAYERS, 0.5f, 1.2f);
+        }
+    }
+
+    private static final int RANGER_ARROWS = 4;
 
     @SubscribeEvent
     public static void onChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event) {

@@ -25,6 +25,8 @@ public final class XpFactors {
     public static final String AOE = "aoe";
     /** The first-time tier scaling. */
     public static final String TIER = "tier";
+    /** A critical melee hit (CritRules.XP_MULTIPLIER). */
+    public static final String CRIT = "crit";
 
     /** Most factors one gain can carry; the codec drops the rest. */
     public static final int MAX = 12;

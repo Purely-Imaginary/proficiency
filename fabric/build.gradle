@@ -19,6 +19,8 @@ repositories {
 }
 
 loom {
+    // Opens what common/accesstransformer.cfg opens for the shared code (NeoForge has its own).
+    accessWidenerPath = file('src/main/resources/proficiency.accesswidener')
     runs {
         // Fabric's in-world tests: `gradle :fabric:runGametest` boots a headless server, runs every
         // @GameTest and exits non-zero if a required one fails.

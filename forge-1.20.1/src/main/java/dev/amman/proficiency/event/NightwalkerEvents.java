@@ -17,7 +17,6 @@ import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.monster.Phantom;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.food.FoodData;
 import net.minecraft.world.level.LightLayer;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -26,13 +25,8 @@ import net.minecraftforge.event.entity.living.LivingChangeTargetEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import dev.amman.proficiency.compat.LivingIncomingDamageEvent;
 import net.minecraftforge.event.entity.living.MobEffectEvent;
-import net.minecraftforge.event.entity.player.PlayerEvent;
-import net.minecraftforge.event.TickEvent;
 
-import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Nightwalker in the world: Moonlit on a kill in the dark, Eclipse keeping mobs off you, and the
@@ -54,7 +48,6 @@ public final class NightwalkerEvents {
             MobSpawnType.SPAWNER, MobSpawnType.STRUCTURE,
             MobSpawnType.REINFORCEMENT, MobSpawnType.JOCKEY, MobSpawnType.PATROL);
 
-    private static final Map<UUID, Float> LAST_EXHAUSTION = new ConcurrentHashMap<>();
     /** Deep Calm re-adds a shorter Darkness; this stops that from being shortened again. */
     private static final ThreadLocal<Boolean> CALMING = ThreadLocal.withInitial(() -> false);
 
@@ -100,38 +93,19 @@ public final class NightwalkerEvents {
     // ---- Night Owl ----------------------------------------------------------------------------
 
     /**
-     * Night Owl. There is no exhaustion event, so this watches the number, like Lean Times: of
-     * whatever it climbed since last tick, at night or in the dark, a share goes back. A drop
-     * means the food bar just rolled over, and there is nothing to hand back.
+     * Night Owl's share of an exhaustion climb that stays: at night or in the dark, without a light in
+     * hand, {@code 1 - refund}; otherwise all of it. There is no exhaustion event: the one watcher
+     * ({@link ExhaustionWatch}, at the head and the tail of the food tick) multiplies
+     * this with Hearty's and Lean Times' shares, so a climb that would roll a food point over is
+     * shaved before vanilla takes the point.
      */
-    @SubscribeEvent
-    public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
-        if (event.phase != TickEvent.Phase.END) {
-            return;
-        }
-        Player player = event.player;
-        if (player.level().isClientSide()) {
-            return;
-        }
-        FoodData food = player.getFoodData();
-        float now = food.getExhaustionLevel();
-        Float before = LAST_EXHAUSTION.put(player.getUUID(), now);
-        if (before == null || now <= before) {
-            return;
-        }
+    public static double nightOwlKeep(ServerPlayer player) {
         int rank = TalentService.rank(player, Skill.NIGHTWALKER, "night_hunger");
         if (rank <= 0 || NightwalkerService.holdsLight(player)
                 || !(player.level().isNight() || NightwalkerService.isDark(player))) {
-            return;
+            return 1.0;
         }
-        float refunded = (float) Math.max(0.0, now - (now - before) * NightwalkerMath.nightOwlRefund(rank));
-        food.setExhaustion(refunded);
-        LAST_EXHAUSTION.put(player.getUUID(), refunded);
-    }
-
-    @SubscribeEvent
-    public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
-        LAST_EXHAUSTION.remove(event.getEntity().getUUID());
+        return 1.0 - NightwalkerMath.nightOwlRefund(rank);
     }
 
     // ---- Darkborn Bane, Phantom Ward ----------------------------------------------------------

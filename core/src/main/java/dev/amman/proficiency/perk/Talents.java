@@ -255,6 +255,14 @@ public final class Talents {
                 List.of(Requirement.of("minecraft:target", 4), Requirement.of("minecraft:glowstone_dust", 16)),
                 List.of(Requirement.of("minecraft:ender_eye", 4), Requirement.of("proficiency:hunters_charm", 2)));
 
+        // Homebuilder is paid in what a home is made of: a fire and floorboards, lanterns and a rug,
+        // books and the bell that calls everyone in, and the lodestone at the heart of it.
+        tree(Skill.HOMEBUILDER,
+                List.of(Requirement.of("minecraft:campfire", 2), Requirement.of("minecraft:oak_planks", 64)),
+                List.of(Requirement.of("minecraft:lantern", 8), Requirement.of("minecraft:white_carpet", 16)),
+                List.of(Requirement.of("minecraft:bookshelf", 6), Requirement.of("minecraft:bell", 1)),
+                List.of(Requirement.of("minecraft:lodestone", 1), Requirement.of("proficiency:masterwork_ingot", 1)));
+
     }
 
     private static void tree(Skill skill,
@@ -315,6 +323,16 @@ public final class Talents {
     /** A skill's nodes, trunk first, in reading order. */
     public static List<Talent> of(Skill skill) {
         return BY_SKILL.getOrDefault(skill, List.of());
+    }
+
+    /** The trunk every tree starts from, or null for a skill with no tree. */
+    public static Talent root(Skill skill) {
+        for (Talent talent : of(skill)) {
+            if (talent.kind() == Talent.Kind.ROOT) {
+                return talent;
+            }
+        }
+        return null;
     }
 
     public static Talent byKey(String key) {

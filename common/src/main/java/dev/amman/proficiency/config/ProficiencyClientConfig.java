@@ -51,6 +51,15 @@ public final class ProficiencyClientConfig {
     private static final ModConfigSpec.BooleanValue SCREENS_ACTIVITY;
     private static final ModConfigSpec.BooleanValue PROC_FX_ENABLED;
     private static final ModConfigSpec.BooleanValue UI_SKILL_ICONS;
+    private static final ModConfigSpec.BooleanValue HEARTH_TRACKER;
+    private static final ModConfigSpec.DoubleValue HEARTH_TRACKER_Y;
+    private static final ModConfigSpec.BooleanValue HEARTH_SHOW_RANGE;
+    private static final ModConfigSpec.BooleanValue HEARTH_SIEGE_PANEL;
+    private static final ModConfigSpec.DoubleValue HEARTH_SIEGE_PANEL_Y;
+
+    /** The tracker's default height: the middle of the right edge. */
+    public static final double DEFAULT_TRACKER_Y = 0.5;
+    public static final double DEFAULT_SIEGE_PANEL_Y = 0.06;
 
     static {
         ModConfigSpec.Builder b = new ModConfigSpec.Builder();
@@ -62,7 +71,8 @@ public final class ProficiencyClientConfig {
                 .translation(LANG + "banners.enabled").define("enabled", true);
         BANNERS_DISCOVERIES = b.comment("Banners for a new biome, dimension or structure.")
                 .translation(LANG + "banners.discoveries").define("discoveries", true);
-        BANNERS_FIRST_TIME = b.comment("Banners for a first-time kind (a new ore, mob or crop).")
+        BANNERS_FIRST_TIME = b.comment("Banners for a first-time kind (a new ore, mob or crop, your first Hearth or a "
+                + "Homebuilder milestone). Only the master switch hides a new Hearth stage.")
                 .translation(LANG + "banners.firstTime").define("firstTime", true);
         BANNERS_ENTRY = b.comment("The small banner, with no XP, when you step into a structure you know.")
                 .translation(LANG + "banners.entry").define("entry", true);
@@ -151,6 +161,26 @@ public final class ProficiencyClientConfig {
                 + "the skills panel, the tree header, the XP feed, the banners, the death recap and "
                 + "the ability wheel. Off: names only, and the wheel shows items.")
                 .translation(LANG + "ui.skillIcons").define("skillIcons", true);
+        b.pop();
+
+        b.comment("The Hearth on your screen: the tracker, the range ring and the siege panel.")
+                .translation(LANG + "hearth").push("hearth");
+        HEARTH_TRACKER = b.comment("A narrow column on the right edge, at home only: one row per charged "
+                + "pool with its tier and bar, and Comfort under them. Off by default.")
+                .translation(LANG + "hearth.tracker").define("tracker", false);
+        HEARTH_TRACKER_Y = b.comment("Middle of the tracker as a fraction of the screen height.")
+                .translation(LANG + "hearth.trackerY")
+                .defineInRange("trackerY", DEFAULT_TRACKER_Y, 0.1, 0.9);
+        HEARTH_SHOW_RANGE = b.comment("Show the Hearth's range as a ring of particles when you look at a "
+                + "Hearth or hold a campfire or flint and steel near one.")
+                .translation(LANG + "hearth.showRange").define("showRange", true);
+        HEARTH_SIEGE_PANEL = b.comment("The siege panel at the top left: the countdown, the waves and the "
+                + "outcome of a siege at your Hearth.")
+                .translation(LANG + "hearth.siegePanel").define("siegePanel", true);
+        HEARTH_SIEGE_PANEL_Y = b.comment("Top of the siege panel as a fraction of the screen height. A minimap in the "
+                + "top left corner (Xaero's) covers 0.06: about 0.32 puts the panel under it.")
+                .translation(LANG + "hearth.siegePanelY")
+                .defineInRange("siegePanelY", DEFAULT_SIEGE_PANEL_Y, 0.0, 0.9);
         b.pop();
 
         SPEC = b.build();
@@ -265,5 +295,25 @@ public final class ProficiencyClientConfig {
 
     public static boolean uiSkillIcons() {
         return flag(UI_SKILL_ICONS, true);
+    }
+
+    public static boolean hearthTracker() {
+        return flag(HEARTH_TRACKER, false);
+    }
+
+    public static float hearthTrackerY() {
+        return (float) number(HEARTH_TRACKER_Y, DEFAULT_TRACKER_Y);
+    }
+
+    public static boolean hearthShowRange() {
+        return flag(HEARTH_SHOW_RANGE, true);
+    }
+
+    public static boolean hearthSiegePanel() {
+        return flag(HEARTH_SIEGE_PANEL, true);
+    }
+
+    public static float hearthSiegePanelY() {
+        return (float) number(HEARTH_SIEGE_PANEL_Y, DEFAULT_SIEGE_PANEL_Y);
     }
 }

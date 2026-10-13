@@ -146,6 +146,13 @@ public final class SkillPassives {
         return full + 1;
     }
 
+    /** Homebuilder's magnet radius at home in blocks, 0 until Tidy Home turns it on. */
+    public static double homeMagnet(PlayerSkills skills) {
+        return HomebuilderMath.rank(skills, HomebuilderMath.TIDY_HOME) <= 0 ? 0.0
+                : HomebuilderMath.magnetRadius(skills.bonus(Skill.HOMEBUILDER),
+                        HomebuilderMath.rank(skills, HomebuilderMath.LONG_PULL));
+    }
+
     /** The Social talents that change the company bonus, read from a player's synced skills. */
     public static SocialMath.Talents socialTalents(PlayerSkills skills) {
         return new SocialMath.Talents(
@@ -246,6 +253,13 @@ public final class SkillPassives {
         TABLE.put(Skill.NIGHTWALKER, List.of(new Def("dark_sight", Format.PERCENT,
                 skills -> NightwalkerMath.darkSight(skills.bonus(Skill.NIGHTWALKER),
                         TalentService.rank(skills, Skill.NIGHTWALKER, "dark_sight")))));
+        // Homebuilder: all three work only at home (a Hearth's range); the magnet needs Tidy Home. The
+        // stat lines are the same numbers as on 1.21.1 (reach is ForgeMod.BLOCK_REACH here).
+        TABLE.put(Skill.HOMEBUILDER, List.of(
+                of("home_speed", Format.MULT, Skill.HOMEBUILDER, bonus -> 1.0 + HomebuilderMath.speed(bonus)),
+                new Def("home_reach", Format.NUMBER, skills -> VANILLA_BLOCK_REACH
+                        + HomebuilderMath.reach(skills.bonus(Skill.HOMEBUILDER))),
+                new Def("home_magnet", Format.NUMBER, SkillPassives::homeMagnet)));
     }
 
     /**

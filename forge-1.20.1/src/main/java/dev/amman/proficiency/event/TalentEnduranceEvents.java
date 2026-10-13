@@ -2,7 +2,9 @@ package dev.amman.proficiency.event;
 
 import dev.amman.proficiency.Proficiency;
 import dev.amman.proficiency.perk.TalentService;
+import dev.amman.proficiency.skill.NightwalkerService;
 import dev.amman.proficiency.skill.Skill;
+import dev.amman.proficiency.skill.SkillProcEvent;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -11,11 +13,11 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.food.FoodData;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -61,6 +63,11 @@ public final class TalentEnduranceEvents {
      * the two caps never let absorption past four hearts between them.
      */
 
+    /** Play Dead (Sneaking + Endurance): three seconds unseen, once per half a minute. */
+    private static final int PLAY_DEAD_TICKS = 60;
+    private static final double PLAY_DEAD_RADIUS = 12.0;
+    private static final long PLAY_DEAD_COOLDOWN = 20 * 30;
+
     // ---------------------------------------------------------------- state
 
     private record Scars(int count, long lastHit) {
@@ -71,7 +78,8 @@ public final class TalentEnduranceEvents {
     /** Kept across a relog on purpose, or logging out and back in would re-arm it. */
     private static final Map<UUID, Long> LAST_STAND_READY_AT = new ConcurrentHashMap<>();
     private static final Map<UUID, Long> LAST_HURT = new ConcurrentHashMap<>();
-    private static final Map<UUID, Float> LAST_EXHAUSTION = new ConcurrentHashMap<>();
+    /** Kept across a relog on purpose, like Last Stand's. */
+    private static final Map<UUID, Long> PLAY_DEAD_READY_AT = new ConcurrentHashMap<>();
 
     @SubscribeEvent
     public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
@@ -79,7 +87,38 @@ public final class TalentEnduranceEvents {
         SCARS.remove(id);
         MEND_READY_AT.remove(id);
         LAST_HURT.remove(id);
-        LAST_EXHAUSTION.remove(id);
+    }
+
+    // ---------------------------------------------------------------- Play Dead
+
+    /**
+     * Play Dead: a Grit landed while crouching also makes you invisible for three seconds, and every
+     * mob within twelve blocks that was hunting you loses the trail. Once per half a minute.
+     */
+    @SubscribeEvent
+    public static void onProc(SkillProcEvent event) {
+        if (event.skill() != Skill.ENDURANCE) {
+            return;
+        }
+        ServerPlayer player = event.player();
+        if (!player.isCrouching() || !TalentService.hasSynergy(player, "play_dead")) {
+            return;
+        }
+        long now = player.level().getGameTime();
+        Long readyAt = PLAY_DEAD_READY_AT.get(player.getUUID());
+        if (readyAt != null && now < readyAt) {
+            return;
+        }
+        PLAY_DEAD_READY_AT.put(player.getUUID(), now + PLAY_DEAD_COOLDOWN);
+        player.addEffect(new MobEffectInstance(MobEffects.INVISIBILITY, PLAY_DEAD_TICKS, 0, false, false, true));
+        for (Mob mob : player.serverLevel().getEntitiesOfClass(Mob.class,
+                player.getBoundingBox().inflate(PLAY_DEAD_RADIUS), m -> m.getTarget() == player)) {
+            NightwalkerService.loseTrack(mob);
+        }
+        player.serverLevel().sendParticles(ParticleTypes.SMOKE, player.getX(), player.getY() + 1.0, player.getZ(),
+                12, 0.3, 0.5, 0.3, 0.02);
+        player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
+                SoundEvents.ENDER_EYE_DEATH, SoundSource.PLAYERS, 0.5f, 0.7f);
     }
 
     // ---------------------------------------------------------------- Roll With It
@@ -181,7 +220,7 @@ public final class TalentEnduranceEvents {
         player.addEffect(new MobEffectInstance(MobEffects.REGENERATION, MEND_TICKS_PER_RANK * mend, 1));
     }
 
-    // ---------------------------------------------------------------- Lean Times, Indomitable
+    // ---------------------------------------------------------------- Lean Times (a share), Indomitable
 
     @SubscribeEvent
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
@@ -192,7 +231,6 @@ public final class TalentEnduranceEvents {
         if (player.level().isClientSide()) {
             return;
         }
-        leanTimes(player);
         if (player.tickCount % INDOMITABLE_INTERVAL_TICKS == 0) {
             indomitable(player);
         }
@@ -202,24 +240,17 @@ public final class TalentEnduranceEvents {
     }
 
     /**
-     * Lean Times. There is no exhaustion event, so this watches the number: whatever it climbed
-     * since last tick, while you are below half health, a share goes back. A drop means the food
-     * bar just rolled over (or Long Haul refunded first), and there is nothing to hand back.
+     * Lean Times' share of an exhaustion climb that stays: below half health, {@code 1 - refund};
+     * otherwise all of it. There is no exhaustion event: the one watcher ({@link ExhaustionWatch}, at
+     * the head and the tail of the food tick) multiplies this with Hearty's and Night
+     * Owl's shares, so a climb that would roll a food point over is shaved before vanilla takes it.
      */
-    private static void leanTimes(Player player) {
-        FoodData food = player.getFoodData();
-        float now = food.getExhaustionLevel();
-        Float before = LAST_EXHAUSTION.put(player.getUUID(), now);
-        if (before == null || now <= before || player.getHealth() >= player.getMaxHealth() * 0.5f) {
-            return;
+    public static double leanTimesKeep(Player player) {
+        if (player.getHealth() >= player.getMaxHealth() * 0.5f) {
+            return 1.0;
         }
         int rank = TalentService.rank(player, Skill.ENDURANCE, "lean_times");
-        if (rank <= 0) {
-            return;
-        }
-        float refunded = (float) Math.max(0.0, now - (now - before) * EnduranceMath.leanRefund(rank));
-        food.setExhaustion(refunded);
-        LAST_EXHAUSTION.put(player.getUUID(), refunded);
+        return rank <= 0 ? 1.0 : 1.0 - EnduranceMath.leanRefund(rank);
     }
 
     /** Indomitable: ten quiet seconds, then a heart of absorption every five, up to four. */

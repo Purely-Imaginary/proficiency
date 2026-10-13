@@ -15,6 +15,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.item.ItemStack;
+import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.event.entity.player.PlayerEvent;
@@ -122,21 +123,30 @@ public final class PlayerLifecycleEvents {
     }
 
     /**
+     * One capability of the old body in a {@code Clone}, or null when it has none. Forge invalidates the
+     * old body's capabilities before the event, so this revives them long enough to read and invalidates
+     * them again whatever happens (the {@code finally}: a dead body's capabilities must not stay alive).
+     * Every Clone handler reads through this, so each one revives for itself and their order does not
+     * matter.
+     */
+    @org.jetbrains.annotations.Nullable
+    public static <T> T readOldCap(PlayerEvent.Clone event, Capability<T> capability) {
+        event.getOriginal().reviveCaps();
+        try {
+            return event.getOriginal().getCapability(capability).orElse(null);
+        } finally {
+            event.getOriginal().invalidateCaps();
+        }
+    }
+
+    /**
      * A respawned player is a brand new entity, so the skills have to be carried across by hand.
      * That is also where the death cost is charged — before the client is ever told the numbers,
      * so it never sees the pre-death values.
      */
     @SubscribeEvent
     public static void onClone(PlayerEvent.Clone event) {
-        // Forge invalidates the old body's capabilities before this event; bring them back long
-        // enough to read, or every respawn would start from a blank skill sheet.
-        event.getOriginal().reviveCaps();
-        PlayerSkills carried;
-        try {
-            carried = event.getOriginal().getCapability(ProficiencyAttachments.SKILLS).orElse(null);
-        } finally {
-            event.getOriginal().invalidateCaps();
-        }
+        PlayerSkills carried = readOldCap(event, ProficiencyAttachments.SKILLS);
         if (carried == null) {
             dev.amman.proficiency.Proficiency.LOG.error("No skills on the old body of {}; nothing carried",
                     event.getEntity().getGameProfile().getName());
@@ -229,6 +239,8 @@ public final class PlayerLifecycleEvents {
                 dev.amman.proficiency.skill.SocialService.tick(player);
                 // Nightwalker: the dark-share pot, the outdoor night trickle, and Eclipse.
                 dev.amman.proficiency.skill.NightwalkerService.tick(player);
+                // The Hearth's per-player second: Warmth, the streak hold, edge cues (lanes fill it).
+                dev.amman.proficiency.hearth.HearthHooks.onPlayerSecond(player);
             }
             dev.amman.proficiency.skill.TelemetryService.afterPlayers(event.getServer());
             dev.amman.proficiency.skill.TeachingService.saveIfDue(event.getServer());

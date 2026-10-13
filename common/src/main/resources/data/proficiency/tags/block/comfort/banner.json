@@ -1,0 +1,6 @@
+{
+  "_comment": "Comfort kind: a banner. The banners on the Hearth's own pillars never count (the scan skips the Hearth's structure).",
+  "values": [
+    "#minecraft:banners"
+  ]
+}

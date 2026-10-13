@@ -431,11 +431,48 @@ class RestedTest {
     }
 
     @Test
-    void theReachIsThePoolOverTheBarInFrontOfThePlayer() {
+    void theReachIsWhereThePoolCarriesTheBar() {
         float need = SkillMath.xpToNext(30);
-        assertEquals(0.5f, RestedMath.reach(need / 2, 30, 0), 1e-4f);
+        // The extra defaults to 1.0, so a pool pays for twice its own length of bar.
+        assertEquals(0.5f, RestedMath.reach(need / 4, 30, 0), 1e-4f);
         assertEquals(1f, RestedMath.reach(need * 1.5f, 30, 0), "never past the end of the bar");
         assertEquals(0f, RestedMath.reach(10f, 100, Mastery.maxStars()));
+    }
+
+    @Test
+    void aPaidGainEatsTheSegmentInsteadOfMovingItsFarEnd() {
+        for (double extra : new double[] {0.25, 0.5, 1.0, 2.0, 5.0}) {
+            SkillTuning.install(new Extra(extra));
+            float need = SkillMath.xpToNext(30);
+            float pool = need / 8;
+            float gain = need / 40;
+            // What the service does for a plain grant: spend extra x gain from the pool, move the fill
+            // by the gain plus that extra. Fill plus reach, the far end of the segment, stays put.
+            float spent = RestedMath.extra(gain, 1.0, pool);
+            assertEquals(extra * gain, spent, 1e-3f);
+            double before = 0.10 + RestedMath.reach(pool, 30, 0);
+            double after = 0.10 + (gain + spent) / need + RestedMath.reach(pool - spent, 30, 0);
+            assertEquals(before, after, 1e-4, "extra " + extra);
+        }
+    }
+
+    @Test
+    void aPoolThatNeverPaysDrawsNoSegment() {
+        SkillTuning.install(new Extra(0.0));
+        assertEquals(0f, RestedMath.reach(100f, 30, 0));
+    }
+
+    private record Extra(double extra) implements SkillTuning {
+        @Override public double curveFloor() { return DEFAULTS.curveFloor(); }
+        @Override public double curveBase() { return DEFAULTS.curveBase(); }
+        @Override public double curveExponent() { return DEFAULTS.curveExponent(); }
+        @Override public boolean enabled(Skill skill) { return true; }
+        @Override public double maxBonus(Skill skill) { return DEFAULTS.maxBonus(skill); }
+        @Override public boolean procsEnabled() { return true; }
+        @Override public int procUnlockLevel() { return 25; }
+        @Override public double procFloor() { return 0.05; }
+        @Override public double procChance(Skill skill) { return DEFAULTS.procChance(skill); }
+        @Override public double restedExtra() { return extra; }
     }
 
     @Test

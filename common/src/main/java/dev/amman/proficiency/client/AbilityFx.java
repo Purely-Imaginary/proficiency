@@ -67,7 +67,8 @@ public final class AbilityFx {
             }
         }
         if (running != null) {
-            int accent = SkillPalette.accent(running.category());
+            // House Proud is warm gold, the colour of the Hearth it is cast at; the rest take their category's.
+            int accent = running == Skill.HOMEBUILDER ? HomebuilderHud.GOLD : SkillPalette.accent(running.category());
             int slot = running.ordinal();
             float fraction = FRENZY.fraction(slot, runningLeft);
             // Eased in over the first third of a second, out over the last second.
@@ -90,7 +91,7 @@ public final class AbilityFx {
      * Slow pulse (one beat every 2.4 s). Eight stripes a few pixels wide on each side fake a
      * gradient with plain fills. {@code fade} is 0 to 1 from the in and out easing.
      */
-    private static void edgeGlow(GuiGraphics graphics, int accent, float fade, long now) {
+    static void edgeGlow(GuiGraphics graphics, int accent, float fade, long now) {
         float pulse = 0.78f + 0.22f * (float) Math.sin(now * (2 * Math.PI / 2400.0));
         int w = graphics.guiWidth();
         int h = graphics.guiHeight();

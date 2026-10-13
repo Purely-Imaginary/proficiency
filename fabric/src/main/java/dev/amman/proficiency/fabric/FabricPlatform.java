@@ -52,7 +52,17 @@ public final class FabricPlatform implements Platform {
             .copyOnDeath()
             .buildAndRegister(Proficiency.id("persistent_data"));
 
-    /** Forces class init, so both attachment types are registered before any player loads. */
+    /**
+     * The player's Hearth state, saved with the player as {@code proficiency:hearth}. Not copyOnDeath:
+     * the Hearth's Clone handler copies it and clears what a death costs.
+     */
+    public static final AttachmentType<dev.amman.proficiency.hearth.PlayerHearth> HEARTH =
+            AttachmentRegistry.<dev.amman.proficiency.hearth.PlayerHearth>builder()
+                    .initializer(dev.amman.proficiency.hearth.PlayerHearth::new)
+                    .persistent(dev.amman.proficiency.hearth.PlayerHearth.CODEC)
+                    .buildAndRegister(Proficiency.id("hearth"));
+
+    /** Forces class init, so every attachment type is registered before any player loads. */
     public static void init() {
     }
 
@@ -126,5 +136,29 @@ public final class FabricPlatform implements Platform {
     @Override
     public CreativeModeTab.Builder tabBuilder() {
         return CreativeModeTab.builder(CreativeModeTab.Row.TOP, 0);
+    }
+
+    @Override
+    public dev.amman.proficiency.hearth.PlayerHearth hearth(Player player) {
+        return player.getAttachedOrCreate(HEARTH);
+    }
+
+    /** Registered eagerly, during class init of the caller. */
+    @Override
+    public <T extends net.minecraft.world.level.block.Block> Supplier<T> registerBlock(String name,
+            Supplier<T> factory) {
+        T block = Registry.register(BuiltInRegistries.BLOCK, Proficiency.id(name), factory.get());
+        return () -> block;
+    }
+
+    @Override
+    public <T extends net.minecraft.world.level.block.entity.BlockEntity>
+            Supplier<net.minecraft.world.level.block.entity.BlockEntityType<T>> registerBlockEntity(String name,
+                    BlockEntityFactory<T> factory, Supplier<? extends net.minecraft.world.level.block.Block> block) {
+        net.minecraft.world.level.block.entity.BlockEntityType<T> type = Registry.register(
+                BuiltInRegistries.BLOCK_ENTITY_TYPE, Proficiency.id(name),
+                net.fabricmc.fabric.api.object.builder.v1.block.entity.FabricBlockEntityTypeBuilder
+                        .<T>create(factory::create, block.get()).build());
+        return () -> type;
     }
 }

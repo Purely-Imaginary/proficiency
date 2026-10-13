@@ -1,0 +1,7 @@
+{
+  "_comment": "Comfort kind: a fire. A lit furnace does not count; packs add fireplaces and stoves to #proficiency:comfort/fireplace.",
+  "values": [
+    "#minecraft:campfires",
+    "#proficiency:comfort/fireplace"
+  ]
+}

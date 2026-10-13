@@ -6,12 +6,13 @@ Each rank costs the points shown. A node opens when every node it hangs from is 
 Row levels: 0, 10, 30, 60, 90, 100. Every tree costs at most 100 points, which is what a
 level-100 skill earns, so every branch fills in the end.
 
-## Swords (93 points)
+## Swords (99 points)
 
-- **Swordplay** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches. _+5% XP per rank; materials (old Apprentice list)._
+- **Swordplay** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches, the signature move and the ability. _+5% XP per rank; materials (old Apprentice list)._
 - **Keen Edge** · 5 ranks · level 10 (after Swordplay). A sharper blade in a surer hand. _+5% passive per rank._
 - **Find the Opening** · 5 ranks · level 10 (after Swordplay). Perfect Strike comes more often. _+10% signature chance per rank._
 - **Parry** · 3 ranks · level 30 (after Keen Edge). Holding a sword, 5% chance per rank to turn aside a melee hit completely.
+- **Lunge** · 3 ranks · level 30 (after Keen Edge). A sprinting sword hit is a critical hit. Ready again after 9 seconds, 3 seconds sooner per rank.
 - **Crosscut** · 3 ranks · level 30 (after Keen Edge, Find the Opening). Perfect Strike cuts deeper. _+10% signature power per rank._
 - **Hemorrhage** · 3 ranks · level 30 (after Find the Opening). Perfect Strike makes the target bleed (Wither) for 2 seconds per rank.
 - **Executioner** · 3 ranks · level 60 (after Parry). +10% damage per rank to targets under 30% health. _materials (old Journeyman list)._
@@ -20,11 +21,12 @@ level-100 skill earns, so every branch fills in the end.
 - **Duelist** · 1 rank · level 90 (after Executioner, Vampiric Edge). +30% damage while only one hostile is within 8 blocks. _+25% signature power; materials (old Master list)._
 - **Sword Saint** · 1 rank · level 100 (after Duelist, Battle Trance). A Perfect Strike makes your next sword hit within 3 seconds a Perfect Strike too. _+15% passive, -20% ability cooldown._
 
-## Axes (96 points)
+## Axes (99 points)
 
-- **Hewing** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches. _+5% XP per rank; materials (old Apprentice list)._
+- **Hewing** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches, the signature move and the ability. _+5% XP per rank; materials (old Apprentice list)._
 - **Heavy Blows** · 5 ranks · level 10 (after Hewing). Every swing lands harder. _+5% passive per rank._
 - **Cleaving Arc** · 3 ranks · level 10 (after Hewing). Cleave reaches 1 block further per rank.
+- **Rend** · 1 rank · level 10 (after Hewing). A critical axe hit opens a wound: for 4 seconds the target takes 15% more damage from weapon hits.
 - **Bloodlust** · 5 ranks · level 10 (after Hewing). Cleave comes more often. _+10% signature chance per rank._
 - **Berserker** · 3 ranks · level 30 (after Heavy Blows). +3% damage per rank for every 10% of health you are missing.
 - **Sunder** · 3 ranks · level 30 (after Cleaving Arc). Everything Cleave hits is Weakened for 2 seconds per rank.
@@ -36,7 +38,7 @@ level-100 skill earns, so every branch fills in the end.
 
 ## Maces (85 points)
 
-- **Heft** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches. _+5% XP per rank; materials (old Apprentice list)._
+- **Heft** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches, the signature move and the ability. _+5% XP per rank; materials (old Apprentice list)._
 - **Crushing Weight** · 5 ranks · level 10 (after Heft). The mace falls heavier. _+5% passive per rank._
 - **Tremor** · 5 ranks · level 10 (after Heft). Shockwave comes more often. _+10% signature chance per rank._
 - **Meteor** · 5 ranks · level 30 (after Crushing Weight). +4% damage per rank for every block you fell before the hit, up to 20 blocks.
@@ -49,7 +51,7 @@ level-100 skill earns, so every branch fills in the end.
 
 ## Tridents (93 points)
 
-- **Spearcraft** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches. _+5% XP per rank; materials (old Apprentice list)._
+- **Spearcraft** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches, the signature move and the ability. _+5% XP per rank; materials (old Apprentice list)._
 - **Tidal Edge** · 5 ranks · level 10 (after Spearcraft). +6% trident damage per rank while you stand in water or rain.
 - **True Aim** · 5 ranks · level 10 (after Spearcraft). Tridents hit harder. _+5% passive per rank._
 - **Undertow** · 3 ranks · level 10 (after Spearcraft). A trident proc drags the target toward you, harder per rank.
@@ -60,22 +62,23 @@ level-100 skill earns, so every branch fills in the end.
 - **Conductor** · 1 rank · level 90 (after Riptide Surge, Skewer). A trident proc in a thunderstorm calls lightning down on the target. _materials (old Master list)._
 - **Sea King** · 1 rank · level 100 (after Conductor). Holding a trident in water gives you Conduit Power. _+15% passive, -20% ability cooldown._
 
-## Unarmed (90 points)
+## Unarmed (99 points)
 
-- **Knuckles** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches. _+5% XP per rank; materials (old Apprentice list)._
+- **Knuckles** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches, the signature move and the ability. _+5% XP per rank; materials (old Apprentice list)._
 - **Iron Fist** · 5 ranks · level 10 (after Knuckles). Bare hands hit harder. _+5% passive per rank._
 - **Haymaker** · 5 ranks · level 10 (after Knuckles). The knockout blow comes more often. _+10% signature chance per rank._
 - **Combo** · 3 ranks · level 30 (after Iron Fist). Each punch within 1.5 seconds of the last adds 5% per rank, up to 5 stacks.
 - **Stagger** · 3 ranks · level 30 (after Iron Fist, Haymaker). The knockout blow Weakens the target for 2 seconds per rank.
 - **Iron Skin** · 3 ranks · level 30 (after Haymaker). With an empty main hand you take 5% less damage per rank.
 - **Fury** · 3 ranks · level 60 (after Combo, Stagger). A longer ability and a streak that pays more. _+30% tempo bonus per rank, +10% ability duration per rank; materials (old Journeyman list)._
+- **Flow** · 3 ranks · level 60 (after Stagger). A critical punch gives Speed and Haste for 1 second per rank.
 - **Dragon Palm** · 5 ranks · level 60 (after Iron Skin). The knockout blow hits harder. _+10% signature power per rank; materials (old Expert list)._
 - **One-Inch Punch** · 1 rank · level 90 (after Fury, Dragon Palm). The knockout blow sends its target flying three times as far. _materials (old Master list)._
 - **The Unbroken** · 1 rank · level 100 (after One-Inch Punch). Every bare-handed hit heals you half a heart. _+15% passive, -20% ability cooldown._
 
 ## Blocking (88 points)
 
-- **Guard** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches. _+5% XP per rank; materials (old Apprentice list)._
+- **Guard** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches, the signature move and the ability. _+5% XP per rank; materials (old Apprentice list)._
 - **Reinforced** · 5 ranks · level 10 (after Guard). The shield wears slower and you stand firmer. _+5% passive per rank._
 - **Counter** · 5 ranks · level 10 (after Guard). Riposte comes more often. _+10% signature chance per rank._
 - **Tenacity** · 3 ranks · level 30 (after Reinforced). Dying keeps more of this skill's progress. _+20% progress kept on death per rank._
@@ -88,7 +91,7 @@ level-100 skill earns, so every branch fills in the end.
 
 ## Endurance (90 points)
 
-- **Hardening** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches. _+5% XP per rank; materials (old Apprentice list)._
+- **Hardening** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches, the signature move and the ability. _+5% XP per rank; materials (old Apprentice list)._
 - **Iron Constitution** · 5 ranks · level 10 (after Hardening). More maximum health. _+5% passive per rank._
 - **Stubborn** · 5 ranks · level 10 (after Hardening). Grit comes more often. _+10% signature chance per rank._
 - **Roll With It** · 3 ranks · level 10 (after Hardening). Knockback moves you 10% less per rank.
@@ -102,7 +105,7 @@ level-100 skill earns, so every branch fills in the end.
 
 ## Archery (90 points)
 
-- **Fletching** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches. _+5% XP per rank; materials (old Apprentice list)._
+- **Fletching** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches, the signature move and the ability. _+5% XP per rank; materials (old Apprentice list)._
 - **Steady Aim** · 5 ranks · level 10 (after Fletching). Arrows hit harder. _+5% passive per rank._
 - **Eagle Eye** · 5 ranks · level 10 (after Fletching). The perfect shot comes more often. _+10% signature chance per rank._
 - **Deep Quiver** · 3 ranks · level 10 (after Fletching). 10% chance per rank that an arrow that hits comes back to you.
@@ -116,7 +119,7 @@ level-100 skill earns, so every branch fills in the end.
 
 ## Crossbows (84 points)
 
-- **Windlass** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches. _+5% XP per rank; materials (old Apprentice list)._
+- **Windlass** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches, the signature move and the ability. _+5% XP per rank; materials (old Apprentice list)._
 - **Heavy Bolts** · 5 ranks · level 10 (after Windlass). Bolts hit harder. _+5% passive per rank._
 - **Hair Trigger** · 5 ranks · level 10 (after Windlass). The perfect bolt comes more often. _+10% signature chance per rank._
 - **Salvage** · 3 ranks · level 30 (after Heavy Bolts). 10% chance per rank that a bolt that hits comes back to you.
@@ -129,7 +132,7 @@ level-100 skill earns, so every branch fills in the end.
 
 ## Mining (86 points)
 
-- **Pickwork** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches. _+5% XP per rank; materials (old Apprentice list)._
+- **Pickwork** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches, the signature move and the ability. _+5% XP per rank; materials (old Apprentice list)._
 - **Efficiency** · 5 ranks · level 10 (after Pickwork). Faster mining and more second drops. _+5% passive per rank._
 - **Prospector** · 5 ranks · level 10 (after Pickwork). Motherlode comes more often. _+10% signature chance per rank._
 - **Geologist** · 3 ranks · level 10 (after Pickwork). Mining ore: 5% chance per rank that nearby ore sparkles through the rock.
@@ -143,7 +146,7 @@ level-100 skill earns, so every branch fills in the end.
 
 ## Woodcutting (89 points)
 
-- **Lumberjack** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches. _+5% XP per rank; materials (old Apprentice list)._
+- **Lumberjack** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches, the signature move and the ability. _+5% XP per rank; materials (old Apprentice list)._
 - **Sharp Axe** · 5 ranks · level 10 (after Lumberjack). Faster chopping and more second drops. _+5% passive per rank._
 - **Timber!** · 5 ranks · level 10 (after Lumberjack). Timber comes more often. _+10% signature chance per rank._
 - **Sapling Keeper** · 3 ranks · level 10 (after Lumberjack). Chopping the bottom log of a tree: 33% chance per rank to plant its sapling.
@@ -157,7 +160,7 @@ level-100 skill earns, so every branch fills in the end.
 
 ## Excavation (83 points)
 
-- **Spadework** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches. _+5% XP per rank; materials (old Apprentice list)._
+- **Spadework** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches, the signature move and the ability. _+5% XP per rank; materials (old Apprentice list)._
 - **Quick Dig** · 5 ranks · level 10 (after Spadework). Faster digging and more second drops. _+5% passive per rank._
 - **Landslide Lore** · 5 ranks · level 10 (after Spadework). Landslide comes more often. _+10% signature chance per rank._
 - **Archaeologist** · 3 ranks · level 30 (after Quick Dig). Dirt, sand and gravel: 1% chance per rank to turn up a find (bone, nugget, clay, emerald...).
@@ -170,7 +173,7 @@ level-100 skill earns, so every branch fills in the end.
 
 ## Farming (86 points)
 
-- **Tilling** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches. _+5% XP per rank; materials (old Apprentice list)._
+- **Tilling** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches, the signature move and the ability. _+5% XP per rank; materials (old Apprentice list)._
 - **Bountiful** · 5 ranks · level 10 (after Tilling). More second harvests. _+5% passive per rank._
 - **Harvest Moon** · 5 ranks · level 10 (after Tilling). Bountiful Harvest comes more often. _+10% signature chance per rank._
 - **Fertile Soil** · 3 ranks · level 10 (after Tilling). Every 5 seconds, crops within 3 blocks of you: 5% chance per rank to grow a stage.
@@ -184,7 +187,7 @@ level-100 skill earns, so every branch fills in the end.
 
 ## Fishing (84 points)
 
-- **Casting** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches. _+5% XP per rank; materials (old Apprentice list)._
+- **Casting** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches, the signature move and the ability. _+5% XP per rank; materials (old Apprentice list)._
 - **Patience** · 5 ranks · level 10 (after Casting). The rod lasts longer and catches double more often. _+5% passive per rank._
 - **Lucky Line** · 5 ranks · level 10 (after Casting). Treasure comes more often. _+10% signature chance per rank._
 - **Double Hook** · 3 ranks · level 30 (after Patience). 10% chance per rank that a catch brings a second fish.
@@ -197,7 +200,7 @@ level-100 skill earns, so every branch fills in the end.
 
 ## Running (88 points)
 
-- **Stride** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches. _+5% XP per rank; materials (old Apprentice list)._
+- **Stride** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches, the signature move and the ability. _+5% XP per rank; materials (old Apprentice list)._
 - **Long Legs** · 5 ranks · level 10 (after Stride). Faster sprinting. _+5% passive per rank._
 - **Second Wind** · 5 ranks · level 10 (after Stride). Burst of speed comes more often. _+10% signature chance per rank._
 - **Long Haul** · 3 ranks · level 10 (after Stride). Sprinting uses 10% less hunger per rank.
@@ -211,7 +214,7 @@ level-100 skill earns, so every branch fills in the end.
 
 ## Sneaking (84 points)
 
-- **Soft Step** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches. _+5% XP per rank; materials (old Apprentice list)._
+- **Soft Step** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches, the signature move and the ability. _+5% XP per rank; materials (old Apprentice list)._
 - **Quiet Feet** · 5 ranks · level 10 (after Soft Step). Faster while crouched. _+5% passive per rank._
 - **Vanish** · 5 ranks · level 10 (after Soft Step). Vanishing comes more often. _+10% signature chance per rank._
 - **Unseen** · 3 ranks · level 30 (after Quiet Feet). Crouched, mobs notice you from 10% less far per rank.
@@ -224,7 +227,7 @@ level-100 skill earns, so every branch fills in the end.
 
 ## Jumping (81 points)
 
-- **Spring** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches. _+5% XP per rank; materials (old Apprentice list)._
+- **Spring** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches, the signature move and the ability. _+5% XP per rank; materials (old Apprentice list)._
 - **High Jump** · 5 ranks · level 10 (after Spring). Jump higher, land softer. _+5% passive per rank._
 - **Safe Landing** · 5 ranks · level 10 (after Spring). A landing that costs nothing comes more often. _+10% signature chance per rank._
 - **Leap** · 3 ranks · level 30 (after High Jump). Sprint-jumps carry you 5% further per rank.
@@ -237,7 +240,7 @@ level-100 skill earns, so every branch fills in the end.
 
 ## Swimming (80 points)
 
-- **Strokes** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches. _+5% XP per rank; materials (old Apprentice list)._
+- **Strokes** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches, the signature move and the ability. _+5% XP per rank; materials (old Apprentice list)._
 - **Streamline** · 5 ranks · level 10 (after Strokes). Faster swimming and longer breath. _+5% passive per rank._
 - **Dolphin** · 5 ranks · level 10 (after Strokes). Dolphin's Grace comes more often. _+10% signature chance per rank._
 - **Deep Lungs** · 3 ranks · level 30 (after Streamline). Drowning deals 25% less damage per rank.
@@ -250,7 +253,7 @@ level-100 skill earns, so every branch fills in the end.
 
 ## Smithing (93 points)
 
-- **Hammer and Tongs** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches. _+5% XP per rank; materials (old Apprentice list)._
+- **Hammer and Tongs** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches, the signature move and the ability. _+5% XP per rank; materials (old Apprentice list)._
 - **Haggler** · 5 ranks · level 10 (after Hammer and Tongs). Anvils cost less and break less. _+5% passive per rank._
 - **Masterwork** · 5 ranks · level 10 (after Hammer and Tongs). A second piece off the bench comes more often. _+10% signature chance per rank._
 - **Whetstone** · 3 ranks · level 10 (after Hammer and Tongs). Crafted gear: 15% chance per rank to come with Unbreaking I.
@@ -265,7 +268,7 @@ level-100 skill earns, so every branch fills in the end.
 
 ## Cooking (90 points)
 
-- **Knife Work** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches. _+5% XP per rank; materials (old Apprentice list)._
+- **Knife Work** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches, the signature move and the ability. _+5% XP per rank; materials (old Apprentice list)._
 - **Seasoning** · 5 ranks · level 10 (after Knife Work). More second helpings from the furnace. _+5% passive per rank._
 - **Second Helping** · 5 ranks · level 10 (after Knife Work). Extra portions come more often. _+10% signature chance per rank._
 - **Camp Kitchen** · 1 rank · level 10 (after Knife Work). Learn two cauldron dishes: Miner's Stew (Haste) and Trail Ration (Speed). Drop the ingredients into a water cauldron and stir it with a Ladle.
@@ -280,7 +283,7 @@ level-100 skill earns, so every branch fills in the end.
 
 ## Alchemy (93 points)
 
-- **Distilling** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches. _+5% XP per rank; materials (old Apprentice list)._
+- **Distilling** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches, the signature move and the ability. _+5% XP per rank; materials (old Apprentice list)._
 - **Potency** · 5 ranks · level 10 (after Distilling). Potions you drink last longer. _+5% passive per rank._
 - **Efficient Draught** · 5 ranks · level 10 (after Distilling). Keeping the potion you drank comes more often. _+10% signature chance per rank._
 - **Catalyst** · 3 ranks · level 10 (after Distilling). A potion you drink: 10% chance per rank to work one level stronger.
@@ -295,7 +298,7 @@ level-100 skill earns, so every branch fills in the end.
 
 ## Spellcasting (84 points)
 
-- **Cantrips** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches. _+5% XP per rank; materials (old Apprentice list)._
+- **Cantrips** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches, the signature move and the ability. _+5% XP per rank; materials (old Apprentice list)._
 - **Arcane Focus** · 5 ranks · level 10 (after Cantrips). Spells hit harder. _+5% passive per rank._
 - **Spell Surge** · 5 ranks · level 10 (after Cantrips). Empowered spells come more often. _+10% signature chance per rank._
 - **Mana Font** · 3 ranks · level 30 (after Arcane Focus). +15% maximum mana per rank (Ars Nouveau).
@@ -308,7 +311,7 @@ level-100 skill earns, so every branch fills in the end.
 
 ## Engineering (87 points)
 
-- **Tinkering** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches. _+5% XP per rank; materials (old Apprentice list)._
+- **Tinkering** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches, the signature move and the ability. _+5% XP per rank; materials (old Apprentice list)._
 - **Precision Parts** · 5 ranks · level 10 (after Tinkering). Machine crafts sometimes hand back one of what you made. _+5% passive per rank._
 - **Spare Parts** · 5 ranks · level 10 (after Tinkering). A free machine comes more often. _+10% signature chance per rank._
 - **Wrench Wizard** · 3 ranks · level 10 (after Tinkering). Machine blocks break 30% faster per rank.
@@ -322,7 +325,7 @@ level-100 skill earns, so every branch fills in the end.
 
 ## Beastslaying (84 points)
 
-- **Tracking** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches. _+5% XP per rank; materials (old Apprentice list)._
+- **Tracking** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches, the signature move and the ability. _+5% XP per rank; materials (old Apprentice list)._
 - **Monster Lore** · 5 ranks · level 10 (after Tracking). More damage to the pack's creatures. _+5% passive per rank._
 - **Trophy Hunter** · 5 ranks · level 10 (after Tracking). Hunter's Charms come more often. _+10% signature chance per rank._
 - **Bane** · 3 ranks · level 30 (after Monster Lore). +5% damage per rank to undead and arthropods.
@@ -335,7 +338,7 @@ level-100 skill earns, so every branch fills in the end.
 
 ## Wayfaring (89 points)
 
-- **Wanderlust** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches. _+5% XP per rank; materials (old Apprentice list)._
+- **Wanderlust** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches, the signature move and the ability. _+5% XP per rank; materials (old Apprentice list)._
 - **Trailwise** · 5 ranks · level 10 (after Wanderlust). You walk faster (half your passive, while not sprinting). _+5% passive per rank._
 - **Far Horizons** · 5 ranks · level 10 (after Wanderlust). Wanderer's Tokens come more often. _+10% signature chance per rank._
 - **Fresh Air** · 3 ranks · level 10 (after Wanderlust). Each new biome fills 2 hunger per rank.
@@ -349,7 +352,7 @@ level-100 skill earns, so every branch fills in the end.
 
 ## Spelunking (83 points)
 
-- **Torchbearer** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches. _+5% XP per rank; materials (old Apprentice list)._
+- **Torchbearer** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches, the signature move and the ability. _+5% XP per rank; materials (old Apprentice list)._
 - **Cave Lore** · 5 ranks · level 10 (after Torchbearer). Underground you take less damage (40% of your passive). _+5% passive per rank._
 - **Cave Sense** · 5 ranks · level 10 (after Torchbearer). Cave Sense comes more often. _+10% signature chance per rank._
 - **Echolocation** · 3 ranks · level 30 (after Cave Lore). Every 10 seconds underground, ore within 3 blocks plus 1 per rank sparkles.
@@ -362,7 +365,7 @@ level-100 skill earns, so every branch fills in the end.
 
 ## Masonry (84 points)
 
-- **Mortar** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches. _+5% XP per rank; materials (old Apprentice list)._
+- **Mortar** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches, the signature move and the ability. _+5% XP per rank; materials (old Apprentice list)._
 - **Thrifty** · 5 ranks · level 10 (after Mortar). Placed blocks come back more often. _+5% passive per rank._
 - **Rapid Build** · 5 ranks · level 10 (after Mortar). A triple refund comes more often. _+10% signature chance per rank._
 - **Long Arm** · 3 ranks · level 30 (after Thrifty). Half a block more reach per rank.
@@ -375,7 +378,7 @@ level-100 skill earns, so every branch fills in the end.
 
 ## Decorating (84 points)
 
-- **Eye for Detail** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches. _+5% XP per rank; materials (old Apprentice list)._
+- **Eye for Detail** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches, the signature move and the ability. _+5% XP per rank; materials (old Apprentice list)._
 - **Thrift Shop** · 5 ranks · level 10 (after Eye for Detail). Placed decorations come back more often. _+5% passive per rank._
 - **Inspiration** · 5 ranks · level 10 (after Eye for Detail). A triple refund comes more often. _+10% signature chance per rank._
 - **Hygge** · 3 ranks · level 30 (after Thrift Shop). A cozy room needs 2 fewer decorations per rank.
@@ -388,7 +391,7 @@ level-100 skill earns, so every branch fills in the end.
 
 ## Social (99 points)
 
-- **Fellowship** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches. _+5% XP per rank; materials (old Apprentice list)._
+- **Fellowship** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches, the signature move and the ability. _+5% XP per rank; materials (old Apprentice list)._
 - **Kinship** · 2 ranks · level 10 (after Fellowship). The company bonus grows bigger. _+12% passive per rank._
 - **Open Circle** · 3 ranks · level 10 (after Fellowship). Company counts from 4 blocks further away per rank.
 - **A Good Word** · 2 ranks · level 10 (after Fellowship). Good Company comes more often. _+25% signature chance per rank._
@@ -406,7 +409,7 @@ level-100 skill earns, so every branch fills in the end.
 
 ## Nightwalker (99 points)
 
-- **After Dark** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches. _+5% XP per rank; materials (old Apprentice list)._
+- **After Dark** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches, the signature move and the ability. _+5% XP per rank; materials (old Apprentice list)._
 - **Dark-Adapted Eyes** · 5 ranks · level 10 (after After Dark). Dark Sight grows stronger. _+5% passive per rank._
 - **Night Owl** · 3 ranks · level 10 (after After Dark). At night or in the dark you get hungry 10% slower per rank.
 - **Moonrise** · 5 ranks · level 10 (after After Dark). Moonlit comes more often. _+10% signature chance per rank._
@@ -421,7 +424,7 @@ level-100 skill earns, so every branch fills in the end.
 
 ## Courage (99 points)
 
-- **Nerve** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches. _+5% XP per rank; materials (old Apprentice list)._
+- **Nerve** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches, the signature move and the ability. _+5% XP per rank; materials (old Apprentice list)._
 - **Hot Blood** · 5 ranks · level 10 (after Nerve). The more of them after you, the harder you hit. _+5% passive per rank._
 - **Hold the Line** · 3 ranks · level 10 (after Nerve). With 3 or more mobs after you, you take 5% less damage from mobs per rank.
 - **Battle Cry** · 5 ranks · level 10 (after Nerve). Rally comes more often. _+10% signature chance per rank._
@@ -432,11 +435,11 @@ level-100 skill earns, so every branch fills in the end.
 - **Unyielding** · 3 ranks · level 60 (after Unshaken). Stand Your Ground lasts longer. _+15% ability duration per rank._
 - **Challenge** · 3 ranks · level 60 (after War Drums). Hit a mob that is after another player within 4 blocks of you per rank, and it turns on you. _materials (old Expert list)._
 - **Rallying Cry** · 1 rank · level 90 (after Spoils of Valor, Challenge). Rally also gives its Strength and Speed to every player within 8 blocks. _materials (old Master list)._
-- **Lionheart** · 1 rank · level 100 (after Rallying Cry, Unyielding). The passive counts up to 8 mobs after you, not 4, and a kill while outnumbered takes 5 seconds off Stand Your Ground's cooldown. _+15% passive, -20% ability cooldown._
+- **Lionheart** · 1 rank · level 100 (after Rallying Cry, Unyielding). The passive reaches its full bonus with 3 mobs after you, not 5, and a kill while outnumbered takes 5 seconds off Stand Your Ground's cooldown. _+15% passive, -20% ability cooldown._
 
 ## Guardian (93 points)
 
-- **Vigil** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches. _+5% XP per rank; materials (old Apprentice list)._
+- **Vigil** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches, the signature move and the ability. _+5% XP per rank; materials (old Apprentice list)._
 - **Warding** · 5 ranks · level 10 (after Vigil). The players around you take a little less damage. _+5% passive per rank._
 - **Taunt** · 1 rank · level 10 (after Vigil). Hit a mob and it turns on you. For 5 seconds it cannot switch to anyone else.
 - **Watchful Eye** · 5 ranks · level 10 (after Vigil). Intercept comes more often. _+10% signature chance per rank._
@@ -451,7 +454,7 @@ level-100 skill earns, so every branch fills in the end.
 
 ## Charger (96 points)
 
-- **Momentum** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches. _+5% XP per rank; materials (old Apprentice list)._
+- **Momentum** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches, the signature move and the ability. _+5% XP per rank; materials (old Apprentice list)._
 - **First In** · 5 ranks · level 10 (after Momentum). Your first blood on a mob hits harder. _+5% passive per rank._
 - **Trust the Line** · 3 ranks · level 10 (after Momentum). Only in Spearhead: damage from friends is cut by 50%, 65% and 80% at rank 1, 2 and 3, so stray arrows and sweeps from the back line do not kill you.
 - **Breakthrough** · 5 ranks · level 10 (after Momentum). Breach comes more often. _+10% signature chance per rank._
@@ -466,7 +469,7 @@ level-100 skill earns, so every branch fills in the end.
 
 ## Tactician (92 points)
 
-- **Vantage Point** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches. _+5% XP per rank; materials (old Apprentice list)._
+- **Vantage Point** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches, the signature move and the ability. _+5% XP per rank; materials (old Apprentice list)._
 - **Spotter** · 5 ranks · level 10 (after Vantage Point). More ranged damage on a mob that is after someone else. _+5% passive per rank._
 - **Clear Line** · 1 rank · level 10 (after Vantage Point). Your projectiles fly through other players, and nothing you shoot or throw hurts them.
 - **Quick Call** · 5 ranks · level 10 (after Vantage Point). Called Shot comes more often. _+10% signature chance per rank._
@@ -478,3 +481,18 @@ level-100 skill earns, so every branch fills in the end.
 - **Painted Target** · 1 rank · level 60 (after Opening). Your mark lasts 4 seconds longer, and friends deal 5% more damage to it on top. _materials (old Expert list)._
 - **Focus Fire** · 1 rank · level 90 (after Quartermaster, Painted Target). When a mob you marked dies, the mark jumps to the nearest hostile mob within 8 blocks. _materials (old Master list)._
 - **Field Marshal** · 1 rank · level 100 (after Focus Fire, Suppression). Your mark lasts 4 seconds longer, each kill a friend makes on it takes 3 seconds off Suppressing Fire's cooldown, and Suppressing Fire slows one level harder. _+15% passive, -20% ability cooldown._
+
+## Homebuilder (99 points)
+
+- **Hearthkeeper** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches, the signature move and the ability. _+5% XP per rank; materials (old Apprentice list)._
+- **Light Step** · 5 ranks · level 10 (after Hearthkeeper). At home you move, reach and pull a little further. _+5% passive per rank._
+- **Tidy Home** · 3 ranks · level 10 (after Hearthkeeper). Rank 1 turns on the item magnet at home. Rank 2 also pulls experience orbs. Rank 3 pulls twice as fast.
+- **Kindling** · 5 ranks · level 10 (after Hearthkeeper). Hearthglow comes more often. _+10% signature chance per rank._
+- **Scaffolder** · 3 ranks · level 30 (after Light Step). At home a fall has to be 3 blocks higher before it hurts you, 5 at rank 2 and 8 at rank 3. For building on the roof.
+- **Long Pull** · 3 ranks · level 30 (after Tidy Home). The magnet reaches 1 block further per rank.
+- **Ember Heart** · 3 ranks · level 30 (after Kindling). Hearthglow charges more. _+15% signature power per rank._
+- **Warm Welcome** · 3 ranks · level 60 (after Scaffolder). Your Warmth fills 10% faster per rank, on top of Homecoming's readiness. _materials (old Journeyman list)._
+- **Storyteller** · 3 ranks · level 60 (after Long Pull). You bank 10% more Tales per rank on your trips.
+- **Open House** · 3 ranks · level 60 (after Ember Heart). House Proud lasts longer, and friends up to 8 blocks per rank outside the Hearth's range share it too. _+15% ability duration per rank; materials (old Expert list)._
+- **Night Watch** · 1 rank · level 90 (after Warm Welcome, Storyteller). Siege mobs in range glow for you, and you hear the siege horn an in-game hour early. _materials (old Master list)._
+- **Homeward** · 1 rank · level 100 (after Night Watch, Open House). Once per in-game day, a 10 second channel (broken by damage or moving) takes you home to the Hearth you fed most. After its bell calls you home, the channel takes 5 seconds for a minute. _+15% passive, -20% ability cooldown._

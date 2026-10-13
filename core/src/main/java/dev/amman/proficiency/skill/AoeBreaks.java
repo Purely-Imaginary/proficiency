@@ -17,8 +17,11 @@ import java.util.UUID;
  */
 public final class AoeBreaks {
 
-    /** The default share of the normal XP an extra block pays. */
-    public static final double DEFAULT_SHARE = 0.25;
+    /**
+     * The default share of the normal XP an extra block pays. 0.25 until 1.8.1: a 3x3 hammer swing
+     * then paid 3x a pickaxe swing, and AoE extras out-earned primary blocks on Reclamation.
+     */
+    public static final double DEFAULT_SHARE = 0.10;
 
     private record Key(int dimension, long pos) {
     }

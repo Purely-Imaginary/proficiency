@@ -4,6 +4,7 @@ import dev.amman.proficiency.ProficiencyAttachments;
 import dev.amman.proficiency.skill.ActiveService;
 import dev.amman.proficiency.skill.PlayerSkills;
 import dev.amman.proficiency.skill.Skill;
+import dev.amman.proficiency.skill.SkillPassives;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -41,14 +42,17 @@ public final class AbilityWheelScreen extends Screen {
     private static final int MIN_RADIUS = 92;
 
     private final List<Skill> entries;
+    /** Homebuilder's slots after the abilities (the magnet switch, Homeward); see {@link HomebuilderHud}. */
+    private final List<Integer> extras;
     @Nullable
     private final Skill inHands;
     private int selected = -1;
     private boolean done;
 
-    private AbilityWheelScreen(List<Skill> entries, @Nullable Skill inHands) {
+    private AbilityWheelScreen(List<Skill> entries, List<Integer> extras, @Nullable Skill inHands) {
         super(Component.translatable("proficiency.wheel.title"));
         this.entries = entries;
+        this.extras = extras;
         this.inHands = inHands;
     }
 
@@ -61,12 +65,18 @@ public final class AbilityWheelScreen extends Screen {
         PlayerSkills skills = ProficiencyAttachments.of(player);
         List<Skill> unlocked = new ArrayList<>();
         for (Skill skill : Skill.VALUES) {
-            if (skills.level(skill) >= ActiveService.unlockLevel()) {
+            if (ActiveService.unlocked(skills, skill)) {
                 unlocked.add(skill);
             }
         }
-        return unlocked.isEmpty() ? null
-                : new AbilityWheelScreen(List.copyOf(unlocked), AbilityContext.current(player));
+        List<Integer> extras = HomebuilderHud.wheelSlots(player);
+        return unlocked.isEmpty() && extras.isEmpty() ? null
+                : new AbilityWheelScreen(List.copyOf(unlocked), List.copyOf(extras), AbilityContext.current(player));
+    }
+
+    /** Every slot round the ring: the abilities, then Homebuilder's. */
+    private int count() {
+        return entries.size() + extras.size();
     }
 
     @Override
@@ -81,7 +91,7 @@ public final class AbilityWheelScreen extends Screen {
 
     private int radius() {
         // Room for every slot around the ring, but never off the screen.
-        int wanted = (int) Math.ceil(entries.size() * (SLOT + 6) / (2 * Math.PI));
+        int wanted = (int) Math.ceil(count() * (SLOT + 6) / (2 * Math.PI));
         int most = Math.min(this.width, this.height) / 2 - RING_HALF_WIDTH - 6;
         // The floor keeps the middle wide enough for a two-word ability name on one line, but the
         // screen has the last word: a ring that leaves the window is no use at any size.
@@ -89,19 +99,19 @@ public final class AbilityWheelScreen extends Screen {
     }
 
     int slotCount() {
-        return entries.size();
+        return count();
     }
 
     /** Screen position of slot i's centre; the layout demo hovers it. */
     int[] slotPoint(int index) {
-        double angle = -Math.PI / 2 + index * 2 * Math.PI / entries.size();
+        double angle = -Math.PI / 2 + index * 2 * Math.PI / count();
         return new int[] {this.width / 2 + (int) Math.round(radius() * Math.cos(angle)),
                 this.height / 2 + (int) Math.round(radius() * Math.sin(angle))};
     }
 
     /** The slot's side: 22 when they all fit round the ring, smaller when the ring is crowded. */
     private int slotSize() {
-        int fit = (int) Math.floor(2 * Math.PI * radius() / entries.size()) - 2;
+        int fit = (int) Math.floor(2 * Math.PI * radius() / count()) - 2;
         return Math.max(12, Math.min(SLOT, fit));
     }
 
@@ -116,8 +126,8 @@ public final class AbilityWheelScreen extends Screen {
         if (angle < 0) {
             angle += 2 * Math.PI;
         }
-        double step = 2 * Math.PI / entries.size();
-        return (int) Math.round(angle / step) % entries.size();
+        double step = 2 * Math.PI / count();
+        return (int) Math.round(angle / step) % count();
     }
 
     @Override
@@ -146,13 +156,17 @@ public final class AbilityWheelScreen extends Screen {
         disc(graphics, cx, cy, radius + RING_HALF_WIDTH, 0xB0121418);
         disc(graphics, cx, cy, radius - RING_HALF_WIDTH, 0x60000000);
 
-        double step = 2 * Math.PI / entries.size();
+        double step = 2 * Math.PI / count();
         boolean icons = SkillIcons.enabled();
-        for (int i = 0; i < entries.size(); i++) {
-            Skill skill = entries.get(i);
+        for (int i = 0; i < count(); i++) {
             double angle = -Math.PI / 2 + i * step;
             int x = cx + (int) Math.round(radius * Math.cos(angle));
             int y = cy + (int) Math.round(radius * Math.sin(angle));
+            if (i >= entries.size()) {
+                extraSlot(graphics, extras.get(i - entries.size()), x, y, i == selected, player);
+                continue;
+            }
+            Skill skill = entries.get(i);
             int accent = SkillPalette.accent(skill.category());
             long cooldown = skills.cooldownRemaining(skill, now);
             int half = slotSize() / 2;
@@ -189,7 +203,9 @@ public final class AbilityWheelScreen extends Screen {
         List<String> lines = new ArrayList<>();
         List<Integer> colours = new ArrayList<>();
         int width = Math.max(60, room * 2 - 8);
-        if (selected < 0) {
+        if (selected >= entries.size()) {
+            extraCentre(lines, colours, extras.get(selected - entries.size()), skills, width);
+        } else if (selected < 0) {
             add(lines, colours, this.title, 0xFFB98BE0, width);
             add(lines, colours, Component.translatable("proficiency.wheel.hint",
                     ProficiencyClient.USE_ABILITY.getTranslatedKeyMessage()), SkillPalette.TEXT_DIM, width);
@@ -200,8 +216,11 @@ public final class AbilityWheelScreen extends Screen {
             add(lines, colours, Component.translatable(skill.translationKey()),
                     SkillPalette.accent(skill.category()), width);
             int seconds = (int) Math.round(ActiveService.durationTicks(skills, skill) / 20.0);
-            add(lines, colours, Component.translatable("proficiency.wheel.effect",
-                    Component.translatable(skill.procKey()), seconds), SkillPalette.TEXT, width);
+            // House Proud is not "the proc every time": it doubles the passive and shares it.
+            add(lines, colours, skill == Skill.HOMEBUILDER
+                    ? Component.translatable("proficiency.wheel.effect.homebuilder", seconds)
+                    : Component.translatable("proficiency.wheel.effect",
+                            Component.translatable(skill.procKey()), seconds), SkillPalette.TEXT, width);
             long cooldown = skills.cooldownRemaining(skill, now);
             if (cooldown > 0) {
                 long total = cooldown / 20;
@@ -289,10 +308,72 @@ public final class AbilityWheelScreen extends Screen {
             return;
         }
         done = true;
+        if (selected >= entries.size()) {
+            int extra = extras.get(selected - entries.size());
+            onClose();
+            dev.amman.proficiency.platform.net.ClientPacketDistributor.sendToServer(
+                    new dev.amman.proficiency.homebuilder.net.HomebuilderActionPayload(
+                            extra == HomebuilderHud.SLOT_MAGNET
+                                    ? dev.amman.proficiency.homebuilder.net.HomebuilderActionPayload.MAGNET
+                                    : dev.amman.proficiency.homebuilder.net.HomebuilderActionPayload.HOMEWARD));
+            return;
+        }
         Skill skill = selected >= 0 ? entries.get(selected) : null;
         onClose();
         if (skill != null) {
             ClientInputEvents.cast(skill);
+        }
+    }
+
+    /** One of Homebuilder's slots: its icon on the ring, dimmed while the magnet is off or Homeward is spent. */
+    private void extraSlot(GuiGraphics graphics, int extra, int x, int y, boolean picked, Player player) {
+        int half = slotSize() / 2;
+        if (picked) {
+            graphics.fill(x - half - 2, y - half - 2, x + half + 2, y + half + 2, HomebuilderHud.GOLD);
+            graphics.fill(x - half, y - half, x + half, y + half, 0xF0121418);
+        } else {
+            graphics.fill(x - half, y - half, x + half, y + half, 0xA023282F);
+        }
+        boolean off = extra == HomebuilderHud.SLOT_MAGNET ? HomebuilderHud.magnetOff()
+                : !HomebuilderHud.homewardReady(player);
+        int iconSize = Math.min(SkillIcons.LARGE, half * 2 - 2);
+        HomebuilderHud.drawSlotIcon(graphics, extra, x - iconSize / 2, y - iconSize / 2, iconSize, off);
+        if (extra == HomebuilderHud.SLOT_HOMEWARD && off) {
+            // Spent for today: greyed like a cooling ability.
+            graphics.fill(x - half, y - half, x + half, y + half, 0x70000000);
+        }
+    }
+
+    /** The middle of the ring for a Homebuilder slot: what it is, its state, and what a click does. */
+    private void extraCentre(List<String> lines, List<Integer> colours, int extra, PlayerSkills skills, int width) {
+        Player player = this.minecraft == null ? null : this.minecraft.player;
+        if (extra == HomebuilderHud.SLOT_MAGNET) {
+            boolean off = HomebuilderHud.magnetOff();
+            add(lines, colours, Component.translatable("proficiency.wheel.magnet"), HomebuilderHud.GOLD, width);
+            add(lines, colours, Component.translatable(off ? "proficiency.wheel.magnet.off"
+                    : "proficiency.wheel.magnet.on"), off ? 0xFFE08F8F : 0xFF8FD18F, width);
+            add(lines, colours, Component.translatable(off ? "proficiency.wheel.magnet.turn_on"
+                    : "proficiency.wheel.magnet.turn_off"), SkillPalette.TEXT, width);
+            if (TooltipDetail.detailed()) {
+                add(lines, colours, Component.translatable("proficiency.wheel.magnet.detail",
+                        SkillNumbers.value(SkillPassives.Format.NUMBER, SkillPassives.homeMagnet(skills))), SkillPalette.TEXT_DIM, width);
+            } else {
+                add(lines, colours, TooltipDetail.hint(), 0xFF5C636D, width);
+            }
+            return;
+        }
+        add(lines, colours, Component.translatable("proficiency.talent.homebuilder.homeward"), HomebuilderHud.GOLD, width);
+        if (HomebuilderHud.channelling()) {
+            add(lines, colours, Component.translatable("proficiency.wheel.homeward.running"), SkillPalette.TEXT, width);
+        } else if (player != null && !HomebuilderHud.homewardReady(player)) {
+            add(lines, colours, Component.translatable("proficiency.wheel.homeward.used"), 0xFFE08F8F, width);
+        } else {
+            add(lines, colours, Component.translatable("proficiency.wheel.ready"), 0xFF8FD18F, width);
+        }
+        if (TooltipDetail.detailed()) {
+            add(lines, colours, Component.translatable("proficiency.wheel.homeward.detail"), SkillPalette.TEXT_DIM, width);
+        } else {
+            add(lines, colours, TooltipDetail.hint(), 0xFF5C636D, width);
         }
     }
 
@@ -333,6 +414,7 @@ public final class AbilityWheelScreen extends Screen {
             case GUARDIAN -> Items.GOLDEN_APPLE;
             case CHARGER -> Items.WHITE_BANNER;
             case TACTICIAN -> Items.SPYGLASS;
+            case HOMEBUILDER -> Items.CAMPFIRE;
         };
         return new ItemStack(item);
     }

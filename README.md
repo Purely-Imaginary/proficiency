@@ -16,13 +16,19 @@ One codebase builds three jars:
 
 ## What it adds
 
-- **34 skills** in six categories, each from 0 to 100. Gathering, crafting, combat, movement,
+- **35 skills** in six categories, each from 0 to 100. Gathering, crafting, combat, movement,
   construction and survival.
 - **A passive per skill** that grows with the level, and a **signature proc** from level 25. Mining
   hits a Motherlode, Woodcutting fells the whole tree, Swords land a Perfect Strike.
 - **A talent tree per skill.** One point per level, and every tree can be filled completely by
   level 100. Branch choices set priority, never a lockout. A respec costs 1 XP level per 10 points.
-- **17 synergies** between trees. Each pays off when you invest in two related skills.
+- **158 synergies** between trees. Every skill takes part in 9 or 10. Most are numeric boosts; about
+  thirty change how a pair plays (Falling Hammer, Pavise, Dragonbolt, Lifeguard, Moon Garden).
+- **Expertise, a tree across all skills.** One point per 100 skill levels summed over every skill
+  and one per 5 Mastery stars, 70 in all. Thirteen nodes of global power (XP, passives by category,
+  proc chance and power, ability duration and cooldown) that one player can fill completely.
+- **Critical hits count.** A critical melee hit pays 1.5x hit XP and doubles the signature move's
+  chance for that hit. Three crit talents: Lunge (Swords), Rend (Axes) and Flow (Unarmed).
 - **An active ability per skill** from level 50. Tap the ability key for the held item's ability,
   hold it for a wheel with every ability you have unlocked.
 - **Mastery stars.** After level 100 a skill's XP fills an overflow bar that earns up to five
@@ -40,6 +46,17 @@ One codebase builds three jars:
   you aimed at and a quarter for the rest of the swing (`aoeXpShare` in the server config). Wands and
   gadgets pay one placement per tick, refunded blocks cannot be farmed by picking them back up, and
   target dummies, summons and machines' fake players pay nothing.
+- **The Hearth.** A campfire on a stone platform, lit with flint and steel, becomes a group's
+  Hearth. It grows through six stages, each a layer built around the fire to one of eight designs
+  (Longhouse, Forge, Shrine, Demonic, Gothic, Girly, Overgrown Ruin, Frost Lodge) plus an offering.
+  XP earned near it also charges five pools whose boons go to whoever has warmed up by the fire. A
+  furnished home earns the strongest boons, and a finished one draws sieges, which Siege Horns can
+  also call. The Hearth guide previews every stage in 3D, and a build guide shows the next stage as
+  ghost blocks around the fire (with Patchouli installed, through Patchouli's own visualizer).
+- **Homebuilder**, the 35th skill. It earns a share of what you do at home plus milestones, gives
+  speed, reach and an item magnet at home, and charges the Hearth's **Reach**: the range grows from
+  24 to 64 blocks as Homebuilder XP is earned in it. On Forge 1.20.1 the ranges show on Xaero's
+  World Map.
 - **Survival bonus.** +1% skill XP per active hour alive, up to +50%. A death wipes the bonus and
   the XP bars, never your levels or talents.
 - **Discovery.** Banners for new biomes, dimensions and structures, a one-time bonus for every new
@@ -80,9 +97,9 @@ in [CHANGELOG.md](CHANGELOG.md).
 ## Install
 
 Put the jar for your loader in the `mods/` folder of the **server and every client**. The mod
-registers items, so a client without it cannot join a server that has it. Versions 1.4.0 to 1.4.4
-speak network protocol 6: a 1.3.0 or older client cannot join a 1.4.x server, so update the server,
-the clients and any modpack together.
+registers items, so a client without it cannot join a server that has it. Versions 1.7.0 to 1.9.0
+speak network protocol 9: a 1.6.x or older client cannot join, so update the server, the clients
+and any modpack together. Never leave two Proficiency jars in one `mods/` folder.
 
 An existing server keeps its saved `mentorBonus = 0.5`. The new default is 0.25: set it by hand in
 `config/proficiency-server.toml` if you want the new balance.
@@ -99,6 +116,8 @@ in the Reclamation pack. All of them can be rebound under Controls.
 | `/proficiency perks [skill]` | anyone, own trees |
 | `/proficiency respec <skill>` | anyone, empties one tree for XP levels |
 | `/proficiency synergies` | anyone, every synergy and your progress |
+| `/proficiency expertise` | anyone, your Expertise tree in chat |
+| `/skills magnet [on\|off]` | anyone, Homebuilder's item magnet |
 | `/proficiency recipes` | anyone, the station recipes |
 | `/proficiency top <skill>` | anyone, best online player in that skill |
 | `/skills xpfeed [on\|off]` | anyone, a live XP feed with every multiplier |
@@ -200,7 +219,9 @@ and death cost. `--anon` hides player names.
 Nothing is a hard dependency. With these installed the mod picks them up: Create, Applied
 Energistics 2 and storage mods (Engineering), Ars Nouveau (Spellcasting), Farmer's Delight
 (Cooking), Twilight Forest, the Aether and boss mods (Beastslaying), furniture mods such as
-Supplementaries and Chipped (Decorating), Falling Tree (Timber stands down) and Right Click Harvest.
+Supplementaries and Chipped (Decorating), Falling Tree (Timber stands down), Right Click Harvest,
+Patchouli (the Hearth build guide uses its visualizer) and Xaero's World Map (Hearth ranges, Forge
+1.20.1).
 
 ## Build
 

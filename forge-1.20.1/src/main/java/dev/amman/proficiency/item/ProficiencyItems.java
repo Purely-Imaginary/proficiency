@@ -124,6 +124,10 @@ public final class ProficiencyItems {
                         output.accept(BUTCHERS_CLEAVER.get());
                         output.accept(DUELISTS_RAPIER.get());
                         output.accept(MACE.get());
+                        for (int level = 1; level <= dev.amman.proficiency.hearth.SiegeRules.MAX_LEVEL; level++) {
+                            output.accept(dev.amman.proficiency.hearth.HearthBlocks.hornOf(level));
+                        }
+                        output.accept(dev.amman.proficiency.hearth.HearthBlocks.SIEGE_TROPHY_ITEM.get());
                     })
                     .build());
 

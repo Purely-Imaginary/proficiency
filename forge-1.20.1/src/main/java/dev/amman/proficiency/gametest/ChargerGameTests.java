@@ -494,7 +494,7 @@ public final class ChargerGameTests {
         ServerPlayer ahead = cast.player(4.5, 12.5);
         skills(charger).setLevel(Skill.CHARGER, 100);
         charger.setDeltaMovement(Vec3.ZERO);
-        helper.assertTrue(ActiveService.activate(charger, Skill.CHARGER) == null, "Charge! did not start");
+        helper.assertTrue(ActiveService.activate(GameTestRoots.open(charger, Skill.CHARGER), Skill.CHARGER) == null, "Charge! did not start");
         helper.assertTrue(charger.getDeltaMovement().z > 1.0, "Charge! did not dash forward");
         helper.assertTrue(behind.hasEffect(MobEffects.MOVEMENT_SPEED), "the friend behind got no war cry");
         helper.assertTrue(!ahead.hasEffect(MobEffects.MOVEMENT_SPEED), "the friend ahead got the war cry");
@@ -527,7 +527,7 @@ public final class ChargerGameTests {
         skills.setLevel(Skill.CHARGER, ActiveService.unlockLevel() + 5);
         Mob softened = zombie(helper, 4, 6);
         softened.setHealth(softened.getMaxHealth() * 0.5f);
-        helper.assertTrue(ActiveService.activate(charger, Skill.CHARGER) == null, "Charge! did not start");
+        helper.assertTrue(ActiveService.activate(GameTestRoots.open(charger, Skill.CHARGER), Skill.CHARGER) == null, "Charge! did not start");
         charger.setDeltaMovement(Vec3.ZERO);
         cast.move(charger, 4.5, 4.5);
         float before = softened.getHealth();

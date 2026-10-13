@@ -2,6 +2,20 @@ package dev.amman.proficiency.net;
 
 import dev.amman.proficiency.Proficiency;
 import dev.amman.proficiency.ProficiencyAttachments;
+import dev.amman.proficiency.hearth.HearthHooks;
+import dev.amman.proficiency.hearth.net.HearthClients;
+import dev.amman.proficiency.hearth.net.HearthGainPayload;
+import dev.amman.proficiency.hearth.net.HearthHudPayload;
+import dev.amman.proficiency.hearth.net.HearthLedgerPayload;
+import dev.amman.proficiency.hearth.net.HearthPingPayload;
+import dev.amman.proficiency.hearth.net.HearthRequestPayload;
+import dev.amman.proficiency.hearth.net.HearthStatePayload;
+import dev.amman.proficiency.hearth.net.HearthTalesPayload;
+import dev.amman.proficiency.hearth.net.HearthTrackerPayload;
+import dev.amman.proficiency.hearth.net.SiegePanelPayload;
+import dev.amman.proficiency.homebuilder.net.HomebuilderActionPayload;
+import dev.amman.proficiency.homebuilder.net.HomebuilderNet;
+import dev.amman.proficiency.homebuilder.net.HomebuilderPayload;
 import dev.amman.proficiency.net.codec.StreamCodec;
 import dev.amman.proficiency.skill.Skill;
 import net.minecraft.network.FriendlyByteBuf;
@@ -17,18 +31,23 @@ import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
 /**
- * The mod's one Forge {@link SimpleChannel}, carrying master's nine payloads with master's own
- * encoders (see {@link StreamCodec}). NeoForge 1.21 registers each payload as its own channel;
+ * The mod's one Forge {@link SimpleChannel}, carrying master's payloads with master's own
+ * encoders (see {@link StreamCodec}), the Hearth's and Homebuilder's included. NeoForge 1.21 registers each payload as its own channel;
  * Forge 1.20.1 multiplexes them by index over one, so the index order below is the wire format.
  */
 public final class ProficiencyNetwork {
 
     /**
      * Version 2: DiscoveryPayload gained a trailing string. Version 3: the sync packet carries the
-     * running frenzies and the death recap packet exists. Version 4: the proc effect packet. A mismatched pair must fail at
-     * negotiation, not in readUtf.
+     * running frenzies and the death recap packet exists. Version 4: the proc effect packet. Version 5:
+     * Mastery stars. Version 6: rested XP. Version 7: the Hearth's payloads (hearth_state, hearth_tracker,
+     * hearth_gain, hearth_ledger, siege_panel, hearth_ping, hearth_hud, hearth_tales, hearth_request) and
+     * Homebuilder's (homebuilder, homebuilder_action), appended after the older ones, plus the Hearth's
+     * block, block entity and items. Version 8: Expertise (the sync packet carries its ranks; the
+     * expertise payload, appended last). Version 9: the crit talents and the Leaping Blade synergy
+     * in the shared talent table. A mismatched pair must fail at negotiation, not in readUtf.
      */
-    private static final String PROTOCOL = "6";
+    public static final String PROTOCOL = "9";
 
     /**
      * Accepts a peer without the channel. Do not read this as "the mod is optional on the
@@ -58,6 +77,54 @@ public final class ProficiencyNetwork {
         toServer(ActivateAbilityPayload.class, ActivateAbilityPayload.STREAM_CODEC,
                 ProficiencyNetwork::onActivate);
         toServer(UnlockPerkPayload.class, UnlockPerkPayload.STREAM_CODEC, ProficiencyNetwork::onUnlock);
+        // Protocol 7, the Hearth and Homebuilder (docs/HEARTH-FORGE-CONTRACT.md, "Payloads"). Appended:
+        // the index order is the wire format, so the older payloads keep their numbers.
+        registerHearth();
+        // Protocol 8, Expertise. Appended after the Hearth's, so every older payload keeps its index.
+        toServer(ExpertisePayload.class, ExpertisePayload.STREAM_CODEC, ProficiencyNetwork::onExpertise);
+    }
+
+    /**
+     * The Hearth's payloads. Client handlers run on the client thread and go to the installed
+     * {@code HearthClient} ({@code HearthClients}, a no-op until the client lane sets its own) or to
+     * {@code HomebuilderNet.client()}; requests go to {@code HearthHooks.REQUEST} and
+     * {@code HomebuilderEvents.onAction} on the server thread.
+     */
+    private static void registerHearth() {
+        toClient(HearthStatePayload.class, HearthStatePayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> HearthClients.get().onState(payload)));
+        toClient(HearthTrackerPayload.class, HearthTrackerPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> HearthClients.get().onTracker(payload)));
+        toClient(HearthGainPayload.class, HearthGainPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> HearthClients.get().onGains(payload)));
+        toClient(HearthLedgerPayload.class, HearthLedgerPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> HearthClients.get().onLedger(payload)));
+        toClient(SiegePanelPayload.class, SiegePanelPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> HearthClients.get().onSiegePanel(payload)));
+        toClient(HearthPingPayload.class, HearthPingPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> HearthClients.get().onPing(payload)));
+        toClient(HearthHudPayload.class, HearthHudPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> HearthClients.hud(payload)));
+        toClient(HearthTalesPayload.class, HearthTalesPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> HearthClients.get().onTales(payload)));
+        toServer(HearthRequestPayload.class, HearthRequestPayload.STREAM_CODEC, (payload, context) -> {
+            ServerPlayer player = context.getSender();
+            context.enqueueWork(() -> {
+                if (player != null) {
+                    HearthHooks.onRequest(player, payload);
+                }
+            });
+        });
+        toClient(HomebuilderPayload.class, HomebuilderPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> HomebuilderNet.client().accept(payload)));
+        toServer(HomebuilderActionPayload.class, HomebuilderActionPayload.STREAM_CODEC, (payload, context) -> {
+            ServerPlayer player = context.getSender();
+            context.enqueueWork(() -> {
+                if (player != null) {
+                    dev.amman.proficiency.homebuilder.HomebuilderEvents.onAction(player, payload);
+                }
+            });
+        });
     }
 
     private static <T> void toClient(Class<T> type, StreamCodec<FriendlyByteBuf, T> codec,
@@ -126,7 +193,10 @@ public final class ProficiencyNetwork {
     }
 
     private static void onProcFx(ProcFxPayload payload, NetworkEvent.Context context) {
-        context.enqueueWork(() -> dev.amman.proficiency.client.ProcFxPlayer.accept(payload));
+        context.enqueueWork(() -> {
+            dev.amman.proficiency.client.ProcFxPlayer.accept(payload);
+            dev.amman.proficiency.client.ProcCallout.accept(payload);
+        });
     }
 
     /** To every client within 48 blocks of the player or of the effect, the player included. */
@@ -186,9 +256,43 @@ public final class ProficiencyNetwork {
         });
     }
 
+    private static void onExpertise(ExpertisePayload payload, NetworkEvent.Context context) {
+        ServerPlayer player = context.getSender();
+        context.enqueueWork(() -> {
+            if (player == null) {
+                return;
+            }
+            dev.amman.proficiency.perk.TalentService.Attempt attempt;
+            if (payload.action() == ExpertisePayload.RESPEC) {
+                attempt = dev.amman.proficiency.perk.ExpertiseService.respec(player);
+                player.sendSystemMessage(attempt.message());
+            } else {
+                var node = dev.amman.proficiency.perk.Expertise.byId(payload.node());
+                if (node == null) {
+                    return;
+                }
+                attempt = dev.amman.proficiency.perk.ExpertiseService.tryInvest(player, node);
+                player.displayClientMessage(attempt.message(), true);
+            }
+            if (attempt.ok()) {
+                sendFullSync(player);
+            }
+        });
+    }
+
     /** Client to server: the ability key and the wheel. */
     public static void sendToServer(Object payload) {
         CHANNEL.sendToServer(payload);
+    }
+
+    /**
+     * Server to one client, skipped when that client lacks the channel (or is a GameTest mock player):
+     * the Hearth's and Homebuilder's sends go through here.
+     */
+    public static void sendIfPresent(ServerPlayer player, Object payload) {
+        if (canReceive(player)) {
+            send(player, payload);
+        }
     }
 
     private static void send(ServerPlayer player, Object payload) {
@@ -326,7 +430,7 @@ public final class ProficiencyNetwork {
      * Sending a payload the far end never negotiated throws, which would tear the exception straight
      * out of whatever event handler was granting the XP. Ask first.
      */
-    private static boolean canReceive(ServerPlayer player) {
+    public static boolean canReceive(ServerPlayer player) {
         // A GameTest mock player's connection has no netty channel at all.
         return player.connection != null && player.connection.connection.channel() != null
                 && CHANNEL.isRemotePresent(player.connection.connection);

@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    { "id": "#mcwfurnitures:bookshelf", "required": false },
+    { "id": "#mcwfurnitures:bookshelf_cupboard", "required": false },
+    { "id": "#mcwfurnitures:bookshelf_drawer", "required": false },
+    { "id": "#mcwfurnitures:lower_bookshelf_drawer", "required": false }
+  ]
+}

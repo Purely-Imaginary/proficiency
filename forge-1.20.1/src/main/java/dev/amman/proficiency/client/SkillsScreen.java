@@ -59,6 +59,9 @@ public final class SkillsScreen extends Screen {
 
     /** Opens the Discovery journal. Drawn by hand after the panel, see render. */
     private net.minecraft.client.gui.components.Button journalButton;
+    /** Opens the Expertise tree, top left. Drawn by hand like the Journal button. */
+    private net.minecraft.client.gui.components.Button expertiseButton;
+    private int expertiseWidth = 60;
 
     private int panelX;
     private int panelY;
@@ -70,6 +73,9 @@ public final class SkillsScreen extends Screen {
     /** The streak block's pairs of texts stacked on two lines when they do not fit side by side. */
     private boolean stackTitle;
     private boolean stackNext;
+    /** The streak block while held at a Hearth: its area, for the "Stacks safe" tooltip. */
+    private final int[] streakHeld = new int[4];
+    private boolean streakHeldShown;
     private int streakHeight = STREAK_HEIGHT;
     private final TextFit.Hovers hovers = new TextFit.Hovers();
     /** Height of the scrolling body (skill columns) actually shown, and how far it is scrolled. */
@@ -124,6 +130,8 @@ public final class SkillsScreen extends Screen {
         }
 
         buttonWidth = Math.max(60, this.font.width(Component.translatable("proficiency.journal.button")) + 12);
+        Component expertiseLabel = expertiseLabel();
+        expertiseWidth = Math.max(60, this.font.width(expertiseLabel) + 12);
         measureStreak(panelWidth - PADDING * 2);
 
         int leftRows = countRows(LEFT);
@@ -147,6 +155,9 @@ public final class SkillsScreen extends Screen {
                         Component.translatable("proficiency.journal.button"),
                         button -> this.minecraft.setScreen(new DiscoveryJournalScreen(this)))
                 .bounds(panelX + panelWidth - PADDING - buttonWidth, panelY + PADDING - 3, buttonWidth, 14).build());
+        expertiseButton = addWidget(net.minecraft.client.gui.components.Button.builder(expertiseLabel,
+                        button -> this.minecraft.setScreen(new ExpertiseScreen(this)))
+                .bounds(panelX + PADDING, panelY + PADDING - 3, expertiseWidth, 14).build());
         rows.clear();
         if (columns == 2) {
             layoutColumn(LEFT, panelX + PADDING, columnWidth, 0);
@@ -166,6 +177,7 @@ public final class SkillsScreen extends Screen {
         int capLabel = this.font.width(Component.translatable("proficiency.streak.cap", cap));
         int next = Math.max(this.font.width(Component.translatable("proficiency.streak.next", cap, 99)),
                 this.font.width(Component.translatable("proficiency.streak.next_max")));
+        next = Math.max(next, StreakAtHearth.GLYPH_WIDTH + 1 + this.font.width(StreakAtHearth.caption(cap)));
         int value = this.font.width(Component.translatable("proficiency.streak.value", cap, cap));
         stackTitle = title + capLabel + 8 > width;
         stackNext = next + value + 8 > width;
@@ -190,6 +202,24 @@ public final class SkillsScreen extends Screen {
             }
         }
         return new int[] {0, 0};
+    }
+
+    /** "Expertise", or "Expertise +4" while points wait to be spent. */
+    private Component expertiseLabel() {
+        PlayerSkills skills = playerSkills();
+        int free = skills == null ? 0 : skills.expertiseAvailable();
+        return free > 0 ? Component.translatable("proficiency.expertise.button.free", free)
+                : Component.translatable("proficiency.expertise.button");
+    }
+
+    /** Centre of the Expertise button; the layout demo uses it. */
+    int[] expertisePoint() {
+        return new int[] {panelX + PADDING + expertiseWidth / 2, panelY + PADDING + 4};
+    }
+
+    /** Screen position of the streak block's caption (the layout demo points at it at a Hearth). */
+    int[] streakPoint() {
+        return new int[] {panelX + PADDING + 4, panelY + panelHeight - PADDING - 4};
     }
 
     private int countRows(List<SkillCategory> categories) {
@@ -223,15 +253,23 @@ public final class SkillsScreen extends Screen {
         graphics.fill(panelX, panelY, panelX + panelWidth, panelY + panelHeight, SkillPalette.PANEL);
         drawBorder(graphics, panelX, panelY, panelWidth, panelHeight, SkillPalette.PANEL_BORDER);
 
-        // The title is centred on the panel unless the Journal button would touch it.
+        // The title is centred on the panel unless a button would touch it: Expertise on the left,
+        // the Journal on the right.
         int titleWidth = this.font.width(this.title);
         int titleLeft = panelX + (panelWidth - titleWidth) / 2;
+        int titleMin = panelX + PADDING + expertiseWidth + 6;
         int titleLimit = panelX + panelWidth - PADDING - buttonWidth - 6;
         if (titleLeft + titleWidth > titleLimit) {
-            titleLeft = Math.max(panelX + PADDING, titleLimit - titleWidth);
+            titleLeft = titleLimit - titleWidth;
         }
-        TextFit.draw(graphics, this.font, "panel.title", this.title.getString(), titleLeft, panelY + PADDING,
-                titleLimit - titleLeft, SkillPalette.TEXT, false);
+        titleLeft = Math.max(titleMin, titleLeft);
+        // In a narrow panel the two buttons leave no room: the title is left out, not cut.
+        if (titleLeft + titleWidth <= titleLimit) {
+            TextFit.draw(graphics, this.font, "panel.title", this.title.getString(), titleLeft, panelY + PADDING,
+                    titleLimit - titleLeft, SkillPalette.TEXT, false);
+        } else {
+            TextFit.note("panel.title_hidden");
+        }
 
         PlayerSkills skills = playerSkills();
         int bodyTop = panelY + PADDING + HEADER_HEIGHT;
@@ -276,11 +314,16 @@ public final class SkillsScreen extends Screen {
         }
         drawStreak(graphics, skills);
         journalButton.render(graphics, mouseX, mouseY, partialTick);
+        expertiseButton.render(graphics, mouseX, mouseY, partialTick);
         if (hovered != null && skills != null) {
             TextFit.tooltip(graphics, this.font, tooltip(hovered.skill(), skills), mouseX, mouseY,
                     Math.min(300, this.width - 16));
         } else {
             List<Component> full = hovers.at(mouseX, mouseY);
+            if (full == null && streakHeldShown && mouseX >= streakHeld[0] && mouseX < streakHeld[0] + streakHeld[2]
+                    && mouseY >= streakHeld[1] && mouseY < streakHeld[1] + streakHeld[3]) {
+                full = StreakAtHearth.tooltip();
+            }
             if (full != null) {
                 TextFit.tooltip(graphics, this.font, full, mouseX, mouseY, Math.min(300, this.width - 16));
             }
@@ -469,10 +512,19 @@ public final class SkillsScreen extends Screen {
         float step = skills == null ? 0f : SurvivalStreak.stepProgress(skills);
         float fill = skills == null ? 0f : SurvivalStreak.capFill(skills);
         int accent = capped ? SkillPalette.MAXED : SkillPalette.TEXT;
+        // At a Hearth the streak is held: stacks safe, none earned (the server's HUD flag).
+        boolean held = StreakAtHearth.held(off, capped);
 
         int left = panelX + PADDING;
         int width = panelWidth - PADDING * 2;
         int top = panelY + panelHeight - PADDING - streakHeight + 2;
+        streakHeldShown = held;
+        if (held) {
+            streakHeld[0] = left;
+            streakHeld[1] = top - 2;
+            streakHeld[2] = width;
+            streakHeld[3] = streakHeight - 2;
+        }
 
         graphics.fill(left, top - 3, left + width, top - 2, SkillPalette.PANEL_BORDER);
         // Each pair (title and cap, next and value) shares a line when both fit, else the second
@@ -489,7 +541,7 @@ public final class SkillsScreen extends Screen {
         int barTop = top + 12;
         int rightLeft = left + width - barWidth;
         drawStreakBar(graphics, left, barTop, barWidth, step,
-                capped ? SkillPalette.MAXED : SkillPalette.accent(SkillCategory.GATHERING));
+                capped ? SkillPalette.MAXED : held ? StreakAtHearth.HELD_BAR : SkillPalette.accent(SkillCategory.GATHERING));
         drawStreakBar(graphics, rightLeft, barTop, barWidth, fill,
                 capped ? SkillPalette.MAXED : SkillPalette.accent(SkillCategory.MOVEMENT));
         // The cap tick sits on the end of the second bar, over the fill, so 50 reads as the maximum.
@@ -498,11 +550,20 @@ public final class SkillsScreen extends Screen {
 
         Component next = capped || off
                 ? Component.translatable("proficiency.streak.next_max")
+                : held ? StreakAtHearth.caption(percent + 1)
                 : Component.translatable("proficiency.streak.next", percent + 1,
                         (int) Math.floor(step * 100));
         Component now = Component.translatable("proficiency.streak.value", percent, cap);
-        pair(graphics, next, SkillPalette.TEXT_DIM, now, SkillPalette.TEXT_DIM, left,
-                barTop + STREAK_BAR_HEIGHT + 3, width, stackNext);
+        int captionY = barTop + STREAK_BAR_HEIGHT + 3;
+        if (held) {
+            // The Warmth glyph leads the caption; the pair keeps its right edge.
+            StreakAtHearth.drawGlyph(graphics, this.font, left, captionY);
+            int shift = StreakAtHearth.GLYPH_WIDTH + 1;
+            pair(graphics, next, SkillPalette.TEXT_DIM, now, SkillPalette.TEXT_DIM, left + shift, captionY,
+                    width - shift, stackNext);
+        } else {
+            pair(graphics, next, SkillPalette.TEXT_DIM, now, SkillPalette.TEXT_DIM, left, captionY, width, stackNext);
+        }
     }
 
     /** Two texts on one line, the second flush right, or stacked (first, then second below it). */
@@ -578,6 +639,12 @@ public final class SkillsScreen extends Screen {
                             Component.translatable(skill.procKey()),
                             (int) Math.round(procChance * 100))
                     .withStyle(ChatFormatting.LIGHT_PURPLE));
+            lines.add(Component.translatable(skill.procDescKey()).withStyle(ChatFormatting.GRAY));
+        } else if (dev.amman.proficiency.config.ProficiencyConfig.procsEnabled()
+                && level >= dev.amman.proficiency.config.ProficiencyConfig.procUnlockLevel()
+                && !skills.rootOpen(skill)) {
+            lines.add(Component.translatable("proficiency.tooltip.proc_root", SkillNumbers.rootName(skill))
+                    .withStyle(ChatFormatting.DARK_PURPLE));
             lines.add(Component.translatable(skill.procDescKey()).withStyle(ChatFormatting.GRAY));
         } else if (dev.amman.proficiency.config.ProficiencyConfig.procsEnabled()
                 && level < dev.amman.proficiency.config.ProficiencyConfig.procUnlockLevel()) {

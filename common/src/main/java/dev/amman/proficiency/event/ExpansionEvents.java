@@ -154,7 +154,7 @@ public final class ExpansionEvents {
      * designer wants. No XP here on purpose: anything that paid out for standing still would be
      * farmed by leaving a client logged in overnight.
      */
-    private static void cozyRoom(ServerPlayer player) {
+    public static void cozyRoom(ServerPlayer player) {
         int decorating = ProficiencyAttachments.of(player).level(Skill.DECORATING);
         if (decorating < COZY_MIN_LEVEL) {
             return;
@@ -182,6 +182,7 @@ public final class ExpansionEvents {
         // Tastemaker: the room is good enough to be worth more than a slow heal.
         boolean tastemaker = TalentService.rank(player, Skill.DECORATING, "tastemaker") > 0;
         warm(player, tastemaker);
+        housewarming(player);
 
         // The Host: guests standing in your room get what you get. Nothing is paid for it, so
         // there is nothing to farm.
@@ -196,6 +197,25 @@ public final class ExpansionEvents {
             }
         }
     }
+
+    /** Housewarming: every sixth warm pulse at home (30 s) feeds the warmed player one hunger. A guest gets none. */
+    private static void housewarming(ServerPlayer player) {
+        if (!TalentService.hasSynergy(player, "housewarming")
+                || !dev.amman.proficiency.hearth.HearthRange.isHome(player)) {
+            return;
+        }
+        if (HOUSEWARMING_PULSES.merge(player.getUUID(), 1, Integer::sum) < HOUSEWARMING_EVERY) {
+            return;
+        }
+        HOUSEWARMING_PULSES.put(player.getUUID(), 0);
+        player.getFoodData().eat(1, 1.0f);
+        player.serverLevel().sendParticles(ParticleTypes.HAPPY_VILLAGER, player.getX(), player.getY() + 1.0,
+                player.getZ(), 3, 0.3, 0.4, 0.3, 0.0);
+    }
+
+    /** A guess, to tune after a play test: 2 hunger a minute, under a walking player's drain. */
+    private static final int HOUSEWARMING_EVERY = 6;
+    private static final Map<UUID, Integer> HOUSEWARMING_PULSES = new ConcurrentHashMap<>();
 
     private static void warm(ServerPlayer player, boolean tastemaker) {
         player.addEffect(new MobEffectInstance(
@@ -301,11 +321,13 @@ public final class ExpansionEvents {
         }
         ENTRY_COOLDOWN.forget(event.getEntity().getUUID());
         STREAKS.remove(event.getEntity().getUUID());
+        HOUSEWARMING_PULSES.remove(event.getEntity().getUUID());
         LAST_CAST.remove(event.getEntity().getUUID());
         // Finding 8: this cache had a cleanup method that nothing ever called.
         dev.amman.proficiency.skill.CompanyBonus.forget(event.getEntity().getUUID());
         dev.amman.proficiency.skill.Tempo.forget(event.getEntity().getUUID());
         dev.amman.proficiency.event.CombatEvents.forget(event.getEntity().getUUID());
+        dev.amman.proficiency.event.CritEvents.forget(event.getEntity().getUUID());
         ProcService.forget(event.getEntity().getUUID());
     }
 
@@ -325,10 +347,35 @@ public final class ExpansionEvents {
         dev.amman.proficiency.skill.PlacedBlocks.clearRefunded(player.serverLevel(), event.getPos());
         // Every player placement is remembered, creative and machines included, so breaking it again pays nothing.
         dev.amman.proficiency.skill.PlacedBlocks.markPlacement(player.serverLevel(), event.getPos(), event.getPlacedBlock());
+        steeplejack(player);
         if (player.isCreative()) {
             return;
         }
         placedSurvival(player, event.getPlacedBlock(), event.getPos());
+    }
+
+    private static final float STEEPLEJACK_FALL = 3.0f;
+    private static final long STEEPLEJACK_COOLDOWN = 100;
+    private static final Map<UUID, Long> STEEPLEJACK_READY_AT = new ConcurrentHashMap<>();
+
+    /**
+     * Steeplejack (Jumping + Masonry): a block placed while falling three blocks or more stops the
+     * fall, once per five seconds. Ahead of the pay path and of the creative guard: it pays nothing.
+     */
+    public static boolean steeplejack(ServerPlayer player) {
+        if (player.fallDistance < STEEPLEJACK_FALL || !TalentService.hasSynergy(player, "steeplejack")) {
+            return false;
+        }
+        long now = player.level().getGameTime();
+        Long readyAt = STEEPLEJACK_READY_AT.get(player.getUUID());
+        if (readyAt != null && now < readyAt) {
+            return false;
+        }
+        STEEPLEJACK_READY_AT.put(player.getUUID(), now + STEEPLEJACK_COOLDOWN);
+        player.resetFallDistance();
+        player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
+                net.minecraft.sounds.SoundEvents.SCAFFOLDING_PLACE, net.minecraft.sounds.SoundSource.PLAYERS, 0.8f, 1.0f);
+        return true;
     }
 
     /** One paid placement per tick, and a human pace over a second: see {@link PlacementThrottle}. */
@@ -964,7 +1011,8 @@ public final class ExpansionEvents {
         SkillService.grant(player, killRule.rule().skill, xp * dev.amman.proficiency.skill.SpawnOrigin.xpFactor(victim),
                 victim.getType().getDescriptionId());
 
-        if (isNotableBoss(victim)) {
+        if (isNotableBoss(victim)
+                && dev.amman.proficiency.ProficiencyAttachments.of(player).rootOpen(Skill.BEASTSLAYING)) {
             // Killing a Cataclysm or Twilight Forest boss is not the same event as killing a
             // modded chicken, and it should not roll the same dice.
             ProcService.celebrate((ServerPlayer) player, Skill.BEASTSLAYING);

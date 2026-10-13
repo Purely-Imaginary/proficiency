@@ -16,9 +16,14 @@ public final class OverlayFallback {
 
     /**
      * For an action-bar message: when it is one of ours and too wide, put it in the chat and
-     * answer true, and the loader drops the action-bar copy.
+     * answer true, and the loader drops the action-bar copy. Also answers true for the Hearth's
+     * tier-up chat line while the Hearth tracker may show the same moment ({@code HearthChat} holds it
+     * and lets it through a little later if the tracker does not).
      */
     public static boolean reroute(Component message, boolean overlay) {
+        if (dev.amman.proficiency.hearth.client.HearthChat.hold(message, overlay)) {
+            return true;
+        }
         if (overlay && tooWide(message)) {
             Minecraft.getInstance().gui.getChat().addMessage(message);
             return true;

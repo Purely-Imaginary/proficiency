@@ -29,6 +29,11 @@ public final class NeoForgeGameTests {
             CourageGameTests.class,
             GuardianGameTests.class,
             ChargerGameTests.class,
+            SynergyMeleeGameTests.class,
+            CritGameTests.class,
+            SynergyRangedGameTests.class,
+            SynergyGatherGameTests.class,
+            SynergyMoveGameTests.class,
             TacticianGameTests.class,
             KillBonusGameTests.class,
             XpSourcesGameTests.class,
@@ -36,7 +41,19 @@ public final class NeoForgeGameTests {
             NeoForgeToolGameTests.class,
             ExploitGameTests.class,
             MasteryGameTests.class,
-            RestedGameTests.class);
+            ExpertiseGameTests.class,
+            RestedGameTests.class,
+            HearthGameTests.class,
+            NeoForgeHearthGameTests.class,
+            HearthStagesGameTests.class,
+            HearthChargeGameTests.class,
+            HearthComfortGameTests.class,
+            HomebuilderGameTests.class,
+            TalesGameTests.class,
+            HearthEffectsGameTests.class,
+            SiegeGameTests.class,
+            HearthIntegrationGameTests.class,
+            NeoForgeHearthStagesGameTests.class);
 
     private NeoForgeGameTests() {
     }

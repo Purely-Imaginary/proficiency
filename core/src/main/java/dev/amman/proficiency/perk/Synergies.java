@@ -11,9 +11,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static dev.amman.proficiency.perk.PerkEffect.ABILITY_DURATION;
 import static dev.amman.proficiency.perk.PerkEffect.BONUS;
 import static dev.amman.proficiency.perk.PerkEffect.PROC_CHANCE;
 import static dev.amman.proficiency.perk.PerkEffect.PROC_POWER;
+import static dev.amman.proficiency.perk.PerkEffect.TEMPO;
 import static dev.amman.proficiency.perk.PerkEffect.XP_RATE;
 import static dev.amman.proficiency.skill.Skill.*;
 
@@ -113,6 +115,279 @@ public final class Synergies {
                 grants(TACTICIAN, PROC_CHANCE, 1.10, GUARDIAN, BONUS, 1.10), "covering_fire");
         add("master_builder", needs(MASONRY, "master_mason", 1, DECORATING, "master_decorator", 1),
                 grants(MASONRY, BONUS, 1.20, DECORATING, BONUS, 1.20), null);
+        // Heart of the Home (docs/HOMEBUILDER-SPEC.md): the keeper of the home and the heart of the
+        // group. A Feast at a Hearth counts as a House Proud for everyone at it (the shared passive
+        // for 30 s, no cooldown used); see homebuilder.HouseProud.
+        add("heart_of_home", needs(HOMEBUILDER, "open_house", 3, SOCIAL, "heart_of_the_group", 1),
+                grants(HOMEBUILDER, BONUS, 1.10, SOCIAL, XP_RATE, 1.10), "heart_of_home");
+
+        // Synergies 2 (docs/SYNERGIES-2-SPEC.md): about ten per tree. `null /* Bn:id */` marks a bespoke one
+        // whose behaviour a later batch wires in; its special tag equals its id.
+        add("turn_and_thrust", needs(SWORDS, "parry", 3, BLOCKING, "counter", 5),
+                grants(SWORDS, PROC_CHANCE, 1.10, BLOCKING, XP_RATE, 1.10), "turn_and_thrust");
+        add("cavalry_blade", needs(SWORDS, "keen_edge", 5, CHARGER, "first_in", 5),
+                grants(SWORDS, BONUS, 1.10, CHARGER, XP_RATE, 1.10), null);
+        add("bloodied_steel", needs(SWORDS, "vampiric_edge", 3, ENDURANCE, "adrenal_mend", 3),
+                grants(SWORDS, XP_RATE, 1.10, ENDURANCE, XP_RATE, 1.10), null);
+        add("single_combat", needs(SWORDS, "duelist", 1, COURAGE, "challenge", 3),
+                grants(SWORDS, PROC_POWER, 1.10, COURAGE, XP_RATE, 1.10), "single_combat");
+        add("quiet_blade", needs(SNEAKING, "backstab", 3, SWORDS, "opening", 5),
+                grants(SWORDS, PROC_CHANCE, 1.10, SNEAKING, BONUS, 1.05), null);
+        add("bladesmith", needs(SMITHING, "weaponwright", 1, SWORDS, "keen_edge", 3),
+                grants(SWORDS, BONUS, 1.05, SMITHING, XP_RATE, 1.05), null);
+        add("moonblade", needs(SWORDS, "hemorrhage", 3, NIGHTWALKER, "silver_light", 3),
+                grants(SWORDS, PROC_POWER, 1.10, NIGHTWALKER, PROC_CHANCE, 1.10), null);
+        add("armsmaster", needs(SWORDS, "battle_trance", 2, AXES, "rampage", 2, MACES, "bell_ringer", 2),
+                grants(SWORDS, ABILITY_DURATION, 1.10, AXES, ABILITY_DURATION, 1.10, MACES, ABILITY_DURATION, 1.10), null);
+        add("berserkergang", needs(AXES, "berserker", 3, ENDURANCE, "scar_tissue", 3),
+                grants(AXES, PROC_POWER, 1.10, ENDURANCE, BONUS, 1.05), null);
+        add("red_mist", needs(AXES, "bloodrush", 3, COURAGE, "hot_blood", 5),
+                grants(AXES, PROC_CHANCE, 1.10, COURAGE, BONUS, 1.10), null);
+        add("reavers_rush", needs(AXES, "sunder", 3, CHARGER, "breakthrough", 5),
+                grants(AXES, BONUS, 1.05, CHARGER, PROC_CHANCE, 1.10), "reavers_rush");
+        add("shieldbreaker", needs(AXES, "heavy_blows", 5, BLOCKING, "shield_bash", 3),
+                grants(AXES, XP_RATE, 1.10, BLOCKING, PROC_CHANCE, 1.10), null);
+        add("headtaker", needs(AXES, "headsman", 3, BEASTSLAYING, "trophy_hunter", 5),
+                grants(AXES, PROC_POWER, 1.10, BEASTSLAYING, PROC_CHANCE, 1.10), null);
+        add("wolfs_hour", needs(AXES, "bloodlust", 5, NIGHTWALKER, "moonrise", 5),
+                grants(AXES, PROC_CHANCE, 1.05, NIGHTWALKER, XP_RATE, 1.10), null);
+        add("raider", needs(AXES, "bloodrush", 2, RUNNING, "adrenaline", 3),
+                grants(AXES, XP_RATE, 1.10, RUNNING, PROC_POWER, 1.10), null);
+        add("falling_hammer", needs(MACES, "meteor", 3, JUMPING, "stomp", 3),
+                grants(MACES, PROC_POWER, 1.10, JUMPING, XP_RATE, 1.10), "falling_hammer");
+        add("anvil_body", needs(MACES, "crushing", 5, ENDURANCE, "iron_constitution", 5),
+                grants(MACES, BONUS, 1.05, ENDURANCE, ABILITY_DURATION, 1.10), null);
+        add("quarry_hammer", needs(MACES, "tremor", 5, MINING, "efficiency", 3),
+                grants(MACES, PROC_CHANCE, 1.10, MINING, XP_RATE, 1.10), null);
+        add("battering_ram", needs(MACES, "concussion", 3, CHARGER, "crash_in", 3),
+                grants(MACES, XP_RATE, 1.10, CHARGER, PROC_POWER, 1.10), null);
+        add("war_bell", needs(MACES, "bell_ringer", 3, COURAGE, "war_drums", 3),
+                grants(MACES, PROC_POWER, 1.05, COURAGE, PROC_CHANCE, 1.10), null);
+        add("smiths_maul", needs(MACES, "aftershock", 3, SMITHING, "temper", 3),
+                grants(MACES, XP_RATE, 1.10, SMITHING, BONUS, 1.10), null);
+        add("earthbound_oath", needs(MACES, "cratermaker", 1, GUARDIAN, "hold_fast", 2),
+                grants(GUARDIAN, XP_RATE, 1.10, MACES, ABILITY_DURATION, 1.10), "earthbound_oath");
+        add("harpooneer", needs(TRIDENTS, "undertow", 3, FISHING, "deep_waters", 3),
+                grants(TRIDENTS, PROC_POWER, 1.10, FISHING, XP_RATE, 1.10), "harpooneer");
+        add("undercurrent", needs(TRIDENTS, "riptide_surge", 2, SWIMMING, "riptide_kick", 2),
+                grants(TRIDENTS, ABILITY_DURATION, 1.10, SWIMMING, ABILITY_DURATION, 1.10), null);
+        add("stormcaller", needs(TRIDENTS, "conductor", 1, SPELLCASTING, "overcharge", 3),
+                grants(TRIDENTS, PROC_CHANCE, 1.10, SPELLCASTING, PROC_POWER, 1.10), null);
+        add("sea_wolf", needs(TRIDENTS, "impaler", 3, COURAGE, "unshaken", 3),
+                grants(TRIDENTS, XP_RATE, 1.10, COURAGE, BONUS, 1.05), null);
+        add("deep_sea_slayer", needs(TRIDENTS, "skewer", 3, BEASTSLAYING, "giant_slayer", 2),
+                grants(TRIDENTS, PROC_POWER, 1.05, BEASTSLAYING, BONUS, 1.10), null);
+        add("boarding_party", needs(TRIDENTS, "true_aim", 5, CHARGER, "head_start", 3),
+                grants(TRIDENTS, BONUS, 1.05, CHARGER, XP_RATE, 1.10), null);
+        add("spear_volley", needs(TRIDENTS, "tidal_edge", 3, TACTICIAN, "spotter", 5),
+                grants(TACTICIAN, BONUS, 1.10, TRIDENTS, XP_RATE, 1.10), null);
+        add("mariner", needs(TRIDENTS, "deep_breath", 1, WAYFARING, "trailwise", 5, FISHING, "rain_dancer", 2),
+                grants(TRIDENTS, XP_RATE, 1.05, WAYFARING, BONUS, 1.10, FISHING, XP_RATE, 1.05), null);
+        add("iron_monk", needs(UNARMED, "iron_skin", 3, ENDURANCE, "roll_with_it", 3),
+                grants(UNARMED, BONUS, 1.05, ENDURANCE, PROC_CHANCE, 1.10), null);
+        add("nerve_strike", needs(SNEAKING, "backstab", 2, UNARMED, "one_inch_punch", 1),
+                grants(UNARMED, PROC_POWER, 1.10, SNEAKING, XP_RATE, 1.10), "nerve_strike");
+        add("flying_kick", needs(UNARMED, "haymaker", 5, JUMPING, "leap", 3),
+                grants(UNARMED, PROC_CHANCE, 1.10, JUMPING, BONUS, 1.05), null);
+        // A lunge off a jump: the crit Lunge forces lands harder still.
+        add("leaping_blade", needs(SWORDS, "lunge", 1, JUMPING, "high_jump", 3),
+                grants(SWORDS, PROC_POWER, 1.05, JUMPING, XP_RATE, 1.10), "leaping_blade");
+        add("tavern_hero", needs(UNARMED, "combo", 3, COURAGE, "battle_cry", 5),
+                grants(UNARMED, TEMPO, 1.15, COURAGE, XP_RATE, 1.10), null);
+        add("kitchen_brawler", needs(UNARMED, "iron_fist", 5, COOKING, "hearty", 3),
+                grants(UNARMED, XP_RATE, 1.10, COOKING, BONUS, 1.05), null);
+        add("drunken_fist", needs(UNARMED, "stagger", 3, ALCHEMY, "strong_brew", 3),
+                grants(UNARMED, PROC_CHANCE, 1.05, ALCHEMY, XP_RATE, 1.10), null);
+        add("open_palm", needs(UNARMED, "dragon_palm", 3, GUARDIAN, "mending_guard", 3),
+                grants(GUARDIAN, BONUS, 1.05, UNARMED, PROC_POWER, 1.10), null);
+        add("shoulder_charge", needs(UNARMED, "iron_fist", 3, CHARGER, "crash_in", 2),
+                grants(UNARMED, BONUS, 1.05, CHARGER, XP_RATE, 1.05), null);
+        add("pavise", needs(BLOCKING, "thorns", 3, CROSSBOWS, "kickback", 3),
+                grants(BLOCKING, XP_RATE, 1.10, CROSSBOWS, PROC_CHANCE, 1.10), "pavise");
+        add("unbroken_line", needs(BLOCKING, "tenacity", 3, COURAGE, "unyielding", 2),
+                grants(BLOCKING, BONUS, 1.05, COURAGE, ABILITY_DURATION, 1.10), null);
+        add("shieldwright", needs(BLOCKING, "spiked_rim", 2, SMITHING, "whetstone", 3),
+                grants(BLOCKING, PROC_POWER, 1.10, SMITHING, XP_RATE, 1.10), null);
+        add("shield_rush", needs(BLOCKING, "shield_bash", 2, CHARGER, "trust_the_line", 3),
+                grants(BLOCKING, PROC_CHANCE, 1.05, CHARGER, BONUS, 1.05), null);
+        add("hardtack", needs(COOKING, "comfort_food", 3, ENDURANCE, "lean_times", 2),
+                grants(ENDURANCE, XP_RATE, 1.05, COOKING, PROC_CHANCE, 1.05), null);
+        add("marathoner", needs(RUNNING, "endurance", 3, ENDURANCE, "deep_reserves", 3),
+                grants(RUNNING, BONUS, 1.05, ENDURANCE, PROC_POWER, 1.10), null);
+        add("play_dead", needs(SNEAKING, "shadowmeld", 2, ENDURANCE, "last_stand", 1),
+                grants(SNEAKING, PROC_POWER, 1.10, ENDURANCE, XP_RATE, 1.10), "play_dead");
+        add("moonshot", needs(ARCHERY, "eagle_eye", 5, NIGHTWALKER, "far_sight", 3),
+                grants(ARCHERY, PROC_CHANCE, 1.05, NIGHTWALKER, BONUS, 1.10), null);
+        add("shared_quarry", needs(ARCHERY, "hunters_mark", 3, TACTICIAN, "painted_target", 1),
+                grants(ARCHERY, XP_RATE, 1.10, TACTICIAN, PROC_CHANCE, 1.10), "shared_quarry");
+        add("hanging_shot", needs(ARCHERY, "skyhunter", 2, JUMPING, "feather_weight", 3),
+                grants(ARCHERY, BONUS, 1.05, JUMPING, XP_RATE, 1.10), "hanging_shot");
+        add("big_game_hunter", needs(ARCHERY, "longshot", 3, BEASTSLAYING, "monster_lore", 5),
+                grants(ARCHERY, PROC_POWER, 1.10, BEASTSLAYING, XP_RATE, 1.10), null);
+        add("ranger", needs(ARCHERY, "quiver", 3, WAYFARING, "pathfinder", 3),
+                grants(ARCHERY, XP_RATE, 1.05, WAYFARING, PROC_CHANCE, 1.10), "ranger");
+        add("twin_strings", needs(ARCHERY, "rain_of_arrows", 2, CROSSBOWS, "hair_trigger", 5),
+                grants(ARCHERY, ABILITY_DURATION, 1.10, CROSSBOWS, PROC_CHANCE, 1.05), null);
+        add("arcane_arrow", needs(ARCHERY, "deadeye", 1, SPELLCASTING, "arcane_focus", 5),
+                grants(ARCHERY, PROC_POWER, 1.05, SPELLCASTING, XP_RATE, 1.10), null);
+        add("boltwright", needs(SMITHING, "masterwork", 5, CROSSBOWS, "armor_piercer", 3),
+                grants(CROSSBOWS, PROC_POWER, 1.10, SMITHING, PROC_CHANCE, 1.05), null);
+        add("firing_line", needs(CROSSBOWS, "siege_crew", 2, TACTICIAN, "suppression", 2),
+                grants(CROSSBOWS, XP_RATE, 1.10, TACTICIAN, ABILITY_DURATION, 1.10), null);
+        add("arrow_slit", needs(CROSSBOWS, "quickload", 2, MASONRY, "cornerstone", 2, TACTICIAN, "headshot", 3),
+                grants(CROSSBOWS, BONUS, 1.05, MASONRY, XP_RATE, 1.10, TACTICIAN, PROC_POWER, 1.10), null);
+        add("snipers_nest", needs(SNEAKING, "unseen", 3, CROSSBOWS, "salvage", 3),
+                grants(CROSSBOWS, XP_RATE, 1.05, SNEAKING, PROC_CHANCE, 1.10), null);
+        add("sentry_post", needs(CROSSBOWS, "armor_piercer", 2, GUARDIAN, "taunt", 1),
+                grants(GUARDIAN, PROC_CHANCE, 1.05, CROSSBOWS, BONUS, 1.05), null);
+        add("dragonbolt", needs(CROSSBOWS, "ballista", 1, BEASTSLAYING, "boss_bane", 1),
+                grants(CROSSBOWS, PROC_POWER, 1.10, BEASTSLAYING, XP_RATE, 1.15), "dragonbolt");
+        add("tunneler", needs(MINING, "vein_miner", 3, EXCAVATION, "mole", 2),
+                grants(MINING, BONUS, 1.05, EXCAVATION, XP_RATE, 1.10), null);
+        add("steam_drill", needs(MINING, "rich_veins", 2, ENGINEERING, "overclock", 3),
+                grants(MINING, PROC_POWER, 1.10, ENGINEERING, XP_RATE, 1.10), null);
+        add("quarryman", needs(MINING, "prospector", 5, MASONRY, "stonecutter", 3),
+                grants(MINING, XP_RATE, 1.10, MASONRY, PROC_POWER, 1.10), null);
+        add("mineral_tincture", needs(MINING, "gem_cutter", 3, ALCHEMY, "brewers_eye", 3),
+                grants(MINING, PROC_POWER, 1.05, ALCHEMY, BONUS, 1.10), null);
+        add("lightless_seam", needs(MINING, "dark_sight", 1, NIGHTWALKER, "dark_adapted", 5),
+                grants(MINING, XP_RATE, 1.05, NIGHTWALKER, XP_RATE, 1.10), null);
+        add("seismic_survey", needs(MINING, "geologist", 3, SPELUNKING, "echolocation", 3, EXCAVATION, "archaeologist", 3),
+                grants(MINING, PROC_CHANCE, 1.05, SPELUNKING, XP_RATE, 1.10, EXCAVATION, PROC_CHANCE, 1.05), "seismic_survey");
+        add("orchard_keeper", needs(WOODCUTTING, "sapling_keeper", 3, FARMING, "fertile_soil", 3),
+                grants(WOODCUTTING, XP_RATE, 1.10, FARMING, BONUS, 1.05), "orchard_keeper");
+        add("charcoal_burner", needs(WOODCUTTING, "sawmill", 1, SMITHING, "forgefire", 2),
+                grants(SMITHING, PROC_CHANCE, 1.05, WOODCUTTING, PROC_POWER, 1.05), "charcoal_burner");
+        add("joinery", needs(WOODCUTTING, "heartwood", 3, DECORATING, "thrift_shop", 5),
+                grants(WOODCUTTING, BONUS, 1.05, DECORATING, XP_RATE, 1.10), null);
+        add("greenway", needs(WOODCUTTING, "woodland_stride", 2, WAYFARING, "fresh_air", 3),
+                grants(WAYFARING, PROC_CHANCE, 1.05, WOODCUTTING, ABILITY_DURATION, 1.10), null);
+        add("full_woodpile", needs(WOODCUTTING, "seasoned", 2, HOMEBUILDER, "kindling", 5),
+                grants(HOMEBUILDER, PROC_CHANCE, 1.10, WOODCUTTING, XP_RATE, 1.05), null);
+        add("smokehouse", needs(WOODCUTTING, "forager", 3, COOKING, "camp_kitchen", 1),
+                grants(COOKING, XP_RATE, 1.10, WOODCUTTING, PROC_CHANCE, 1.05), null);
+        add("timber_frame", needs(WOODCUTTING, "canopy", 1, MASONRY, "long_arm", 3),
+                grants(MASONRY, BONUS, 1.05, WOODCUTTING, PROC_POWER, 1.05), null);
+        add("topsoil", needs(EXCAVATION, "sifter", 3, FARMING, "seed_saver", 3),
+                grants(EXCAVATION, PROC_POWER, 1.10, FARMING, XP_RATE, 1.10), null);
+        add("potters_clay", needs(EXCAVATION, "quick_dig", 5, DECORATING, "inspiration", 5),
+                grants(EXCAVATION, XP_RATE, 1.10, DECORATING, PROC_CHANCE, 1.10), null);
+        add("groundwork", needs(EXCAVATION, "earthmover", 2, HOMEBUILDER, "scaffolder", 3),
+                grants(EXCAVATION, BONUS, 1.05, HOMEBUILDER, XP_RATE, 1.10), null);
+        add("deep_strata", needs(EXCAVATION, "fossil_hunter", 1, SPELUNKING, "deep_dweller", 3),
+                grants(EXCAVATION, XP_RATE, 1.10, SPELUNKING, BONUS, 1.10), null);
+        add("earthworks", needs(EXCAVATION, "landslide_lore", 5, ENGINEERING, "wrench_wizard", 3),
+                grants(EXCAVATION, PROC_CHANCE, 1.10, ENGINEERING, BONUS, 1.05), null);
+        add("dredger", needs(EXCAVATION, "wide_shovel", 1, SWIMMING, "aqua_eyes", 1),
+                grants(EXCAVATION, ABILITY_DURATION, 1.10, SWIMMING, XP_RATE, 1.10), "dredger");
+        add("herbalist", needs(FARMING, "harvest_moon", 5, ALCHEMY, "catalyst", 3),
+                grants(ALCHEMY, XP_RATE, 1.10, FARMING, PROC_CHANCE, 1.05), null);
+        add("barn_raising", needs(FARMING, "husbandry", 3, SOCIAL, "kinship", 2),
+                grants(FARMING, XP_RATE, 1.10, SOCIAL, BONUS, 1.05), null);
+        add("moon_garden", needs(FARMING, "harvest_festival", 2, NIGHTWALKER, "night_owl", 3),
+                grants(FARMING, PROC_POWER, 1.10, NIGHTWALKER, XP_RATE, 1.05), "moon_garden");
+        add("irrigation", needs(FARMING, "scythe", 1, ENGINEERING, "redstone_savant", 3),
+                grants(FARMING, ABILITY_DURATION, 1.10, ENGINEERING, PROC_CHANCE, 1.10), null);
+        add("flower_beds", needs(FARMING, "druid", 1, DECORATING, "feng_shui", 3),
+                grants(DECORATING, PROC_POWER, 1.10, FARMING, XP_RATE, 1.05), null);
+        add("shore_supper", needs(FISHING, "fresh_catch", 3, COOKING, "banquet", 3),
+                grants(FISHING, PROC_CHANCE, 1.05, COOKING, XP_RATE, 1.10), "shore_supper");
+        add("riverborn", needs(FISHING, "patient", 5, SWIMMING, "dolphin", 5),
+                grants(FISHING, BONUS, 1.05, SWIMMING, PROC_CHANCE, 1.10), null);
+        add("wandering_angler", needs(FISHING, "rain_dancer", 2, WAYFARING, "globetrotter", 2),
+                grants(FISHING, XP_RATE, 1.10, WAYFARING, ABILITY_DURATION, 1.10), null);
+        add("fishing_trip", needs(FISHING, "double_hook", 3, SOCIAL, "stay_a_while", 3),
+                grants(FISHING, PROC_CHANCE, 1.05, SOCIAL, XP_RATE, 1.10), "fishing_trip");
+        add("night_line", needs(FISHING, "old_salt", 2, NIGHTWALKER, "long_night", 2),
+                grants(FISHING, ABILITY_DURATION, 1.10, NIGHTWALKER, ABILITY_DURATION, 1.10), null);
+        add("brine_and_bottle", needs(FISHING, "sunken_treasure", 1, ALCHEMY, "distillery", 1),
+                grants(ALCHEMY, PROC_CHANCE, 1.10, FISHING, PROC_POWER, 1.05), null);
+        add("fish_story", needs(FISHING, "lucky_line", 3, HOMEBUILDER, "storyteller", 2),
+                grants(HOMEBUILDER, BONUS, 1.05, FISHING, XP_RATE, 1.05), null);
+        add("cutpurses_flight", needs(RUNNING, "escape_artist", 2, SNEAKING, "cat_landing", 3),
+                grants(SNEAKING, XP_RATE, 1.10, RUNNING, PROC_CHANCE, 1.05), null);
+        add("running_start", needs(RUNNING, "roadrunner", 2, JUMPING, "stomp", 2, CHARGER, "rolling_thunder", 3),
+                grants(CHARGER, PROC_POWER, 1.05, RUNNING, XP_RATE, 1.10, JUMPING, PROC_POWER, 1.10), null);
+        add("freerunner", needs(RUNNING, "parkour", 1, JUMPING, "bounce", 1),
+                grants(RUNNING, BONUS, 1.05, JUMPING, PROC_CHANCE, 1.10), "freerunner");
+        add("running_mates", needs(RUNNING, "slipstream", 1, SOCIAL, "in_step", 1),
+                grants(SOCIAL, ABILITY_DURATION, 1.10, RUNNING, ABILITY_DURATION, 1.10), null);
+        add("first_responder", needs(RUNNING, "windwalker", 1, GUARDIAN, "watchful_eye", 5),
+                grants(GUARDIAN, XP_RATE, 1.10, RUNNING, PROC_POWER, 1.05), "first_responder");
+        add("hidden_spotter", needs(SNEAKING, "quiet_feet", 5, TACTICIAN, "clear_line", 1),
+                grants(TACTICIAN, XP_RATE, 1.10, SNEAKING, BONUS, 1.05), null);
+        add("hush_of_the_deep", needs(SNEAKING, "assassin", 1, SPELUNKING, "warden_whisper", 2),
+                grants(SPELUNKING, PROC_CHANCE, 1.10, SNEAKING, PROC_POWER, 1.05), null);
+        add("high_diver", needs(JUMPING, "safe_landing", 5, SWIMMING, "deep_lungs", 3),
+                grants(JUMPING, XP_RATE, 1.05, SWIMMING, BONUS, 1.05), "high_diver");
+        add("steeplejack", needs(JUMPING, "cat_reflexes", 2, MASONRY, "safety_harness", 3),
+                grants(MASONRY, XP_RATE, 1.10, JUMPING, ABILITY_DURATION, 1.10), "steeplejack");
+        add("pounce", needs(JUMPING, "stomp", 3, CHARGER, "unstoppable", 2),
+                grants(CHARGER, ABILITY_DURATION, 1.10, JUMPING, PROC_POWER, 1.05), null);
+        add("chasm_leaper", needs(SPELUNKING, "rope_climber", 1, JUMPING, "skywalker", 1),
+                grants(SPELUNKING, BONUS, 1.05, JUMPING, BONUS, 1.05), null);
+        add("lifeguard", needs(SWIMMING, "current_rider", 3, GUARDIAN, "warding", 5),
+                grants(SWIMMING, XP_RATE, 1.10, GUARDIAN, BONUS, 1.05), "lifeguard");
+        add("sump_diver", needs(SWIMMING, "pearl_diver", 1, SPELUNKING, "cave_sense", 5),
+                grants(SPELUNKING, PROC_CHANCE, 1.05, SWIMMING, PROC_POWER, 1.10), null);
+        add("island_hopper", needs(SWIMMING, "leviathan_blood", 1, WAYFARING, "world_walker", 1),
+                grants(WAYFARING, BONUS, 1.05, SWIMMING, ABILITY_DURATION, 1.10), null);
+        add("salt_cure", needs(SWIMMING, "current_rider", 2, ALCHEMY, "antidote", 3),
+                grants(ALCHEMY, ABILITY_DURATION, 1.10, SWIMMING, BONUS, 1.05), null);
+        add("gearwright", needs(SMITHING, "reforge", 3, ENGINEERING, "cogsmith", 3),
+                grants(SMITHING, PROC_POWER, 1.10, ENGINEERING, XP_RATE, 1.05), null);
+        add("runesmith", needs(SMITHING, "disenchanter", 1, ALCHEMY, "runescribe", 1),
+                grants(SMITHING, ABILITY_DURATION, 1.10, ALCHEMY, PROC_POWER, 1.10), null);
+        add("guild_prices", needs(SMITHING, "haggler", 5, SOCIAL, "good_word", 2),
+                grants(SMITHING, BONUS, 1.05, SOCIAL, PROC_CHANCE, 1.10), null);
+        add("wrought_iron", needs(SMITHING, "legendary", 1, DECORATING, "curator", 3),
+                grants(DECORATING, PROC_POWER, 1.05, SMITHING, TEMPO, 1.15), null);
+        add("potluck", needs(COOKING, "shared_meal", 2, SOCIAL, "old_friends", 3),
+                grants(COOKING, PROC_POWER, 1.10, SOCIAL, XP_RATE, 1.05), null);
+        add("sunday_roast", needs(COOKING, "family_recipe", 1, HOMEBUILDER, "warm_welcome", 2, FARMING, "green_thumb", 1),
+                grants(COOKING, BONUS, 1.05, HOMEBUILDER, PROC_CHANCE, 1.05, FARMING, BONUS, 1.05), "sunday_roast");
+        add("trail_rations", needs(WAYFARING, "campfire", 1, COOKING, "hearty", 3),
+                grants(WAYFARING, XP_RATE, 1.05, COOKING, PROC_CHANCE, 1.05), null);
+        add("mana_tonic", needs(ALCHEMY, "elixir_lore", 2, SPELLCASTING, "mana_font", 3),
+                grants(SPELLCASTING, BONUS, 1.05, ALCHEMY, TEMPO, 1.15), null);
+        add("field_medic", needs(ALCHEMY, "panacea", 1, GUARDIAN, "heartshare", 2),
+                grants(GUARDIAN, PROC_CHANCE, 1.10, ALCHEMY, XP_RATE, 1.10), "field_medic");
+        add("starward", needs(SPELLCASTING, "spell_ward", 3, NIGHTWALKER, "phantom_ward", 2),
+                grants(SPELLCASTING, XP_RATE, 1.10, NIGHTWALKER, BONUS, 1.05), null);
+        add("ley_hall", needs(SPELLCASTING, "deep_well", 2, DECORATING, "lamplighter", 3),
+                grants(DECORATING, BONUS, 1.05, SPELLCASTING, PROC_CHANCE, 1.05), null);
+        add("arcane_circle", needs(SPELLCASTING, "arcane_rhythm", 2, SOCIAL, "teaching", 3),
+                grants(SOCIAL, BONUS, 1.05, SPELLCASTING, TEMPO, 1.15), null);
+        add("battlemage", needs(SPELLCASTING, "echo_cast", 1, COURAGE, "giant_slayer", 2),
+                grants(COURAGE, PROC_POWER, 1.10, SPELLCASTING, PROC_POWER, 1.05), null);
+        add("hexbane", needs(BEASTSLAYING, "bane", 3, SPELLCASTING, "overcharge", 2),
+                grants(BEASTSLAYING, PROC_POWER, 1.10, SPELLCASTING, BONUS, 1.05), null);
+        add("fortifier", needs(ENGINEERING, "blueprint", 1, MASONRY, "bulk_order", 2),
+                grants(ENGINEERING, BONUS, 1.05, MASONRY, PROC_CHANCE, 1.10), null);
+        add("clockwork_home", needs(ENGINEERING, "assembly_line", 2, HOMEBUILDER, "long_pull", 3),
+                grants(ENGINEERING, TEMPO, 1.15, HOMEBUILDER, XP_RATE, 1.05), null);
+        add("field_engineer", needs(ENGINEERING, "chief_engineer", 1, TACTICIAN, "quartermaster", 2),
+                grants(ENGINEERING, PROC_POWER, 1.10, TACTICIAN, XP_RATE, 1.05), null);
+        add("bounty_road", needs(BEASTSLAYING, "scavenger", 3, WAYFARING, "inspired", 2),
+                grants(BEASTSLAYING, XP_RATE, 1.10, WAYFARING, PROC_POWER, 1.10), null);
+        add("witching_hour", needs(BEASTSLAYING, "hunters_instinct", 2, NIGHTWALKER, "darkborn_bane", 2),
+                grants(BEASTSLAYING, ABILITY_DURATION, 1.10, NIGHTWALKER, PROC_POWER, 1.10), null);
+        add("colossus_bane", needs(BEASTSLAYING, "giant_slayer", 3, COURAGE, "giant_slayer", 3),
+                grants(COURAGE, XP_RATE, 1.10, BEASTSLAYING, BONUS, 1.05), "colossus_bane");
+        add("pathscout", needs(WAYFARING, "seasoned_traveler", 3, TACTICIAN, "quick_call", 5),
+                grants(TACTICIAN, PROC_CHANCE, 1.05, WAYFARING, XP_RATE, 1.05), null);
+        add("glowworm_grotto", needs(SPELUNKING, "glowstone_heart", 3, DECORATING, "curator", 2),
+                grants(DECORATING, TEMPO, 1.15, SPELUNKING, PROC_POWER, 1.05), null);
+        add("shoring", needs(SPELUNKING, "cave_in", 1, MASONRY, "safety_harness", 2),
+                grants(SPELUNKING, ABILITY_DURATION, 1.10, MASONRY, PROC_POWER, 1.05), null);
+        add("root_cellar", needs(SPELUNKING, "cave_lore", 3, HOMEBUILDER, "night_watch", 1),
+                grants(HOMEBUILDER, ABILITY_DURATION, 1.10, SPELUNKING, XP_RATE, 1.05), null);
+        add("hearthstone", needs(MASONRY, "rapid_build", 5, HOMEBUILDER, "ember_heart", 3),
+                grants(HOMEBUILDER, PROC_POWER, 1.10, MASONRY, TEMPO, 1.15), null);
+        add("housewarming", needs(DECORATING, "hygge", 3, HOMEBUILDER, "light_step", 5),
+                grants(DECORATING, XP_RATE, 1.05, HOMEBUILDER, BONUS, 1.05), "housewarming");
+        add("salon", needs(DECORATING, "host", 2, SOCIAL, "strength_in_numbers", 2),
+                grants(SOCIAL, PROC_CHANCE, 1.05, DECORATING, ABILITY_DURATION, 1.10), null);
 
         // The one that is about the whole character rather than a pairing.
         Synergy renaissance = new Synergy("renaissance", List.of(), 3,

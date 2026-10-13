@@ -95,11 +95,27 @@ public final class TalentRangedEvents {
      */
     private static final ThreadLocal<Boolean> REFLECTING = ThreadLocal.withInitial(() -> false);
 
+    /** Hanging Shot: players whose current airtime already got its Slow Falling. Cleared on landing. */
+    private static final java.util.Set<UUID> HANGING_USED = ConcurrentHashMap.newKeySet();
+    /** Dragonbolt: the last crossbow bolt's damage per shooter, and the bonus hit waiting for the next tick. */
+    private static final Map<UUID, Float> LAST_BOLT = new ConcurrentHashMap<>();
+    private static final Map<UUID, Bolt> DRAGONBOLT = new ConcurrentHashMap<>();
+
+    private record Bolt(UUID target, float amount) {
+    }
+
+    private static final int HANGING_SHOT_TICKS = 30;
+    private static final double DRAGONBOLT_SHARE = 0.25;
+    private static final int DRAGONBOLT_GLOW_TICKS = 100;
+
     @SubscribeEvent
     public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
         UUID id = event.getEntity().getUUID();
         MARKSMAN_COUNT.remove(id);
         MARKS.remove(id);
+        HANGING_USED.remove(id);
+        LAST_BOLT.remove(id);
+        DRAGONBOLT.remove(id);
     }
 
     // ---------------------------------------------------------------- pure arithmetic
@@ -153,6 +169,25 @@ public final class TalentRangedEvents {
                 && TalentService.rank(player, Skill.ARCHERY, "deadeye") > 0) {
             dev.amman.proficiency.platform.EntityData.of(arrow).putBoolean(DEADEYE_TAG, true);
         }
+        if (arrowSkill(arrow) == Skill.ARCHERY && arrow.isCritArrow() && TalentService.hasSynergy(player, "hanging_shot")) {
+            hangingShot(player);
+        }
+    }
+
+    /**
+     * Hanging Shot: a full-draw arrow loosed in mid-air gives Slow Falling for 1.5 s, once per
+     * airtime (the flag clears when the player lands), so it cannot be chained into flight.
+     */
+    private static void hangingShot(Player player) {
+        if (player.onGround() || player.isInWater() || !HANGING_USED.add(player.getUUID())) {
+            return;
+        }
+        player.addEffect(new MobEffectInstance(MobEffects.SLOW_FALLING, HANGING_SHOT_TICKS, 0, false, true, true));
+        if (player.level() instanceof ServerLevel level) {
+            level.sendParticles(ParticleTypes.CLOUD, player.getX(), player.getY(), player.getZ(), 8, 0.3, 0.1, 0.3, 0.02);
+            level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.PHANTOM_FLAP,
+                    SoundSource.PLAYERS, 0.6f, 1.5f);
+        }
     }
 
     /**
@@ -201,6 +236,10 @@ public final class TalentRangedEvents {
         }
         if (multiplier != 1.0) {
             event.setAmount((float) (event.getAmount() * multiplier));
+        }
+        if (source.getDirectEntity() instanceof AbstractArrow bolt && arrowSkill(bolt) == Skill.CROSSBOWS
+                && !REFLECTING.get() && TalentService.hasSynergy(player, "dragonbolt")) {
+            LAST_BOLT.put(player.getUUID(), event.getAmount());
         }
     }
 
@@ -274,11 +313,54 @@ public final class TalentRangedEvents {
         if (event.skill() == Skill.ARCHERY) {
             if (TalentService.rank(player, Skill.ARCHERY, "hunters_mark") > 0) {
                 mark(player, target);
+                if (player instanceof net.minecraft.server.level.ServerPlayer shooter
+                        && TalentService.hasSynergy(player, "shared_quarry")) {
+                    // Shared Quarry: the same perfect shot also calls the Tactician mark.
+                    TacticianEvents.mark(shooter, target);
+                }
             }
         } else if (event.skill() == Skill.CROSSBOWS) {
             if (TalentService.rank(player, Skill.CROSSBOWS, "ballista") > 0) {
                 ballista(player, target);
+                dragonbolt(player, target);
             }
+        }
+    }
+
+    /**
+     * Dragonbolt: a Ballista blast on a boss glows it and queues a hit of 25% of the bolt's damage.
+     * The hit lands on the shooter's next tick, not here: inside the bolt's own damage event it
+     * would only open the target's invulnerability window and swallow itself.
+     */
+    private static void dragonbolt(Player player, LivingEntity target) {
+        if (!TalentService.hasSynergy(player, "dragonbolt") || !ExpansionEvents.isNotableBoss(target)) {
+            return;
+        }
+        Float base = LAST_BOLT.remove(player.getUUID());
+        target.addEffect(new MobEffectInstance(MobEffects.GLOWING, DRAGONBOLT_GLOW_TICKS, 0, false, false), player);
+        if (base != null && base > 0f) {
+            DRAGONBOLT.put(player.getUUID(), new Bolt(target.getUUID(), (float) (base * DRAGONBOLT_SHARE)));
+        }
+    }
+
+    /** Lands the queued Dragonbolt hit. Public so a GameTest can run it without a ticking player. */
+    public static void flushDragonbolt(Player player) {
+        Bolt bolt = DRAGONBOLT.remove(player.getUUID());
+        if (bolt == null || !(player.level() instanceof ServerLevel level)
+                || !(level.getEntity(bolt.target()) instanceof LivingEntity target) || !target.isAlive()) {
+            return;
+        }
+        level.sendParticles(ParticleTypes.DRAGON_BREATH, target.getX(), target.getY() + target.getBbHeight() * 0.5,
+                target.getZ(), 12, 0.3, 0.4, 0.3, 0.02);
+        level.playSound(null, target.getX(), target.getY(), target.getZ(), SoundEvents.ENDER_DRAGON_HURT,
+                SoundSource.PLAYERS, 0.5f, 1.4f);
+        // No direct entity: CombatEvents only scores swings and arrows, so this cannot proc again.
+        target.invulnerableTime = 0;
+        REFLECTING.set(true);
+        try {
+            target.hurt(player.damageSources().indirectMagic(null, player), bolt.amount());
+        } finally {
+            REFLECTING.set(false);
         }
     }
 
@@ -397,7 +479,16 @@ public final class TalentRangedEvents {
     @SubscribeEvent
     public static void onPlayerTick(PlayerTickEvent.Post event) {
         Player player = event.getEntity();
-        if (player.level().isClientSide() || player.tickCount % 20 != 0) {
+        if (player.level().isClientSide()) {
+            return;
+        }
+        if (!HANGING_USED.isEmpty() && player.onGround()) {
+            HANGING_USED.remove(player.getUUID());
+        }
+        if (!DRAGONBOLT.isEmpty()) {
+            flushDragonbolt(player);
+        }
+        if (player.tickCount % 20 != 0) {
             return;
         }
         AttributeInstance cap = player.getAttribute(Attributes.MAX_ABSORPTION);

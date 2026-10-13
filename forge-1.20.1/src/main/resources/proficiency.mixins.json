@@ -12,7 +12,11 @@
     "EffectSourceMixin",
     "DamageSourcesInvoker",
     "AbstractArrowInvoker",
-    "FishingHookMixin"
+    "FishingHookMixin",
+    "HearthRaiderMixin",
+    "HearthFurnaceMixin",
+    "HearthBrewingStandMixin",
+    "HearthFoodDataMixin"
   ],
   "injectors": {
     "defaultRequire": 1

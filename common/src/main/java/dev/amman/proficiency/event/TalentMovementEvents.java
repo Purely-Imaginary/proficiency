@@ -74,6 +74,9 @@ public final class TalentMovementEvents {
     private static final long SKYWALKER_COOLDOWN = 600;
     private static final float SKYWALKER_FALL = 12.0f;
     private static final double SLIPSTREAM_RADIUS = 6.0;
+    private static final float HIGH_DIVER_FALL = 8.0f;
+    private static final int HIGH_DIVER_TICKS = 120;
+    private static final long HIGH_DIVER_COOLDOWN = 200;
     /** Leviathan Blood: one health every two seconds while hurt in water. */
     private static final int SEA_HEALING_TICKS = 40;
     private static final float SEA_HEALING_AMOUNT = 1.0f;
@@ -103,6 +106,9 @@ public final class TalentMovementEvents {
         boolean shadowed;
         long escapeReadyAt;
         long skywalkerReadyAt;
+        /** The fall distance at the end of the last tick: vanilla zeroes it on water contact before we look. */
+        float lastFall;
+        long diverReadyAt;
     }
 
     // ---- The tick ---------------------------------------------------------------------------
@@ -140,6 +146,28 @@ public final class TalentMovementEvents {
                 && TalentService.rank(player, Skill.RUNNING, "slipstream") > 0) {
             slipstream(player);
         }
+        highDiver(player, state);
+    }
+
+    /**
+     * High Diver (Jumping + Swimming): vanilla resets the fall distance the moment the body touches
+     * water, before this runs, so it is the last tick's value that says how far the player fell. It
+     * is therefore written last, at the very end of the tick.
+     */
+    private static void highDiver(Player player, State state) {
+        float fell = state.lastFall;
+        state.lastFall = player.fallDistance;
+        if (fell < HIGH_DIVER_FALL || !player.isInWater()) {
+            return;
+        }
+        long now = player.level().getGameTime();
+        if (now < state.diverReadyAt || !TalentService.hasSynergy(player, "high_diver")) {
+            return;
+        }
+        state.diverReadyAt = now + HIGH_DIVER_COOLDOWN;
+        player.addEffect(new MobEffectInstance(MobEffects.DOLPHINS_GRACE, HIGH_DIVER_TICKS, 0, false, false, true));
+        player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
+                SoundEvents.DOLPHIN_SPLASH, SoundSource.PLAYERS, 0.8f, 1.0f);
     }
 
     /** Nightblade: three seconds crouched and still, and you are gone until you move. */
@@ -413,6 +441,11 @@ public final class TalentMovementEvents {
      * direct entity, so Combat does not also read it as a weapon swing and train a skill on it.
      */
     static void stomp(Player player, float fallen) {
+        stomp(player, fallen, false);
+    }
+
+    /** As above; {@code freshHit} clears the mob's invulnerability frames first (Falling Hammer's mace hit). */
+    static void stomp(Player player, float fallen, boolean freshHit) {
         if (fallen < 3.0f || STOMPING.get()) {
             return;
         }
@@ -428,6 +461,9 @@ public final class TalentMovementEvents {
                 .orElse(null);
         if (victim == null) {
             return;
+        }
+        if (freshHit) {
+            victim.invulnerableTime = 0;
         }
         DamageSource stomp = player.damageSources().source(DamageTypes.PLAYER_ATTACK, null, player);
         STOMPING.set(true);

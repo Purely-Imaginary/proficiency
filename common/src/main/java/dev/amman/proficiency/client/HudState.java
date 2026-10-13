@@ -14,6 +14,7 @@ public final class HudState {
         StreakBadge.reset();
         LevelUpFx.reset();
         DeathRecapHud.reset();
+        ProcCallout.reset();
         AbilityFx.reset();
         SkillHud.reset();
         SkillActivity.reset();

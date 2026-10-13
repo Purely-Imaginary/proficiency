@@ -1,0 +1,11 @@
+{
+  "replace": false,
+  "values": [
+    { "id": "#mcwfurnitures:chair", "required": false },
+    { "id": "#mcwfurnitures:modern_chair", "required": false },
+    { "id": "#mcwfurnitures:stool_chair", "required": false },
+    { "id": "#mcwfurnitures:striped_chair", "required": false },
+    { "id": "#mcwfurnitures:chaise", "required": false },
+    { "id": "#mcwfurnitures:couch", "required": false }
+  ]
+}

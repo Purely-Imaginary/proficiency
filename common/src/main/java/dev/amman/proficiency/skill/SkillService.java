@@ -29,6 +29,16 @@ public final class SkillService {
     }
 
     /**
+     * As {@link #grantNoFirstTime(Player, Skill, double, String)} for one weapon hit, with the
+     * {@code crit} factor a critical hit pays ({@link dev.amman.proficiency.skill.CritRules}). It
+     * shows as its own {@code crit} factor in the feed and the log.
+     */
+    public static float grantNoFirstTime(Player player, Skill skill, double baseAmount, @Nullable String source,
+            double crit) {
+        return grantOnce(player, skill, baseAmount, source, 1.0, 0.0, crit);
+    }
+
+    /**
      * A kill bonus: its own log line (source {@code kill|<victim type>}), and the first-time bonus
      * for that kind of mob, which hits never pay. Nothing is paid, first-time included, when the
      * kill pays nothing (a spawn-egg mob).
@@ -47,7 +57,7 @@ public final class SkillService {
 
     /**
      * XP for an extra block an area tool took with the first one. The caller passes the block's
-     * normal XP; this pays {@code aoeXpShare} of it (default 25%), shown as the {@code aoe} factor. No first-time bonus, and no
+     * normal XP; this pays {@code aoeXpShare} of it (default 10%), shown as the {@code aoe} factor. No first-time bonus, and no
      * no tempo step and no tempo bonus (the first block builds the chain). The log line carries an
      * {@code aoe} factor and the balance report files it under its own {@code aoe} kind.
      *
@@ -140,6 +150,12 @@ public final class SkillService {
     /** @param aoeShare above 0 for an area tool's extra block: the share it pays, which also marks the grant as one */
     private static float grantOnce(Player player, Skill skill, double baseAmount,
             @Nullable String source, double tier, double aoeShare) {
+        return grantOnce(player, skill, baseAmount, source, tier, aoeShare, 1.0);
+    }
+
+    /** @param crit the critical-hit factor of a weapon hit, 1.0 for everything else */
+    private static float grantOnce(Player player, Skill skill, double baseAmount,
+            @Nullable String source, double tier, double aoeShare, double crit) {
         if (!(player instanceof ServerPlayer serverPlayer) || SkillTools.isFakePlayer(serverPlayer)) {
             // A machine's fake player earns nothing, and must never be sent a packet.
             return 0f;
@@ -155,15 +171,15 @@ public final class SkillService {
         double rate = ProficiencyConfig.xpRate(skill) * ProficiencyConfig.xpMultiplier();
         double perk = skills.perkModifier(skill, dev.amman.proficiency.perk.PerkEffect.XP_RATE);
         double company = CompanyBonus.multiplier(serverPlayer, skill);
-        // Social and Nightwalker are paid in 5-second lumps, so a tempo chain could never build.
+        // Social, Nightwalker and Homebuilder are paid in 5-second lumps, so a tempo chain could never build.
         boolean aoe = aoeShare > 0.0;
-        double tempo = skill == Skill.SOCIAL || skill == Skill.NIGHTWALKER
+        double tempo = skill == Skill.SOCIAL || skill == Skill.NIGHTWALKER || skill == Skill.HOMEBUILDER
                 ? 1.0 : aoe ? 1.0 : Tempo.multiplier(serverPlayer, skill);
         double overflow = overflow(serverPlayer, skill);
         double inspired = inspiration(serverPlayer);
         double streak = SurvivalStreak.multiplier(skills);
         float amount = (float) (baseAmount * rate * perk * company * tempo * overflow * inspired
-                * streak * tier * (aoe ? aoeShare : 1.0));
+                * streak * tier * crit * (aoe ? aoeShare : 1.0));
         if (!Float.isFinite(amount) || amount <= 0) {
             return 0f;
         }
@@ -192,6 +208,7 @@ public final class SkillService {
         XpFactors.add(factors, XpFactors.INSPIRED, inspired);
         XpFactors.add(factors, XpFactors.STREAK, streak);
         XpFactors.add(factors, XpFactors.TIER, tier);
+        XpFactors.add(factors, XpFactors.CRIT, crit);
         if (aoe) {
             XpFactors.add(factors, XpFactors.AOE, aoeShare);
         }
@@ -212,6 +229,7 @@ public final class SkillService {
             }
         }
 
+        int expertiseBefore = skills.expertisePoints();
         Mastery.Result result = skills.addXpMastery(skill, amount);
         int gained = result.levels();
         // Telemetry records what was banked: XP past the last star is thrown away, and counting it
@@ -234,11 +252,18 @@ public final class SkillService {
             // A grant that also reached level 100 keeps the full level-up moment: no star packet.
             onStars(serverPlayer, skill, skills.stars(skill) - result.stars(), skills.stars(skill), gained > 0);
         }
+        if (gained > 0 || result.stars() > 0) {
+            // A level or a star that crosses an Expertise threshold earns a point: say so once.
+            dev.amman.proficiency.perk.ExpertiseService.noticeEarned(serverPlayer, expertiseBefore);
+        }
         // Social's only source: a share of what company just added. It ignores its own grants.
         // It sees the grant without the rested extra: resting must not pay Social.
         SocialService.onGrant(serverPlayer, skill, source, beforeRested, company);
         // Nightwalker's only share source: a part of any grant earned in the dark.
         NightwalkerService.onGrant(serverPlayer, skill, source, baseAmount, aoe ? tier * aoeShare : tier);
+        // The Hearth mirrors beforeRested (never banked: a skill with every star must still feed).
+        dev.amman.proficiency.hearth.HearthHooks.onGrant(serverPlayer, skill, source, baseAmount, beforeRested,
+                amount, banked, play, aoe);
         return amount;
     }
 
@@ -416,14 +441,7 @@ public final class SkillService {
         // Crossing the unlock level is the moment the skill stops being a percentage, so say so.
         if (Milestones.passed(from, level, ProficiencyConfig.procUnlockLevel())
                 && ProficiencyConfig.procsEnabled()) {
-            player.sendSystemMessage(Component.translatable("proficiency.proc.unlocked",
-                            Component.translatable(skill.translationKey()),
-                            Component.translatable(skill.procKey()).withStyle(ChatFormatting.BOLD))
-                    .withStyle(ChatFormatting.AQUA));
-            player.sendSystemMessage(Component.translatable(skill.procDescKey())
-                    .withStyle(ChatFormatting.GRAY));
-            player.playNotifySound(
-                    SoundEvents.PLAYER_LEVELUP, SoundSource.PLAYERS, 0.5f, 1.0f);
+            SignatureNotice.levelReached(player, skill);
         }
 
         // Every tenth level by default (10, 20 ... 100), to the whole server. The highest one the

@@ -285,7 +285,11 @@ public final class CourageEvents {
         CourageMath.Fight fight = fight(player, victim, foes);
         boolean outnumbered = CourageMath.outnumbered(foes);
 
-        if (outnumbered && ProcService.fire(player, Skill.COURAGE, victim)) {
+        if (TalentService.hasSynergy(player, "colossus_bane") && victim.getMaxHealth() >= 60.0f) {
+            // Colossus Bane: a giant's death is a Rally whatever the odds. Announced like the proc.
+            ProcService.celebrate(player, Skill.COURAGE, victim, null);
+            rally(player);
+        } else if (outnumbered && ProcService.fire(player, Skill.COURAGE, victim)) {
             rally(player);
         }
         if (outnumbered && TalentService.rank(player, Skill.COURAGE, "lionheart") > 0) {

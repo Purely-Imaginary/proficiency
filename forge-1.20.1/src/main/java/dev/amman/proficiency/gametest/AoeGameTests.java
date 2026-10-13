@@ -42,6 +42,7 @@ import java.util.List;
 @GameTestHolder(Proficiency.MOD_ID)
 @PrefixGameTestTemplate(false)
 public final class AoeGameTests {
+    private static final float SHARE = (float) dev.amman.proficiency.skill.AoeBreaks.DEFAULT_SHARE;
 
     private static final BlockPos PRIMARY = new BlockPos(2, 2, 1);
 
@@ -101,6 +102,11 @@ public final class AoeGameTests {
 
     private static ServerPlayer survivor(GameTestHelper helper) {
         ServerPlayer player = MockPlayers.make(helper);
+        // Every test here weighs one player's swing against another's lone block: each stands alone, far
+        // from the batch at the spawn point (a neighbour's company or mentor bonus once reached one of the
+        // two only, x1.15 against x1.25) and from the other. Breaking needs no reach: destroyBlock is the
+        // area tool's own call, and drops fall at the block.
+        MockPlayers.isolate(player);
         player.setGameMode(GameType.SURVIVAL);
         // The mock player may keep the creative ability after setGameMode; these tests need survival.
         player.getAbilities().instabuild = false;
@@ -177,7 +183,7 @@ public final class AoeGameTests {
     }
 
     @GameTest(template = "empty")
-    public static void anAreaSwingPaysTheFirstBlockInFullAndEightExtrasAtAQuarter(GameTestHelper helper) {
+    public static void anAreaSwingPaysTheFirstBlockInFullAndEightExtrasAtTheShare(GameTestHelper helper) {
         float one = loneStone(helper);
         helper.assertTrue(one > 0f, "a lone stone paid nothing");
 
@@ -186,7 +192,7 @@ public final class AoeGameTests {
         swingAt(helper, player, Mode.NORMAL, extras);
 
         float total = paid(player, Skill.MINING, STONE);
-        float expected = one * (1f + 8f * 0.25f);
+        float expected = one * (1f + 8f * SHARE);
         // Allow a few percent for the rested pool and rounding.
         helper.assertTrue(Math.abs(total - expected) < expected * 0.03f,
                 "the swing paid " + total + " Mining XP, wanted " + expected + " (one block " + one + ")"
@@ -252,7 +258,7 @@ public final class AoeGameTests {
         helper.setBlock(PRIMARY, Blocks.STONE);
         swingAt(helper, player, Mode.NORMAL, three);
         float total = paid(player, Skill.MINING, "block.");
-        float expected = one * (1f + 0.25f);
+        float expected = one * (1f + SHARE);
         helper.assertTrue(Math.abs(total - expected) < expected * 0.01f,
                 "wanted the primary plus one natural extra (" + expected + "), got " + total);
         helper.succeed();
@@ -260,7 +266,7 @@ public final class AoeGameTests {
 
     /** An ore pays Mining and Spelunking; an extra ore of a swing pays a quarter of both, not a full Spelunking line each. */
     @GameTest(template = "empty")
-    public static void oreExtrasPayTheirSpelunkingAtAQuarterToo(GameTestHelper helper) {
+    public static void oreExtrasPayTheirSpelunkingAtTheShareToo(GameTestHelper helper) {
         String iron = Blocks.IRON_ORE.getDescriptionId();
         ServerPlayer lone = survivor(helper);
         helper.setBlock(PRIMARY, Blocks.IRON_ORE);
@@ -274,7 +280,7 @@ public final class AoeGameTests {
         swingAt(helper, player, Mode.NORMAL, extras);
 
         float total = paid(player, Skill.SPELUNKING, iron);
-        float expected = one * (1f + 8f * 0.25f);
+        float expected = one * (1f + 8f * SHARE);
         helper.assertTrue(Math.abs(total - expected) < expected * 0.03f,
                 "the swing paid " + total + " Spelunking XP, wanted " + expected + " (one ore " + one + ")"
                         + dump(player, Skill.SPELUNKING));
@@ -323,8 +329,8 @@ public final class AoeGameTests {
         player.gameMode.destroyBlock(helper.absolutePos(a));
         player.gameMode.destroyBlock(helper.absolutePos(b));
         float together = paid(player, Skill.MINING, STONE);
-        helper.assertTrue(Math.abs(together - one * 1.25f) < one * 1.25f * 0.01f,
-                "two breaks in one tick paid " + together + ", wanted " + one * 1.25f);
+        helper.assertTrue(Math.abs(together - one * (1f + SHARE)) < one * (1f + SHARE) * 0.01f,
+                "two breaks in one tick paid " + together + ", wanted " + one * (1f + SHARE));
 
         // A fresh tick: both are first blocks.
         ServerPlayer other = survivor(helper);

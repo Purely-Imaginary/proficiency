@@ -16,15 +16,32 @@
       "dev.amman.proficiency.gametest.CourageGameTests",
       "dev.amman.proficiency.gametest.GuardianGameTests",
       "dev.amman.proficiency.gametest.ChargerGameTests",
+      "dev.amman.proficiency.gametest.SynergyMeleeGameTests",
+      "dev.amman.proficiency.gametest.CritGameTests",
+      "dev.amman.proficiency.gametest.SynergyRangedGameTests",
+      "dev.amman.proficiency.gametest.SynergyGatherGameTests",
+      "dev.amman.proficiency.gametest.SynergyMoveGameTests",
       "dev.amman.proficiency.gametest.TacticianGameTests",
       "dev.amman.proficiency.gametest.KillBonusGameTests",
       "dev.amman.proficiency.gametest.XpSourcesGameTests",
       "dev.amman.proficiency.gametest.AoeGameTests",
       "dev.amman.proficiency.gametest.ExploitGameTests",
       "dev.amman.proficiency.gametest.MasteryGameTests",
-      "dev.amman.proficiency.gametest.RestedGameTests"
+      "dev.amman.proficiency.gametest.ExpertiseGameTests",
+      "dev.amman.proficiency.gametest.RestedGameTests",
+      "dev.amman.proficiency.gametest.HearthGameTests",
+      "dev.amman.proficiency.gametest.HearthStagesGameTests",
+      "dev.amman.proficiency.gametest.HearthChargeGameTests",
+      "dev.amman.proficiency.gametest.HearthComfortGameTests",
+      "dev.amman.proficiency.gametest.HomebuilderGameTests",
+      "dev.amman.proficiency.gametest.TalesGameTests",
+      "dev.amman.proficiency.gametest.HearthEffectsGameTests",
+      "dev.amman.proficiency.gametest.SiegeGameTests",
+      "dev.amman.proficiency.gametest.HearthIntegrationGameTests",
+      "dev.amman.proficiency.gametest.FabricHearthStagesGameTests"
     ]
   },
+  "accessWidener": "proficiency.accesswidener",
   "mixins": [
     "proficiency.mixins.json",
     {"config": "proficiency.client.mixins.json", "environment": "client"}

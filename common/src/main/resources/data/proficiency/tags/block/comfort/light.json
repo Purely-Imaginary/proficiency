@@ -1,0 +1,10 @@
+{
+  "_comment": "Comfort kind: a decorative light. A torch is not furniture.",
+  "values": [
+    "minecraft:lantern",
+    "minecraft:soul_lantern",
+    "#minecraft:candles",
+    "minecraft:sea_lantern",
+    "minecraft:glowstone"
+  ]
+}

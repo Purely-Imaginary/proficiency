@@ -1,0 +1,8 @@
+{
+  "_comment": "Comfort kind: books.",
+  "values": [
+    "minecraft:bookshelf",
+    "minecraft:chiseled_bookshelf",
+    "minecraft:lectern"
+  ]
+}

@@ -9,6 +9,7 @@ import dev.amman.proficiency.platform.event.AnvilUpdateEvent;
 import dev.amman.proficiency.platform.event.GrindstoneEvent;
 import dev.amman.proficiency.platform.event.RegisterCommandsEvent;
 import dev.amman.proficiency.platform.event.entity.EntityJoinLevelEvent;
+import dev.amman.proficiency.platform.event.entity.EntityLeaveLevelEvent;
 import dev.amman.proficiency.platform.event.entity.ProjectileImpactEvent;
 import dev.amman.proficiency.platform.event.entity.living.BabyEntitySpawnEvent;
 import dev.amman.proficiency.platform.event.entity.living.FinalizeSpawnEvent;
@@ -35,6 +36,8 @@ import dev.amman.proficiency.platform.event.entity.player.PlayerEvent;
 import dev.amman.proficiency.platform.event.entity.player.PlayerInteractEvent;
 import dev.amman.proficiency.platform.event.level.BlockDropsEvent;
 import dev.amman.proficiency.platform.event.level.BlockEvent;
+import dev.amman.proficiency.platform.event.level.ChunkLoadEvent;
+import dev.amman.proficiency.platform.event.level.ExplosionDetonateEvent;
 import dev.amman.proficiency.platform.event.level.ExplosionKnockbackEvent;
 import dev.amman.proficiency.platform.event.server.ServerStartedEvent;
 import dev.amman.proficiency.platform.event.server.ServerStoppingEvent;
@@ -115,6 +118,10 @@ public final class NeoForgeEventBridge {
         relay(net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerChangedDimensionEvent.class,
                 PlayerEvent.PlayerChangedDimensionEvent.class,
                 e -> new PlayerEvent.PlayerChangedDimensionEvent(e.getEntity(), e.getFrom(), e.getTo()));
+        relay(net.neoforged.neoforge.event.entity.player.PlayerWakeUpEvent.class,
+                dev.amman.proficiency.platform.event.entity.player.PlayerWakeUpEvent.class,
+                e -> new dev.amman.proficiency.platform.event.entity.player.PlayerWakeUpEvent(e.getEntity(),
+                        e.wakeImmediately(), e.updateLevel()));
         relay(net.neoforged.neoforge.event.entity.player.PlayerEvent.ItemCraftedEvent.class,
                 PlayerEvent.ItemCraftedEvent.class,
                 e -> new PlayerEvent.ItemCraftedEvent(e.getEntity(), e.getCrafting(), e.getInventory()));
@@ -125,6 +132,8 @@ public final class NeoForgeEventBridge {
                 PlayerEvent.TabListNameFormat.class, TabListName::new);
         relay(net.neoforged.neoforge.event.entity.player.PlayerEvent.BreakSpeed.class,
                 PlayerEvent.BreakSpeed.class, BreakSpeed::new);
+        relay(net.neoforged.neoforge.event.entity.player.CriticalHitEvent.class,
+                dev.amman.proficiency.platform.event.entity.player.CriticalHitEvent.class, CriticalHit::new);
         relay(net.neoforged.neoforge.event.tick.PlayerTickEvent.Post.class, PlayerTickEvent.Post.class,
                 e -> new PlayerTickEvent.Post(e.getEntity()));
         relay(net.neoforged.neoforge.event.entity.player.PlayerContainerEvent.Open.class,
@@ -204,6 +213,10 @@ public final class NeoForgeEventBridge {
         // ---- Entities, blocks, menus ------------------------------------------------------------
         relay(net.neoforged.neoforge.event.entity.EntityJoinLevelEvent.class, EntityJoinLevelEvent.class,
                 JoinLevel::new);
+        relay(net.neoforged.neoforge.event.entity.EntityLeaveLevelEvent.class, EntityLeaveLevelEvent.class,
+                e -> new EntityLeaveLevelEvent(e.getEntity(), e.getLevel()));
+        relay(net.neoforged.neoforge.event.level.ChunkEvent.Load.class, ChunkLoadEvent.class,
+                e -> new ChunkLoadEvent(e.getLevel(), e.getChunk()));
         relay(net.neoforged.neoforge.event.entity.ProjectileImpactEvent.class, ProjectileImpactEvent.class,
                 ProjectileImpact::new);
         relay(net.neoforged.neoforge.event.level.BlockEvent.BreakEvent.class, BlockEvent.BreakEvent.class,
@@ -213,9 +226,17 @@ public final class NeoForgeEventBridge {
         relay(net.neoforged.neoforge.event.level.BlockDropsEvent.class, BlockDropsEvent.class, BlockDrops::new);
         relay(net.neoforged.neoforge.event.level.ExplosionKnockbackEvent.class, ExplosionKnockbackEvent.class,
                 ExplosionKnockback::new);
+        relay(net.neoforged.neoforge.event.level.ExplosionEvent.Detonate.class, ExplosionDetonateEvent.class,
+                e -> new ExplosionDetonateEvent(e.getLevel(), e.getExplosion()));
         relay(net.neoforged.neoforge.event.AnvilUpdateEvent.class, AnvilUpdateEvent.class, AnvilUpdate::new);
         relay(net.neoforged.neoforge.event.GrindstoneEvent.OnTakeItem.class, GrindstoneEvent.OnTakeItem.class,
                 GrindstoneTake::new);
+
+        // ---- Hearth sieges (no sleep while a siege runs; siege mobs never grief) -------------------
+        relay(net.neoforged.neoforge.event.entity.player.CanPlayerSleepEvent.class,
+                dev.amman.proficiency.platform.event.entity.player.CanPlayerSleepEvent.class, CanSleep::new);
+        relay(net.neoforged.neoforge.event.entity.EntityMobGriefingEvent.class,
+                dev.amman.proficiency.platform.event.entity.EntityMobGriefingEvent.class, MobGriefing::new);
     }
 
     // ---- The shared events, reading and writing NeoForge's ---------------------------------------
@@ -305,6 +326,36 @@ public final class NeoForgeEventBridge {
         @Override
         public void setDisplayName(@Nullable Component displayName) {
             neo.setDisplayName(displayName);
+        }
+    }
+
+    /** Reads and writes straight through to NeoForge's event, so every listener sees the others. */
+    static final class CriticalHit extends dev.amman.proficiency.platform.event.entity.player.CriticalHitEvent {
+        private final net.neoforged.neoforge.event.entity.player.CriticalHitEvent neo;
+
+        CriticalHit(net.neoforged.neoforge.event.entity.player.CriticalHitEvent neo) {
+            super(neo.getEntity(), neo.getTarget(), neo.isVanillaCritical(), neo.getDamageMultiplier());
+            this.neo = neo;
+        }
+
+        @Override
+        public boolean isCriticalHit() {
+            return neo.isCriticalHit();
+        }
+
+        @Override
+        public void setCriticalHit(boolean criticalHit) {
+            neo.setCriticalHit(criticalHit);
+        }
+
+        @Override
+        public float getDamageMultiplier() {
+            return neo.getDamageMultiplier();
+        }
+
+        @Override
+        public void setDamageMultiplier(float damageMultiplier) {
+            neo.setDamageMultiplier(damageMultiplier);
         }
     }
 
@@ -1430,6 +1481,45 @@ public final class NeoForgeEventBridge {
         @Override
         public void setCanceled(boolean canceled) {
             neo.setCanceled(canceled);
+        }
+    }
+
+    /** The sleep problem lives in NeoForge's event, so another mod's answer and ours are one value. */
+    static final class CanSleep extends dev.amman.proficiency.platform.event.entity.player.CanPlayerSleepEvent {
+        private final net.neoforged.neoforge.event.entity.player.CanPlayerSleepEvent neo;
+
+        CanSleep(net.neoforged.neoforge.event.entity.player.CanPlayerSleepEvent neo) {
+            super(neo.getEntity(), neo.getPos(), neo.getVanillaProblem());
+            this.neo = neo;
+        }
+
+        @Override
+        public net.minecraft.world.entity.player.Player.BedSleepingProblem getProblem() {
+            return neo.getProblem();
+        }
+
+        @Override
+        public void setProblem(net.minecraft.world.entity.player.Player.BedSleepingProblem problem) {
+            neo.setProblem(problem);
+        }
+    }
+
+    static final class MobGriefing extends dev.amman.proficiency.platform.event.entity.EntityMobGriefingEvent {
+        private final net.neoforged.neoforge.event.entity.EntityMobGriefingEvent neo;
+
+        MobGriefing(net.neoforged.neoforge.event.entity.EntityMobGriefingEvent neo) {
+            super(neo.getEntity(), neo.isMobGriefingEnabled());
+            this.neo = neo;
+        }
+
+        @Override
+        public boolean canGrief() {
+            return neo.canGrief();
+        }
+
+        @Override
+        public void setCanGrief(boolean canGrief) {
+            neo.setCanGrief(canGrief);
         }
     }
 }

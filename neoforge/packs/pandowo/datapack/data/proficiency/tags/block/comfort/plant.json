@@ -1,0 +1,7 @@
+{
+  "replace": false,
+  "values": [
+    { "id": "#handcrafted:pots", "required": false },
+    { "id": "#another_furniture:flower_boxes", "required": false }
+  ]
+}

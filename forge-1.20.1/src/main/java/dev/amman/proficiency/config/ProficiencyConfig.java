@@ -21,6 +21,7 @@ public final class ProficiencyConfig {
     public static final ForgeConfigSpec.BooleanValue ENABLE_PROCS;
     public static final ForgeConfigSpec.IntValue PROC_UNLOCK_LEVEL;
     public static final ForgeConfigSpec.DoubleValue PROC_FLOOR;
+    public static final ForgeConfigSpec.BooleanValue SIGNATURE_NEEDS_ROOT;
     public static final ForgeConfigSpec.BooleanValue ANNOUNCE_MILESTONES;
     public static final ForgeConfigSpec.IntValue MILESTONE_INTERVAL;
     public static final ForgeConfigSpec.IntValue MILESTONE_MIN_LEVEL;
@@ -88,6 +89,27 @@ public final class ProficiencyConfig {
     public static final ForgeConfigSpec.DoubleValue TEMPO_STEP;
     public static final ForgeConfigSpec.DoubleValue TEMPO_CAP;
 
+    public static final ForgeConfigSpec.BooleanValue HEARTH_ENABLED;
+    public static final ForgeConfigSpec.DoubleValue HEARTH_RANGE;
+    public static final ForgeConfigSpec.IntValue HEARTH_RANGE_BELOW;
+    public static final ForgeConfigSpec.IntValue HEARTH_RANGE_ABOVE;
+    public static final ForgeConfigSpec.DoubleValue HEARTH_RANGE_MAX;
+    public static final ForgeConfigSpec.DoubleValue HEARTH_REACH_FULL;
+    public static final ForgeConfigSpec.IntValue HEARTH_MIN_SPACING;
+    public static final ForgeConfigSpec.BooleanValue HEARTH_SIEGES;
+
+    // Homebuilder (docs/HOMEBUILDER-SPEC.md): the share and the milestones, all tune numbers.
+    public static final ForgeConfigSpec.DoubleValue HOME_SHARE;
+    public static final ForgeConfigSpec.DoubleValue HOME_STAGE_XP;
+    public static final ForgeConfigSpec.DoubleValue HOME_COMFORT_XP;
+    public static final ForgeConfigSpec.DoubleValue HOME_CHARACTER_XP;
+    public static final ForgeConfigSpec.DoubleValue HOME_SIEGE_XP;
+    public static final ForgeConfigSpec.DoubleValue HOME_FEAST_XP;
+    public static final ForgeConfigSpec.DoubleValue HOME_TALES_SHARE;
+    public static final ForgeConfigSpec.DoubleValue HOME_CHRONICLE_XP;
+    public static final ForgeConfigSpec.IntValue HOUSE_PROUD_TICKS;
+    public static final ForgeConfigSpec.IntValue HOUSE_PROUD_COOLDOWN;
+
     public static final ForgeConfigSpec.IntValue ABILITY_UNLOCK_LEVEL;
     public static final ForgeConfigSpec.IntValue ABILITY_DURATION;
     public static final ForgeConfigSpec.IntValue ABILITY_COOLDOWN;
@@ -137,6 +159,11 @@ public final class ProficiencyConfig {
         PROC_FLOOR = b
                 .comment("Proc chance the moment it unlocks, before it scales up to the per-skill maximum.")
                 .defineInRange("procFloor", 0.05, 0.0, 1.0);
+
+        SIGNATURE_NEEDS_ROOT = b
+                .comment("The signature proc and the ability also wait for the skill tree's root node to be",
+                        "bought in full, on top of their levels, so they only switch on for a player who chose them.")
+                .define("signatureNeedsRoot", true);
 
         ANNOUNCE_MILESTONES = b
                 .comment("Announce milestone levels to the whole server.")
@@ -438,6 +465,76 @@ public final class ProficiencyConfig {
         ABILITY_COOLDOWN = b.defineInRange("cooldownTicks", 6000, 20, 432000);
         b.pop();
 
+        b.comment("The Hearth: a base block that mirrors nearby XP into boons (docs/HEARTH-SPEC.md).",
+                        "Its numbers (pools, tiers, decay, sieges) are datapack data, proficiency/hearth/*.json.")
+                .push("hearth");
+        HEARTH_ENABLED = b
+                .comment("Master switch. false: Hearths do nothing (no charge, boons, Warmth or sieges).")
+                .define("enabled", true);
+        HEARTH_RANGE = b
+                .comment("Range radius in blocks, horizontally around the campfire, before any Reach. The range is a cylinder.",
+                        "The house itself (Comfort scan, siege ring, bell) always uses this radius.")
+                .defineInRange("range", 24.0, 4.0, 128.0);
+        HEARTH_RANGE_BELOW = b
+                .comment("How far the range reaches below the campfire, so the mine under the base is not home.")
+                .defineInRange("rangeBelow", 8, 0, 128);
+        HEARTH_RANGE_ABOVE = b
+                .comment("How far the range reaches above the campfire.")
+                .defineInRange("rangeAbove", 16, 0, 256);
+        HEARTH_RANGE_MAX = b
+                .comment("Reach: the range radius a Hearth grows to as Homebuilder XP is earned at it (docs/HEARTH-REACH-SPEC.md).",
+                        "From 'range' with no Reach up to this when Reach is full. Equal to 'range' turns Reach off.")
+                .defineInRange("rangeMax", 64.0, 4.0, 512.0);
+        HEARTH_REACH_FULL = b
+                .comment("Reach: the Homebuilder XP, earned in range of one Hearth, that grows its range all the way to rangeMax.",
+                        "0 = every Hearth is at rangeMax at once.")
+                .defineInRange("reachFullXp", 5000.0, 0.0, 10_000_000.0);
+        HEARTH_MIN_SPACING = b
+                .comment("No other Hearth may be lit closer than this, horizontally, in the same dimension.",
+                        "Ranges grown by Reach may overlap; a block then belongs to the nearest Hearth.")
+                .defineInRange("minSpacing", 64, 0, 4096);
+        HEARTH_SIEGES = b
+                .comment("Sieges at Hearths. false: no rolls and the Siege Horn does nothing.")
+                .define("sieges", true);
+        b.pop();
+
+        b.comment("Homebuilder: the home skill. It has no source of its own: it earns a share of other",
+                        "skills' XP earned at a Hearth, plus the home's milestones, once each per Hearth and",
+                        "per player. The passive (speed, reach, magnet) works only at home.")
+                .push("homebuilder");
+        HOME_SHARE = b
+                .comment("Homebuilder XP as a share of another skill's grant at home, before multipliers.")
+                .defineInRange("share", dev.amman.proficiency.skill.HomebuilderMath.DEFAULT_SHARE, 0.0, 10.0);
+        HOME_STAGE_XP = b
+                .comment("Base XP for lighting a Hearth or sealing a stage, times the stage number (I..VI).")
+                .defineInRange("stageXp", dev.amman.proficiency.skill.HomebuilderMath.DEFAULT_STAGE_XP, 0.0, 100000.0);
+        HOME_COMFORT_XP = b
+                .comment("Base XP when a Comfort kind you placed appears at a Hearth for the first time.")
+                .defineInRange("comfortXp", dev.amman.proficiency.skill.HomebuilderMath.DEFAULT_COMFORT_XP, 0.0, 100000.0);
+        HOME_CHARACTER_XP = b
+                .comment("Base XP for a new Character block id you placed at a Hearth.")
+                .defineInRange("characterXp", dev.amman.proficiency.skill.HomebuilderMath.DEFAULT_CHARACTER_XP, 0.0, 100000.0);
+        HOME_SIEGE_XP = b
+                .comment("Base XP for a defended siege, split by kills; everyone present gets at least 10%.")
+                .defineInRange("siegeXp", dev.amman.proficiency.skill.HomebuilderMath.DEFAULT_SIEGE_XP, 0.0, 100000.0);
+        HOME_FEAST_XP = b
+                .comment("Base XP for a Feast you were part of.")
+                .defineInRange("feastXp", dev.amman.proficiency.skill.HomebuilderMath.DEFAULT_FEAST_XP, 0.0, 100000.0);
+        HOME_TALES_SHARE = b
+                .comment("Tales paid in at a Hearth pay this share of the Tales as Homebuilder XP.")
+                .defineInRange("talesShare", dev.amman.proficiency.skill.HomebuilderMath.DEFAULT_TALES_SHARE, 0.0, 10.0);
+        HOME_CHRONICLE_XP = b
+                .comment("Base XP for a Hearth Chronicle page written (the flat part).")
+                .defineInRange("chronicleXp", dev.amman.proficiency.skill.HomebuilderMath.DEFAULT_CHRONICLE_XP, 0.0, 100000.0);
+        HOUSE_PROUD_TICKS = b
+                .comment("How long House Proud lasts, in ticks, before Open House and the duration talents.")
+                .defineInRange("houseProudTicks", dev.amman.proficiency.skill.HomebuilderMath.DEFAULT_HOUSE_PROUD_TICKS, 20, 12000);
+        HOUSE_PROUD_COOLDOWN = b
+                .comment("House Proud's cooldown, in ticks, before the capstone's cut.")
+                .defineInRange("houseProudCooldownTicks",
+                        dev.amman.proficiency.skill.HomebuilderMath.DEFAULT_HOUSE_PROUD_COOLDOWN_TICKS, 20, 432000);
+        b.pop();
+
         b.comment("Per-skill tuning. maxBonus is the size of the passive effect at level 100,",
                         "as a fraction: 0.80 means +80%. xpRate scales only that skill's XP, and",
                         "procChance is how often the signature moment fires once the skill is at 100.")
@@ -498,6 +595,11 @@ public final class ProficiencyConfig {
         @Override
         public double procFloor() {
             return ProficiencyConfig.procFloor();
+        }
+
+        @Override
+        public boolean signatureNeedsRoot() {
+            return ProficiencyConfig.signatureNeedsRoot();
         }
 
         @Override
@@ -803,6 +905,81 @@ public final class ProficiencyConfig {
         return safe(TEMPO_CAP, 0.50);
     }
 
+    public static boolean hearthEnabled() {
+        return !SPEC.isLoaded() || HEARTH_ENABLED.get();
+    }
+
+    public static double hearthRange() {
+        return safe(HEARTH_RANGE, 24.0);
+    }
+
+    public static int hearthRangeBelow() {
+        return SPEC.isLoaded() ? HEARTH_RANGE_BELOW.get() : 8;
+    }
+
+    /** Reach's top radius; never below the base range. */
+    public static double hearthRangeMax() {
+        return Math.max(hearthRange(), safe(HEARTH_RANGE_MAX, 64.0));
+    }
+
+    public static double hearthReachFullXp() {
+        return safe(HEARTH_REACH_FULL, 5000.0);
+    }
+
+    public static int hearthRangeAbove() {
+        return SPEC.isLoaded() ? HEARTH_RANGE_ABOVE.get() : 16;
+    }
+
+    public static int hearthMinSpacing() {
+        return SPEC.isLoaded() ? HEARTH_MIN_SPACING.get() : 64;
+    }
+
+    public static boolean hearthSieges() {
+        return !SPEC.isLoaded() || HEARTH_SIEGES.get();
+    }
+
+    public static double homeShare() {
+        return safe(HOME_SHARE, dev.amman.proficiency.skill.HomebuilderMath.DEFAULT_SHARE);
+    }
+
+    public static double homeStageXp() {
+        return safe(HOME_STAGE_XP, dev.amman.proficiency.skill.HomebuilderMath.DEFAULT_STAGE_XP);
+    }
+
+    public static double homeComfortXp() {
+        return safe(HOME_COMFORT_XP, dev.amman.proficiency.skill.HomebuilderMath.DEFAULT_COMFORT_XP);
+    }
+
+    public static double homeCharacterXp() {
+        return safe(HOME_CHARACTER_XP, dev.amman.proficiency.skill.HomebuilderMath.DEFAULT_CHARACTER_XP);
+    }
+
+    public static double homeSiegeXp() {
+        return safe(HOME_SIEGE_XP, dev.amman.proficiency.skill.HomebuilderMath.DEFAULT_SIEGE_XP);
+    }
+
+    public static double homeFeastXp() {
+        return safe(HOME_FEAST_XP, dev.amman.proficiency.skill.HomebuilderMath.DEFAULT_FEAST_XP);
+    }
+
+    public static double homeTalesShare() {
+        return safe(HOME_TALES_SHARE, dev.amman.proficiency.skill.HomebuilderMath.DEFAULT_TALES_SHARE);
+    }
+
+    public static double homeChronicleXp() {
+        return safe(HOME_CHRONICLE_XP, dev.amman.proficiency.skill.HomebuilderMath.DEFAULT_CHRONICLE_XP);
+    }
+
+    public static int houseProudTicks() {
+        return SPEC.isLoaded() ? HOUSE_PROUD_TICKS.get()
+                : dev.amman.proficiency.skill.HomebuilderMath.DEFAULT_HOUSE_PROUD_TICKS;
+    }
+
+    public static int houseProudCooldownTicks() {
+        return SPEC.isLoaded() ? HOUSE_PROUD_COOLDOWN.get()
+                : dev.amman.proficiency.skill.HomebuilderMath.DEFAULT_HOUSE_PROUD_COOLDOWN_TICKS;
+    }
+
     public static int abilityUnlockLevel() {
         return SPEC.isLoaded() ? ABILITY_UNLOCK_LEVEL.get() : 50;
     }
@@ -833,6 +1010,10 @@ public final class ProficiencyConfig {
 
     public static int procUnlockLevel() {
         return SPEC.isLoaded() ? PROC_UNLOCK_LEVEL.get() : 25;
+    }
+
+    public static boolean signatureNeedsRoot() {
+        return !SPEC.isLoaded() || SIGNATURE_NEEDS_ROOT.get();
     }
 
     public static double procFloor() {

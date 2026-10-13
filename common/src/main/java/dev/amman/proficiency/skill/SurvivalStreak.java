@@ -91,6 +91,11 @@ public final class SurvivalStreak {
         if (!player.isAlive() || player.isSpectator()) {
             return;
         }
+        // At home the streak does not grow: the stacks are kept and still pay (docs/HEARTH-SPEC.md).
+        if (dev.amman.proficiency.hearth.effects.HearthStreak.holds(player)) {
+            dev.amman.proficiency.hearth.effects.HearthStreak.paused(player, elapsed);
+            return;
+        }
         PlayerSkills skills = ProficiencyAttachments.of(player);
         int max = ProficiencyConfig.streakMaxStacks();
         if (!skills.tickStreak(player.level().getGameTime(), elapsed,

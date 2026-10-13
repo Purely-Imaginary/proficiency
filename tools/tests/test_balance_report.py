@@ -42,7 +42,7 @@ class Report(unittest.TestCase):
 
     def test_skill_list_matches_the_java_enum(self):
         java = B.skill_ids()
-        self.assertEqual(34, len(java))
+        self.assertEqual(35, len(java))
         self.assertEqual(sorted(B.SKILLS), sorted(java))
 
     def test_rate_is_the_median_over_players_with_their_count(self):
@@ -211,6 +211,65 @@ class Report(unittest.TestCase):
         self.assertIn("150 (20%)", md)
         self.assertIn("Rested XP: 150 of 755 XP", md)
         self.assertIn("<th>Rested XP<th>Teaching XP", B.page(d))
+
+    def test_the_hearth_section_sums_charge_per_pool_player_and_source(self):
+        head = {"v": 1, "t": 1000, "type": "hearth"}
+        amman = {**head, "player": "Amman", "uuid": "u1"}
+        extra = [{**amman, "kind": "hearth_charge", "label": "hearty", "source": "mining", "n": 10, "value": 120.0},
+                 {**amman, "kind": "hearth_charge", "label": "hearty", "source": "capped", "n": 2, "value": 30.0},
+                 {**amman, "kind": "hearth_charge", "label": "fortified", "source": "masonry", "n": 4, "value": 40.0},
+                 {**amman, "kind": "hearth_charge", "label": "workshop", "source": "siege", "n": 1, "value": 0.5},
+                 {**head, "kind": "hearth_siege", "label": "rolls", "source": "", "n": 6, "value": 6.0},
+                 {**amman, "kind": "streak_paused", "label": "", "source": "", "n": 60, "value": 1800.0}]
+        rows, files, bad = B.load([("s", self._server("hearth", self._rows(
+            [8, 2, 1.35], extra=extra)).split("=")[1])], END, END)
+        d = B.build(rows, files, bad, END, END, False, B.skill_ids())
+        hs = d["hearth"]
+        self.assertEqual(120.0, hs["pools"]["hearty"]["charge"], "the cap's share is not charge")
+        self.assertEqual(30.0, hs["pools"]["hearty"]["capped"])
+        self.assertAlmostEqual(120.0, hs["pools"]["hearty"]["per_hour"])   # one active hour
+        self.assertAlmostEqual(200 / 120.0, hs["pools"]["hearty"]["tier_h"][0])
+        self.assertEqual(0.0, hs["pools"]["regen"]["per_hour"])
+        self.assertIsNone(hs["pools"]["regen"]["tier_h"][0], "no rate, no time to a tier")
+        self.assertAlmostEqual(0.5, hs["home_share"])                      # 1800 s of 3600
+        feeder = hs["feeders"][("s", "u1")]
+        self.assertAlmostEqual(160.5, feeder["total"])
+        self.assertEqual("mining 120, masonry 40, siege 0", B.top_sources(feeder["sources"]))
+        self.assertEqual([6, 6.0], hs["events"][("hearth_siege", "rolls", "")])
+        md, page = B.markdown(d), B.page(d)
+        for text in (md, page):
+            self.assertIn("Who feeds the Hearth", text)
+            self.assertIn("Other Hearth events", text)
+        self.assertIn("| hearty | 120 | 120.0 | 240.0 | 30 |", md)   # per hour at home: 0.5 h at home
+        anon = B.build(rows, files, bad, END, END, True, B.skill_ids())
+        self.assertNotIn("Amman", B.markdown(anon) + B.page(anon))
+
+    def test_the_hearth_section_counts_sieges_per_ten_hours(self):
+        head = {"v": 1, "t": 1000, "type": "hearth"}
+        extra = [{**head, "kind": "hearth_siege", "label": "condition", "source": "", "n": 1800, "value": 1800.0},
+                 {**head, "kind": "hearth_siege", "label": "roll", "source": "", "n": 30, "value": 0.6},
+                 {**head, "kind": "hearth_siege", "label": "rolled", "source": "", "n": 1, "value": 2.0},
+                 {**head, "kind": "hearth_siege", "label": "called", "source": "", "n": 1, "value": 1.0},
+                 {**head, "kind": "hearth_siege", "label": "wave", "source": "4", "n": 3, "value": 12.0},
+                 {**head, "kind": "hearth_siege", "label": "outcome", "source": "defended", "n": 1, "value": 1.0},
+                 {**head, "kind": "hearth_siege", "label": "outcome", "source": "fizzled", "n": 1, "value": 1.0}]
+        rows, files, bad = B.load([("s", self._server("hearth", self._rows(
+            [8, 2, 1.35], extra=extra)).split("=")[1])], END, END)
+        d = B.build(rows, files, bad, END, END, False, B.skill_ids())
+        s = d["hearth"]["sieges"]
+        self.assertAlmostEqual(20.0, s["per_10h"])        # two announced in one active hour
+        self.assertAlmostEqual(0.5, s["condition_h"])
+        self.assertAlmostEqual(4.0, s["mean_wave"])
+        self.assertEqual({"defended": 1, "fizzled": 1}, s["outcomes"])
+        line = ("Sieges: 20.0 per 10 h of active play (1 rolled, 1 called by a horn); the condition held 0.5 h "
+                "(30 rolls); outcomes: defended 1, fizzled 1; mean wave 4.0 mobs.")
+        self.assertIn(line, B.markdown(d))
+        self.assertIn("Sieges: 20.0 per 10 h", B.page(d))
+        self.assertIsNone(self.data["hearth"]["sieges"], "no siege lines, no siege line")
+
+    def test_no_hearth_lines_say_so(self):
+        self.assertIn("No Hearth telemetry in the window.", self.md)
+        self.assertFalse(self.data["hearth"]["any"])
 
     def test_today_is_the_warsaw_date(self):
         from zoneinfo import ZoneInfo

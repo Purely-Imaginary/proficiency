@@ -482,7 +482,7 @@ public final class TacticianGameTests {
         ServerPlayer tactician = cast.player(0.5, 0.5);
         ServerPlayer friend = cast.player(4.5, 0.5);
         skills(tactician).setLevel(Skill.TACTICIAN, ActiveService.unlockLevel() + 5);
-        helper.assertTrue(ActiveService.activate(tactician, Skill.TACTICIAN) == null, "Suppressing Fire did not start");
+        helper.assertTrue(ActiveService.activate(GameTestRoots.open(tactician, Skill.TACTICIAN), Skill.TACTICIAN) == null, "Suppressing Fire did not start");
         Mob mob = bigZombie(helper, 2, 5);
         mob.setTarget(friend);
         shoot(tactician, mob, 1f);

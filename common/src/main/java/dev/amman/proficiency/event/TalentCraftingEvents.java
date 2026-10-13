@@ -334,6 +334,8 @@ public final class TalentCraftingEvents {
             }
         }
 
+        sundayRoast(player);
+
         Sickness before = SICK_BEFORE.remove(player.getUUID());
         if (before != null && TalentService.rank(player, Skill.COOKING, "iron_stomach") > 0) {
             // A tick later, like Potency: anything a mod applies after this event is caught too.
@@ -348,6 +350,17 @@ public final class TalentCraftingEvents {
                 player.addEffect(new MobEffectInstance(MobEffects.DIG_SPEED, GOURMET_TICKS, 0));
             }
         }
+    }
+
+    /** Sunday Roast: a meal eaten at a lit Hearth fills 2 more hunger and 2 more saturation. */
+    public static void sundayRoast(ServerPlayer player) {
+        if (!TalentService.hasSynergy(player, "sunday_roast")
+                || !dev.amman.proficiency.hearth.HearthRange.isHome(player)) {
+            return;
+        }
+        player.getFoodData().eat(2, 0.5f);
+        player.serverLevel().sendParticles(net.minecraft.core.particles.ParticleTypes.HAPPY_VILLAGER,
+                player.getX(), player.getY() + 1.0, player.getZ(), 6, 0.3, 0.3, 0.3, 0.02);
     }
 
     /**

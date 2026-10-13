@@ -1,10 +1,13 @@
 #!/bin/bash
-# Builds the three jars, runs every unit test, then the three GameTest suites one after another.
+# Builds the three jars, runs every unit test (Java, and the Python tool tests in tools/tests), then the three
+# GameTest suites one after another.
 # Run it in the build copy: tools/check-all.sh   Exit 0 means everything passed.
 set -u
 cd "$(dirname "$0")/.."
 export JAVA_HOME=${JAVA_HOME:-$HOME/.local/java/jdk-21.0.12.1+1}
-LOG=${LOG:-/tmp/proficiency-check}
+# Logs stay in this build copy, so several copies can run at once without overwriting each other's.
+mkdir -p build/check-all
+LOG=${LOG:-$PWD/build/check-all/proficiency-check}
 FAIL=0
 
 run() {  # name, gradle tasks...
@@ -28,6 +31,12 @@ if ! diff <(sed -e 's/compat\.BlockDropsEvent/platform.event.level.BlockDropsEve
 fi
 run build build
 for p in core common forge-1.20.1; do count $p; done
+# The Python tool tests (the Hearth art generator, the balance report). They are run by path from the repo root and
+# need Pillow; a missing python3 or Pillow fails the check rather than skipping it.
+python3 -m unittest tools/tests/test_*.py < /dev/null > "$LOG-python.log" 2>&1
+rc=$?
+echo "  python tools tests: rc=$rc $(grep -aE '^(Ran |OK|FAILED)' "$LOG-python.log" | tr '\n' ' ')(log $LOG-python.log)"
+[ $rc = 0 ] || FAIL=1
 run neoforge-gametest :neoforge:runGameTestServer
 run fabric-gametest :fabric:runGametest
 run forge-gametest :forge-1.20.1:runGameTestServer

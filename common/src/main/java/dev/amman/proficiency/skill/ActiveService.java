@@ -32,6 +32,11 @@ public final class ActiveService {
         return ProficiencyConfig.abilityUnlockLevel();
     }
 
+    /** Level and the tree's root, bought in full: what it takes before G does anything. */
+    public static boolean unlocked(PlayerSkills skills, Skill skill) {
+        return skills.level(skill) >= unlockLevel() && skills.rootOpen(skill);
+    }
+
     public static int durationTicks() {
         return ProficiencyConfig.abilityDuration();
     }
@@ -57,10 +62,22 @@ public final class ActiveService {
             return Component.translatable("proficiency.active.locked",
                     Component.translatable(skill.translationKey()), unlockLevel());
         }
+        if (!skills.rootOpen(skill)) {
+            Talent root = Talents.root(skill);
+            return Component.translatable("proficiency.active.root_locked",
+                    Component.translatable(root.nameKey()), Component.translatable(skill.translationKey()));
+        }
         long cooldown = skills.cooldownRemaining(skill, now);
         if (cooldown > 0) {
             return Component.translatable("proficiency.active.cooldown",
                     Component.translatable(skill.activeKey()), cooldown / 20);
+        }
+        if (skill == Skill.HOMEBUILDER) {
+            // House Proud is cast at home, where it is shared (docs/HOMEBUILDER-SPEC.md).
+            Component away = dev.amman.proficiency.homebuilder.HouseProud.refuse(player);
+            if (away != null) {
+                return away;
+            }
         }
 
         int duration = durationTicks(skills, skill);
@@ -84,19 +101,24 @@ public final class ActiveService {
             // Charge! is more than the usual twenty seconds: a dash, a war cry, a first blood.
             dev.amman.proficiency.event.ChargerEvents.chargeOut(player);
         }
+        if (skill == Skill.HOMEBUILDER) {
+            // House Proud: the friends at the Hearth share the caster's passive.
+            dev.amman.proficiency.homebuilder.HouseProud.started(player);
+        }
         return null;
     }
 
-    /** Vigor, Surge, Overflow and the capstone stretch it. */
+    /** Vigor, Surge, Overflow and the capstone stretch it. House Proud starts from its own 30 s. */
     public static int durationTicks(PlayerSkills skills, Skill skill) {
-        return (int) Math.round(durationTicks()
-                * skills.perkModifier(skill, PerkEffect.ABILITY_DURATION));
+        int base = skill == Skill.HOMEBUILDER ? ProficiencyConfig.houseProudTicks() : durationTicks();
+        return (int) Math.round(base * skills.perkModifier(skill, PerkEffect.ABILITY_DURATION));
     }
 
-    /** Focus and the capstone shrink it, never below a quarter. */
+    /** Focus and the capstone shrink it, never below a quarter. House Proud starts from its own 6 minutes. */
     public static long cooldownTicks(PlayerSkills skills, Skill skill) {
-        return Math.round(ProficiencyConfig.abilityCooldown()
-                * skills.perkModifier(skill, PerkEffect.ABILITY_COOLDOWN));
+        long base = skill == Skill.HOMEBUILDER ? ProficiencyConfig.houseProudCooldownTicks()
+                : ProficiencyConfig.abilityCooldown();
+        return Math.round(base * skills.perkModifier(skill, PerkEffect.ABILITY_COOLDOWN));
     }
 
     /**

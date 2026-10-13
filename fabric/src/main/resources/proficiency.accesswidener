@@ -1,0 +1,4 @@
+accessWidener v2 named
+# What common/accesstransformer.cfg opens at compile time and NeoForge opens at runtime, for Fabric.
+# Mob.goalSelector: the Sieges lane adds its "go to the Hearth" goal to siege mobs.
+accessible field net/minecraft/world/entity/Mob goalSelector Lnet/minecraft/world/entity/ai/goal/GoalSelector;

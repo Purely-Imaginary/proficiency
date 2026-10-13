@@ -109,7 +109,8 @@ public final class AbilityContext {
             Skill build = BuildClassifier.skillFor(block.getBlock().defaultBlockState());
             if (item instanceof net.minecraft.world.item.BannerItem
                     && (build == null || dev.amman.proficiency.ProficiencyAttachments.of(player)
-                            .level(Skill.CHARGER) >= dev.amman.proficiency.skill.ActiveService.unlockLevel())) {
+                            .level(Skill.CHARGER) >= dev.amman.proficiency.skill.ActiveService.unlockLevel()
+                            && dev.amman.proficiency.ProficiencyAttachments.of(player).rootOpen(Skill.CHARGER))) {
                 return Skill.CHARGER;
             }
             return build;

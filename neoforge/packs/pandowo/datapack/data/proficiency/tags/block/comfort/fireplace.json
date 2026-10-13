@@ -1,0 +1,7 @@
+{
+  "replace": false,
+  "values": [
+    { "id": "farmersdelight:stove", "required": false },
+    { "id": "handcrafted:oven", "required": false }
+  ]
+}

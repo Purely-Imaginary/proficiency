@@ -40,4 +40,28 @@ public final class GatheringMath {
     public static double perRank(int rank, double perRankChance) {
         return Math.min(1.0, Math.max(0, rank) * perRankChance);
     }
+
+    /** Charcoal Burner: one log in eight of a felled tree goes to the furnace. */
+    public static int charcoalLogs(int felled) {
+        return Math.max(0, felled) / 8;
+    }
+
+    /** Charcoal Burner: how many of {@code logs} fit a fuel slot already holding {@code held}. */
+    public static int fuelRoom(int logs, int held, int maxStack) {
+        return Math.max(0, Math.min(logs, maxStack - Math.max(0, held)));
+    }
+
+    /**
+     * Dredger: what the vanilla break-speed penalties took, given back. Vanilla scales the speed by
+     * {@code submerged} (0.2 under water without Aqua Affinity, 1 with it or when dry) and divides
+     * by five when not on the ground; undoing both returns exactly the dry, grounded speed and
+     * never more.
+     */
+    public static float dredgeFactor(float submerged, boolean airborne) {
+        float water = submerged > 0f && submerged < 1f ? 1f / submerged : 1f;
+        return water * (airborne ? 5f : 1f);
+    }
+
+    /** Fishing Trip: a friend's Treasure Haul makes your next roll certain for this many ticks. */
+    public static final int FISHING_TRIP_TICKS = 60 * 20;
 }

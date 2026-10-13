@@ -15,7 +15,7 @@ G = {int(k): v for k, v in json.load(open(glyphs_path)).items()}
 LANGS = ['en_us', 'pl_pl', 'zh_cn', 'ru_ru', 'pt_br', 'es_es', 'de_de', 'fr_fr', 'ja_jp', 'ko_kr', 'tr_tr', 'uk_ua']
 D = {l: json.load(open(f'{lang_dir}/{l}.json')) for l in LANGS}
 SKILLS = ['alchemy', 'archery', 'axes', 'beastslaying', 'blocking', 'charger', 'cooking', 'courage', 'crossbows',
-          'decorating', 'endurance', 'engineering', 'excavation', 'farming', 'fishing', 'guardian', 'jumping', 'maces',
+          'decorating', 'endurance', 'engineering', 'excavation', 'farming', 'fishing', 'guardian', 'homebuilder', 'jumping', 'maces',
           'masonry', 'mining', 'nightwalker', 'running', 'smithing', 'sneaking', 'social', 'spellcasting',
           'spelunking', 'swimming', 'swords', 'tactician', 'tridents', 'unarmed', 'wayfaring', 'woodcutting']
 CATS = ['combat', 'gathering', 'movement', 'crafting', 'mastery', 'expedition', 'construction', 'social', 'survival']
@@ -102,10 +102,18 @@ for l in LANGS:
     check('tree.footer past panel edge', l, fmt(l, 'proficiency.tree.footer', 'spelunking'), OLD['tree_inner'], '')
     check('panel.streak title+cap', l, fmt(l, 'proficiency.streak.title', 50) + fmt(l, 'proficiency.streak.cap', 50) + ' ' * 3, 320, '')
     check('panel.streak next+value', l, fmt(l, 'proficiency.streak.next', 51, 99) + fmt(l, 'proficiency.streak.value', 50, 50) + ' ' * 3, 320, '')
+    # At a Hearth the caption starts with the 7 px Warmth glyph (+1 spacing, +1 gap) and reads "at the Hearth".
+    check('panel.streak next+value at the Hearth', l, fmt(l, 'proficiency.hearth.effects.streak.next', 51) + fmt(l, 'proficiency.streak.value', 50, 50) + ' ' * 5, 320 - 9, '')
+    check('tip.hearth streak safe (292)', l, fmt(l, 'proficiency.hearth.effects.streak.safe'), 292, '')
+    check('tip.hearth streak safe detail (wraps to 3 lines)', l, fmt(l, 'proficiency.hearth.effects.streak.safe.detail'), 292 * 3, '')
     check('recap.title', l, fmt(l, 'proficiency.recap.title'), OLD['recap_text'], '')
     check('recap.streak', l, fmt(l, 'proficiency.recap.streak', 31), OLD['recap_text'] - 12, '')
     check('recap.more', l, fmt(l, 'proficiency.recap.more', 12), OLD['recap_text'], '')
     check('recap.rested (wraps to 3 lines)', l, fmt(l, 'proficiency.recap.rested', 1234, 12), OLD['recap_text'] * 3, '')
+    # The Hearth's tale panel (client/TalesPayInHud): the title beside its 8 px icon wraps to 2 lines, a body line to 2.
+    for kind in ('paid', 'chronicle', 'retold'):
+        check('tales.title (wraps to 2 lines)', l, fmt(l, 'proficiency.hearth.tales.panel.' + kind), (OLD['recap_text'] - 10) * 2, kind)
+    check('tales.blocks (wraps to 2 lines)', l, fmt(l, 'proficiency.hearth.tales.panel.blocks', '32\u00a0000'), OLD['recap_text'] * 2, '')
     check('tooltip.rested', l, fmt(l, 'proficiency.tooltip.rested', 1234), 320 - 8 - 12 - 4, '')
     check('tooltip.rusty (wraps to 2 lines)', l, fmt(l, 'proficiency.tooltip.rusty', 12), (320 - 8 - 12 - 4) * 2, '')
     check('toast.teaching (action bar)', l, fmt(l, 'proficiency.teaching.paid', '12.5'), 426 * 0.9, '')

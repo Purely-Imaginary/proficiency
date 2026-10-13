@@ -151,15 +151,23 @@ public final class RestedMath {
     }
 
     /**
-     * How far the pool reaches along the bar: the pool as a fraction of the bar in front of the
-     * player, never more than 1. The HUD paints that much blue after the filled part.
+     * How far the pool carries the bar, as a fraction of the bar in front of the player, never
+     * more than 1. A plain grant {@code g} spends {@code e x g} of the pool ({@code e} is rested XP's
+     * extra) and moves the fill by {@code g + e x g}, so the pool carries the bar
+     * {@code (1 + e) / e} times its own length: the far end of the HUD's blue segment (fill plus
+     * this) then stays where it was and the filling bar eats into it. At the default extra of 1.0
+     * that is twice the pool. Zero when the extra is zero or less, since the pool then never pays.
+     * Limit: the survival streak also moves the fill without spending the pool, so with a streak
+     * above 1.0 the far end still drifts right a little.
      */
     public static float reach(float pool, int level, int stars) {
         float need = need(level, stars);
-        if (!(need > 0) || !(pool > 0)) {
+        double extra = SkillTuning.current().restedExtra();
+        if (!(need > 0) || !(pool > 0) || !finite(extra) || !(extra > 0)) {
             return 0f;
         }
-        return Math.min(1f, pool / need);
+        double carry = (1.0 + extra) / extra;
+        return (float) Math.min(1.0, pool * carry / need);
     }
 
     // ---- The rules that touch a player's skills --------------------------------------------------

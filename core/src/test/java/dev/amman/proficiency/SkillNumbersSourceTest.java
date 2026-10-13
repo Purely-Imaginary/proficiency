@@ -8,7 +8,7 @@ import dev.amman.proficiency.skill.Skill;
 import org.junit.jupiter.api.Test;
 
 /**
- * The tree screen's numbers come apart into ranks, synergies and Discipline; those parts must
+ * The tree screen's numbers come apart into ranks, synergies, Discipline and Expertise; those parts must
  * multiply back to exactly what gameplay reads, for every skill and effect, with a full tree.
  */
 class SkillNumbersSourceTest {
@@ -20,13 +20,14 @@ class SkillNumbersSourceTest {
             skills.setLevel(skill, 100);
             skills.fillTree(skill);
         }
+        skills.fillExpertise();
         for (Skill skill : Skill.VALUES) {
             for (PerkEffect effect : PerkEffect.values()) {
                 if (effect == PerkEffect.DEATH_WARD) {
                     continue;
                 }
                 PlayerSkills.Modifier m = skills.modifier(skill, effect);
-                double raw = m.ranks() * m.synergies() * m.discipline();
+                double raw = m.ranks() * m.synergies() * m.discipline() * m.expertise();
                 double clamped = effect == PerkEffect.ABILITY_COOLDOWN ? Math.max(0.25, raw) : Math.max(0, raw);
                 assertEquals(clamped, m.total(), 1e-12, skill + " " + effect);
                 assertEquals(m.total(), skills.perkModifier(skill, effect), 1e-12);
@@ -41,6 +42,10 @@ class SkillNumbersSourceTest {
     void theNextLevelIsHigherBelowTheTop() {
         PlayerSkills skills = new PlayerSkills();
         skills.setLevel(Skill.MINING, 40);
+        var root = dev.amman.proficiency.perk.Talents.root(Skill.MINING);
+        for (int i = 0; i < root.maxRank(); i++) {
+            skills.addRank(root);
+        }
         assertEquals(true, skills.bonusAt(Skill.MINING, 41) > skills.bonus(Skill.MINING));
         assertEquals(true, skills.procChanceAt(Skill.MINING, 41) > skills.procChance(Skill.MINING));
     }

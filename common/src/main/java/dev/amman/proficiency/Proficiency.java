@@ -22,6 +22,8 @@ public final class Proficiency {
         dev.amman.proficiency.platform.Subscribers.registerCommon();
         // Tactician's side of Hammer and Anvil hooks into Charger's first blood.
         dev.amman.proficiency.event.TacticianEvents.init();
+        // The Hearth: every lane registers its listeners (docs/HEARTH-CONTRACT.md).
+        dev.amman.proficiency.hearth.Hearth.init();
     }
 
     public static ResourceLocation id(String path) {

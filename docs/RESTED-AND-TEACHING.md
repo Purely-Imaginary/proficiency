@@ -88,8 +88,13 @@ mentor-heavy skills' XP per hour in the balance report before and after.
 
 ## Display
 
-- **HUD bar**: a blue segment after the filled part, as long as the XP that will pay double (the
-  pool over the bar in front of the player, cut at the end of the bar).
+- **HUD bar**: a faint blue segment after the filled part, as long as the stretch of bar the pool
+  pays double over: the pool times (1 + extra) / extra, over the bar in front of the player, cut
+  at the end of the bar (with the default extra of 1.0 that is twice the pool's own share; no
+  segment when the extra is 0). Its far
+  end is fixed to the real value plus that length, so XP that arrives eats into the segment from
+  the left and the far end stays where it was; the fill's animation never moves it. While the fill
+  is still finishing the level or star before, there is no segment.
 - **Skills panel**: the same blue segment on each row's bar. The row tooltip says `Rested: N XP`,
   and after 7 real days with no XP in a skill it adds a `Rusty` line. Rusty is flavour only, no
   penalty. Old saves get today's date for every played skill on first login, so nothing starts
@@ -149,7 +154,7 @@ XP table, a line in the summary, and colours in the source mix.
 - Real client (NeoForge, throwaway SkillTest instance and `~/mc-skilltest` server on a private
   Xvfb display, never the real desktop): the blue segment on the HUD bar and on the panel rows, the
   `Rested: 40 XP` tooltip, a real death with the blue "Rested XP lost" line in the recap, and the
-  Social tree with the three new nodes.
+  Social tree with the three new nodes. 
 - Not checked in a real client: two players teaching each other (the GameTests cover it), the
   `Rusty` tooltip line (unit tested only), and the Fabric and Forge clients' drawing of the blue
   segment (the same code, built and tested, not looked at).

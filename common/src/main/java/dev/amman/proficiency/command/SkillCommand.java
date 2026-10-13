@@ -121,7 +121,10 @@ public final class SkillCommand {
                                 .suggests(SKILL_SUGGESTIONS)
                                 .executes(SkillCommand::respec)))
                 .then(Commands.literal("synergies")
-                        .executes(SkillCommand::synergies))
+                        .executes(SkillCommand::synergies)
+                        .then(Commands.argument("skill", StringArgumentType.word())
+                                .suggests(SKILL_SUGGESTIONS)
+                                .executes(SkillCommand::synergiesOf)))
                 .then(Commands.literal("recipes")
                         .executes(SkillCommand::recipes))
                 .then(Commands.literal("use")
@@ -154,6 +157,7 @@ public final class SkillCommand {
                                 .then(Commands.argument("stacks", IntegerArgumentType.integer(0, 1000))
                                         .executes(SkillCommand::setStreak))))
                 .then(xpFeedCommand())
+                .then(ExpertiseCommand.node())
                 .then(dev.amman.proficiency.xp.XpCommand.node())
                 .then(dev.amman.proficiency.xp.XpCommand.auditNode())
                 .then(Commands.literal("reset")
@@ -331,34 +335,101 @@ public final class SkillCommand {
         return WorldRecipes.all().size();
     }
 
+    /** How many "nearly awake" synergies the plain command lists besides the awake ones. */
+    private static final int NEAREST_SYNERGIES = 8;
+
+    /**
+     * {@code /skills synergies}: the awake ones, and the few partly met ones closest to waking, one
+     * line each. The full list is about 160 entries; {@code /skills synergies <skill>} has one tree's.
+     */
     private static int synergies(CommandContext<CommandSourceStack> context)
             throws CommandSyntaxException {
         ServerPlayer player = context.getSource().getPlayerOrException();
         PlayerSkills skills = ProficiencyAttachments.of(player);
         CommandSourceStack source = context.getSource();
-        source.sendSuccess(() -> Component.translatable("proficiency.synergy.header")
-                .withStyle(ChatFormatting.LIGHT_PURPLE), false);
+        List<Synergy> awake = new ArrayList<>();
+        List<Synergy> near = new ArrayList<>();
+        int waiting = 0;
         for (Synergy synergy : Synergies.all()) {
-            boolean active = Synergies.isActive(skills, synergy);
-            source.sendSuccess(() -> Component.translatable(active
-                                    ? "proficiency.synergy.line_active" : "proficiency.synergy.line",
-                            Component.translatable(synergy.nameKey()), Component.translatable(synergy.descriptionKey()))
-                    .withStyle(active ? ChatFormatting.LIGHT_PURPLE : ChatFormatting.GRAY), false);
-            for (Synergy.Need need : synergy.requires()) {
-                Talent talent = need.talent();
-                int rank = skills.rank(talent);
-                source.sendSuccess(() -> Component.translatable("proficiency.synergy.need",
-                                Component.translatable(need.skill().translationKey()), Component.translatable(talent.nameKey()), Math.min(rank, need.minRank()), need.minRank())
-                        .withStyle(rank >= need.minRank() ? ChatFormatting.GREEN : ChatFormatting.DARK_GRAY),
-                        false);
-            }
-            if (synergy.grandmastersNeeded() > 0) {
-                source.sendSuccess(() -> Component.translatable("proficiency.synergy.need_grandmasters",
-                        Math.min(skills.grandmasters(), synergy.grandmastersNeeded()),
-                        synergy.grandmastersNeeded()).withStyle(ChatFormatting.DARK_GRAY), false);
+            if (Synergies.isActive(skills, synergy)) {
+                awake.add(synergy);
+            } else if (partsMet(skills, synergy) > 0) {
+                near.add(synergy);
+            } else {
+                waiting++;
             }
         }
+        near.sort(java.util.Comparator
+                .comparingInt((Synergy synergy) -> synergy.requires().size() - partsMet(skills, synergy))
+                .thenComparing(Synergy::id));
+        source.sendSuccess(() -> Component.translatable("proficiency.synergy.header")
+                .withStyle(ChatFormatting.LIGHT_PURPLE), false);
+        for (Synergy synergy : awake) {
+            sendSynergyLine(source, skills, synergy, true, false);
+        }
+        for (Synergy synergy : near.subList(0, Math.min(NEAREST_SYNERGIES, near.size()))) {
+            sendSynergyLine(source, skills, synergy, false, false);
+        }
+        int hidden = Math.max(0, near.size() - NEAREST_SYNERGIES) + waiting;
+        int awakeCount = awake.size();
+        int nearCount = near.size();
+        source.sendSuccess(() -> Component.translatable("proficiency.synergy.summary",
+                awakeCount, nearCount, hidden).withStyle(ChatFormatting.DARK_GRAY), false);
         return 1;
+    }
+
+    /** {@code /skills synergies <skill>}: every synergy that names the tree, with each need. */
+    private static int synergiesOf(CommandContext<CommandSourceStack> context)
+            throws CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        PlayerSkills skills = ProficiencyAttachments.of(player);
+        CommandSourceStack source = context.getSource();
+        Skill skill = requireSkill(context);
+        source.sendSuccess(() -> Component.translatable("proficiency.synergy.header_skill",
+                Component.translatable(skill.translationKey())).withStyle(ChatFormatting.LIGHT_PURPLE), false);
+        for (Synergy synergy : Synergies.involving(skill)) {
+            sendSynergyLine(source, skills, synergy, Synergies.isActive(skills, synergy), true);
+        }
+        return 1;
+    }
+
+    private static int partsMet(PlayerSkills skills, Synergy synergy) {
+        int met = 0;
+        for (Synergy.Need need : synergy.requires()) {
+            if (skills.rank(need.talent()) >= need.minRank()) {
+                met++;
+            }
+        }
+        if (synergy.grandmastersNeeded() > 0) {
+            met = Math.min(skills.grandmasters(), synergy.grandmastersNeeded());
+        }
+        return met;
+    }
+
+    /** One synergy: name and description, then its needs unless it is awake (all of them, or only the unmet ones). */
+    private static void sendSynergyLine(CommandSourceStack source, PlayerSkills skills, Synergy synergy,
+                                        boolean active, boolean allNeeds) {
+        source.sendSuccess(() -> Component.translatable(active
+                                ? "proficiency.synergy.line_active" : "proficiency.synergy.line",
+                        Component.translatable(synergy.nameKey()), Component.translatable(synergy.descriptionKey()))
+                .withStyle(active ? ChatFormatting.LIGHT_PURPLE : ChatFormatting.GRAY), false);
+        for (Synergy.Need need : synergy.requires()) {
+            Talent talent = need.talent();
+            int rank = skills.rank(talent);
+            boolean met = rank >= need.minRank();
+            if (active || (!allNeeds && met)) {
+                continue;
+            }
+            source.sendSuccess(() -> Component.translatable("proficiency.synergy.need",
+                            Component.translatable(need.skill().translationKey()), Component.translatable(talent.nameKey()),
+                            Math.min(rank, need.minRank()), need.minRank())
+                    .withStyle(met ? ChatFormatting.GREEN : ChatFormatting.DARK_GRAY), false);
+        }
+        if (synergy.grandmastersNeeded() > 0 && !active) {
+            source.sendSuccess(() -> Component.translatable("proficiency.synergy.need_grandmasters",
+                    Math.min(skills.grandmasters(), synergy.grandmastersNeeded()),
+                    synergy.grandmastersNeeded()).withStyle(ChatFormatting.DARK_GRAY), false);
+        }
     }
 
     private static int useAbility(CommandContext<CommandSourceStack> context)

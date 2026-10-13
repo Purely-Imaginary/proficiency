@@ -9,6 +9,9 @@ one or more such folders and writes report.md and a self-contained report.html:
   source mix per skill, dead skills, runaway skills (more than 3x the median skill)
   time to level at the current rate against the XP curve
   proc rate against the configured chance, and what deaths cost
+  the Hearth: charge per pool (and per source) per active hour and per hour at home, time to each
+  tier, who feeds it, Warmth fills and bed share, temp HP spent away (boss hits), Tales and Chronicle
+  ratings, sieges per 10 h with their outcomes, boon time, Homebuilder's share and Homeward use
 
   balance_report.py [LABEL=]DIR ... [--out DIR] [--days 7] [--since D] [--until D] [--anon]
 
@@ -33,7 +36,7 @@ SKILL_JAVA = os.path.join(HERE, "..", "core", "src", "main", "java", "dev", "amm
 SKILLS = ("swords axes maces tridents unarmed blocking endurance archery crossbows mining "
           "woodcutting excavation farming fishing running sneaking jumping swimming smithing "
           "cooking alchemy spellcasting engineering beastslaying wayfaring spelunking masonry "
-          "decorating social nightwalker courage guardian charger tactician").split()
+          "decorating social nightwalker courage guardian charger tactician homebuilder").split()
 
 MIN_ACTIVE_S = 300          # a player needs five minutes in a skill before their rate counts
 DEAD_MIN_H = 10             # under this many active hours in total, "no XP" is too little data to call a skill dead
@@ -43,6 +46,16 @@ PROC_MIN_ROLLS = 30
 EXCLUDED_KINDS = {"command"}  # an op's /skills addxp is not play
 DEFAULT_CURVE = (8.0, 2.0, 1.35)
 MAX_LEVEL = 100
+
+# The Hearth (docs/HEARTH-SPEC.md): pool ids in wire order and the default data's numbers. Charge
+# the hourly cap turned away is filed under the source "capped" (the charge lane's telemetry).
+HEARTH_POOLS = ("hearty", "regen", "fortified", "workshop", "homecoming")
+HEARTH_THRESHOLDS = (200, 600, 1400, 2800, 5000, 8000)
+HEARTH_HOURLY_CAP = 300.0
+HEARTH_CAPPED = "capped"
+HEARTH_ROMAN = ("I", "II", "III", "IV", "V", "VI")
+HEARTH_COLORS = {"hearty": "#7fae63", "regen": "#6fb0a6", "fortified": "#8c98ab", "workshop": "#d2a249",
+                 "homecoming": "#d98ab3"}
 
 KIND_COLORS = {
     "block": "#c2813a", "mob": "#b5483f", "kill": "#8c2f39", "item": "#4f8f6b",
@@ -144,6 +157,9 @@ def analyse(rows, skills):
             if isinstance(r.get("curve"), list) and len(r["curve"]) == 3 \
                     and t >= metas.get(r["_world"], (-1, None))[0]:
                 metas[r["_world"]] = (t, tuple(r["curve"]))
+            continue
+        if typ == "hearth":
+            # Hearth events (charge, boons, sieges): their own section, not player XP rows.
             continue
         key = (r["_world"], r.get("uuid", r.get("player", "?")))
         p = players.setdefault(key, {"name": r.get("player", "?"), "world": r["_world"],
@@ -278,6 +294,270 @@ def death_summary(players, ps):
     return per_world
 
 
+def hearth_summary(rows, players, mix=None):
+    """The Hearth section from the "hearth" lines: charge per pool (every Hearth of a server summed),
+    per active hour of play on the servers that have Hearth lines, what the hourly cap turned away,
+    the hours to each tier at that rate, charge per pool and source, who fed it and from what, Warmth,
+    temp HP spent away, Tales and the Chronicle, sieges, boon time, Homebuilder and Homeward, and
+    every other Hearth event."""
+    pools = {p: {"charge": 0.0, "capped": 0.0} for p in HEARTH_POOLS}
+    feeders, sources, events, worlds = {}, {}, {}, set()
+    by_source = {}   # (pool, source) -> charge
+    for r in rows:
+        if r.get("type") != "hearth":
+            continue
+        kind, label = r.get("kind") or "", r.get("label") or ""
+        source = r.get("source") or ""
+        value = r.get("value", 0)
+        value = float(value) if isinstance(value, (int, float)) else 0.0
+        worlds.add(r["_world"])
+        if kind != "hearth_charge":
+            e = events.setdefault((kind, label, source), [0, 0.0])
+            e[0] += int(r.get("n", 0) or 0)
+            e[1] += value
+            continue
+        pool = pools.setdefault(label, {"charge": 0.0, "capped": 0.0})
+        if source == HEARTH_CAPPED:
+            pool["capped"] += value
+            continue
+        pool["charge"] += value
+        sources[source] = sources.get(source, 0.0) + value
+        by_source[(label, source)] = by_source.get((label, source), 0.0) + value
+        key = (r["_world"], r.get("uuid") or r.get("player") or "")
+        f = feeders.setdefault(key, {"name": r.get("player") or "(world)", "world": r["_world"],
+                                     "pools": {}, "sources": {}, "total": 0.0})
+        f["pools"][label] = f["pools"].get(label, 0.0) + value
+        f["sources"][source] = f["sources"].get(source, 0.0) + value
+        f["total"] += value
+    active_s = sum(p["active_s"] for (w, _), p in players.items() if w in worlds)
+    active_h = active_s / 3600.0
+    for p in pools.values():
+        p["per_hour"] = p["charge"] / active_h if active_h > 0 else None
+        rate = min(p["per_hour"], HEARTH_HOURLY_CAP) if p["per_hour"] else None
+        p["tier_h"] = [t / rate if rate else None for t in HEARTH_THRESHOLDS]
+    # Player-hours, like active_h: streak_paused is one line per player and carries no Hearth, so two
+    # players at home together add up to two hours.
+    home_s = sum(v[1] for (k, _, _), v in events.items() if k == "streak_paused")
+    home_h = home_s / 3600.0
+    for p in pools.values():
+        p["per_home_hour"] = p["charge"] / home_h if home_h > 0 else None
+    by_source_rows = []
+    for (pool, source), value in by_source.items():
+        total = pools.get(pool, {}).get("charge", 0.0)
+        by_source_rows.append({"pool": pool, "source": source, "charge": value,
+                               "per_hour": value / active_h if active_h > 0 else None,
+                               "share": value / total if total > 0 else None})
+    by_source_rows.sort(key=lambda r: (HEARTH_POOLS.index(r["pool"]) if r["pool"] in HEARTH_POOLS else 99,
+                                       -r["charge"], r["source"]))
+    return {"pools": pools, "feeders": feeders, "sources": sources, "events": events,
+            "by_source": by_source_rows, "active_h": active_h, "home_h": home_h,
+            "home_share": home_s / active_s if active_s > 0 and home_s > 0 else None,
+            "sieges": siege_summary(events, active_h),
+            "warmth": warmth_summary(events), "absorb": absorb_summary(events, active_h),
+            "tales": tales_summary(events, sources), "boons": boon_summary(events),
+            "homebuilder": homebuilder_summary(events, mix, players, worlds, active_h),
+            "any": bool(feeders or events or any(p["capped"] > 0 for p in pools.values()))}
+
+
+def _events(events, kind, label=None):
+    """(n, sum) over the events of a kind (and label), every source."""
+    n, total = 0, 0.0
+    for (k, l, _), (count, value) in events.items():
+        if k == kind and (label is None or l == label):
+            n += count
+            total += value
+    return n, total
+
+
+def warmth_summary(events):
+    """hearth_warm: "rise" = seconds from the start of a rise to full (one event per fill), "bed" = a real
+    night's sleep in range filled it at once."""
+    rises, rise_s = _events(events, "hearth_warm", "rise")
+    beds, _ = _events(events, "hearth_warm", "bed")
+    if not (rises or beds):
+        return None
+    return {"rises": rises, "mean_rise_s": rise_s / rises if rises else None, "beds": beds,
+            "bed_share": beds / (rises + beds)}
+
+
+def absorb_summary(events, active_h):
+    """hearth_absorb: temp HP spent away from home, by the hit's source ("boss" or "other")."""
+    _, boss = _events(events, "hearth_absorb", "boss")
+    n, total = _events(events, "hearth_absorb")
+    if not n:
+        return None
+    return {"hits": n, "total": total, "boss": boss, "boss_share": boss / total if total > 0 else None,
+            "per_hour": total / active_h if active_h > 0 else None}
+
+
+def tales_summary(events, sources):
+    """hearth_tales (banked by skill, paid, lost), tale_rating (label = stars, value = the charge paid)
+    and the Chronicle's charge (ledger source "chronicle": the flat bonus and the rated bursts)."""
+    banked_by = {}
+    for (k, l, src), (_, value) in events.items():
+        if k == "hearth_tales" and l == "banked":
+            banked_by[src or "?"] = banked_by.get(src or "?", 0.0) + value
+    banked = sum(banked_by.values())
+    _, paid = _events(events, "hearth_tales", "paid")
+    lost_n, lost = _events(events, "hearth_tales", "lost")
+    stars, rated_charge = {}, 0.0
+    for (k, l, _), (count, value) in events.items():
+        if k == "tale_rating":
+            stars[l] = stars.get(l, 0) + count
+            rated_charge += value
+    rated = sum(stars.values())
+    chronicle = sources.get("chronicle", 0.0)
+    if not (banked or paid or lost or rated or chronicle):
+        return None
+    # The mean is over the labels that are a star count: a label that is not a digit has no stars to add,
+    # so it must not count in the divisor either.
+    starred = sum(n for k, n in stars.items() if str(k).isdigit())
+    mean = None
+    if starred:
+        mean = sum(int(k) * n for k, n in stars.items() if str(k).isdigit()) / starred
+    return {"banked": banked, "banked_by": banked_by, "paid": paid, "lost": lost, "deaths": lost_n,
+            "lost_share": lost / banked if banked > 0 else None, "rated": rated, "stars": stars,
+            "mean_stars": mean, "rated_charge": rated_charge, "chronicle_charge": chronicle,
+            "flat_charge": max(0.0, chronicle - rated_charge), "tales_charge": sources.get("tales", 0.0)}
+
+
+def boon_summary(events):
+    """hearth_boon: Warmth-weighted seconds each boon worked (1 a second for the unscaled ones), and
+    Provisioned's Hearty away from home (source "provisioned")."""
+    out = {}
+    for (k, l, src), (_, value) in events.items():
+        if k != "hearth_boon":
+            continue
+        b = out.setdefault(l, {"home_h": 0.0, "away_h": 0.0})
+        if src == "provisioned":
+            b["away_h"] += value / 3600.0
+        else:
+            b["home_h"] += value / 3600.0
+    return out or None
+
+
+def homebuilder_summary(events, mix, players, worlds, active_h):
+    """Homebuilder's XP by kind (the at-home share is kind "home", milestones arrive as "action") and its
+    share of all XP, plus Homeward: uses (by channel or after a come-home bell), distance saved, cancels."""
+    hb = dict((mix or {}).get("homebuilder", {}))
+    total = sum(hb.values())
+    all_xp = sum(sum(m.values()) for m in (mix or {}).values())
+    uses = {}
+    saved_n, saved = 0, 0.0
+    cancels = {}
+    for (k, l, src), (count, value) in events.items():
+        if k != "homeward":
+            continue
+        if l in ("use", "use_other_dimension"):
+            uses[(l, src)] = uses.get((l, src), 0) + count
+            if l == "use":
+                saved_n += count
+                saved += value
+        elif l == "cancel":
+            cancels[src] = cancels.get(src, 0) + count
+    if not (total or uses or cancels):
+        return None
+    return {"xp": total, "share_xp": hb.get("home", 0.0), "milestone_xp": hb.get("action", 0.0),
+            "first_xp": hb.get("first-time", 0.0), "of_all": total / all_xp if all_xp > 0 else None,
+            "per_hour": total / active_h if active_h > 0 else None,
+            "uses": sum(uses.values()), "bell_uses": sum(n for (l, src), n in uses.items() if src == "bell"),
+            "other_dim": sum(n for (l, src), n in uses.items() if l == "use_other_dimension"),
+            "mean_saved": saved / saved_n if saved_n else None, "cancels": cancels}
+
+
+def siege_summary(events, active_h):
+    """Sieges from the "hearth_siege" events (Sieges lane): announced sieges per 10 h of active play
+    (rolled and called by a horn), hours the condition held, how they ended, the mean wave size."""
+    def count(label):
+        return sum(v[0] for (k, l, _), v in events.items() if k == "hearth_siege" and l == label)
+    rolled, called = count("rolled"), count("called")
+    if not (rolled or called or count("condition") or count("outcome")):
+        return None
+    waves = [v for (k, l, _), v in events.items() if k == "hearth_siege" and l == "wave"]
+    wave_n, wave_mobs = sum(v[0] for v in waves), sum(v[1] for v in waves)
+    outcomes = {s: v[0] for (k, l, s), v in events.items() if k == "hearth_siege" and l == "outcome"}
+    return {"rolled": rolled, "called": called,
+            "per_10h": (rolled + called) * 10.0 / active_h if active_h > 0 else None,
+            "condition_h": count("condition") / 3600.0, "rolls": count("roll"),
+            "outcomes": outcomes, "mean_wave": wave_mobs / wave_n if wave_n else None,
+            "ended_per_10h": sum(outcomes.values()) * 10.0 / active_h if active_h > 0 else None,
+            "kills": count("kill"), "unearned_falls": count("unearned"), "postponed": count("postpone"),
+            "horns": count("horn")}
+
+
+def siege_text(s):
+    outcomes = ", ".join("%s %d" % (k, n) for k, n in sorted(s["outcomes"].items())) or "none yet"
+    text = ("Sieges: %s per 10 h of active play (%d rolled, %d called by a horn); the condition held %.1f h "
+            "(%d rolls); outcomes: %s; mean wave %s mobs." % (
+                f1(s["per_10h"]), s["rolled"], s["called"], s["condition_h"], s["rolls"], outcomes,
+                f1(s["mean_wave"])))
+    if s.get("kills") or s.get("unearned_falls") or s.get("postponed"):
+        text += (" Siege kills %d, siege mobs lost without a player's hand %d (unearned), nights postponed %d."
+                 % (s.get("kills", 0), s.get("unearned_falls", 0), s.get("postponed", 0)))
+    return text
+
+
+def warmth_text(m):
+    return ("Warmth: filled to full by standing at a Hearth %dx (mean %s s to full), by a night's sleep %dx "
+            "(%s of fills)." % (m["rises"], f1(m["mean_rise_s"]), m["beds"], fp(m["bed_share"])))
+
+
+def absorb_text(a):
+    return ("Temp HP spent away from home: %.0f points over %d hits (%s per active hour); boss hits took "
+            "%.0f of it (%s)." % (a["total"], a["hits"], f1(a["per_hour"]), a["boss"], fp(a["boss_share"])))
+
+
+def tales_text(t):
+    stars = ", ".join("%s stars %d" % (k, n) for k, n in sorted(t["stars"].items())) or "none"
+    return ("Tales: %.0f banked away (%s), %.0f paid in at a Hearth, %.0f lost in %d death(s) (%s of banked). "
+            "Chronicle: %.0f charge from the write bonus; %d pages rated (%s; mean %s), %.0f charge from ratings."
+            % (t["banked"], top_sources(t["banked_by"]), t["paid"], t["lost"], t["deaths"], fp(t["lost_share"]),
+               t["flat_charge"], t["rated"], stars, f1(t["mean_stars"]), t["rated_charge"]))
+
+
+def boons_text(b):
+    parts = []
+    for boon in sorted(b):
+        v = b[boon]
+        part = "%s %.1f h" % (boon, v["home_h"])
+        if v["away_h"] > 0:
+            part += " (+%.1f h Provisioned away)" % v["away_h"]
+        parts.append(part)
+    return "Boon time, Warmth-weighted: %s." % ", ".join(parts)
+
+
+def homebuilder_text(m):
+    cancels = ", ".join("%s %d" % (k, n) for k, n in sorted(m["cancels"].items())) or "none"
+    return ("Homebuilder: %.0f XP (%s per active hour, %s of all XP): the at-home share %.0f, milestones %.0f, "
+            "first-time %.0f. Homeward: %d uses (%d after a come-home bell, %d to another dimension), mean %s "
+            "blocks saved; cancelled: %s." % (
+                m["xp"], f1(m["per_hour"]), fp(m["of_all"]), m["share_xp"], m["milestone_xp"], m["first_xp"],
+                m["uses"], m["bell_uses"], m["other_dim"], f1(m["mean_saved"]), cancels))
+
+
+def hearth_lines(hs):
+    """The one-line summaries, in the order the report prints them (markdown and html share them)."""
+    lines = []
+    if hs["home_share"] is not None:
+        lines.append("Share of active time at home (streak paused): %s (%.1f h)." % (fp(hs["home_share"]),
+                                                                                     hs["home_h"]))
+    for key, fn in (("warmth", warmth_text), ("absorb", absorb_text), ("tales", tales_text),
+                    ("sieges", siege_text), ("boons", boons_text), ("homebuilder", homebuilder_text)):
+        if hs.get(key):
+            lines.append(fn(hs[key]))
+    return lines
+
+
+def hearth_name(d, key, f):
+    if key in d["names"]:
+        return d["names"][key]
+    return "Player ?" if d["anon"] else f["name"]
+
+
+def top_sources(sources, n=3):
+    return ", ".join("%s %.0f" % (k, v) for k, v in sorted(sources.items(), key=lambda kv: -kv[1])[:n]) or "-"
+
+
 # ---------------------------------------------------------------- formatting
 
 def f1(v):
@@ -346,6 +626,7 @@ def build(rows, files, bad, since, until, anon, skills):
         "curves": curves, "curve_text": curve_text(curves), "deaths": deaths, "worlds": sorted({k[0] for k in players}),
         "generated": dt.datetime.now().strftime("%Y-%m-%d %H:%M"),
         "span": data_span(rows), "active_h": sum(p["active_s"] for p in players.values()) / 3600,
+        "hearth": hearth_summary(rows, players, mix),
     }
 
 
@@ -497,7 +778,63 @@ def markdown(d):
             d["names"][key], p["world"], p["online_s"] / 3600, p["active_s"] / 3600, p["xp"],
             p["deaths"]))
     w("")
+    hearth_markdown(d, w)
     return "\n".join(L) + "\n"
+
+
+def hearth_markdown(d, w):
+    hs = d["hearth"]
+    w("## Hearth")
+    w("")
+    if not hs["any"]:
+        w("No Hearth telemetry in the window.")
+        w("")
+        return
+    w("Charge is what the Hearths gathered, every Hearth of a server summed, per hour of active play "
+      "on the servers with Hearth lines (%.1f h). Hours are player-hours, here and at home: two players "
+      "at home together count twice, since the telemetry has no Hearth to count a shared hour once. "
+      "Time to a tier is from no charge at that rate, held to the default hourly cap of %.0f per pool, "
+      "without decay." % (hs["active_h"], HEARTH_HOURLY_CAP))
+    w("")
+    w("| Pool | Charge | Per active hour | Per player-hour at home | Lost to the hourly cap | %s |"
+      % " | ".join(HEARTH_ROMAN))
+    w("|---|---:|---:|---:|---:|%s" % ("---:|" * len(HEARTH_ROMAN)))
+    for name in sorted(hs["pools"], key=lambda n: HEARTH_POOLS.index(n) if n in HEARTH_POOLS else 99):
+        p = hs["pools"][name]
+        w("| %s | %.0f | %s | %s | %.0f | %s |" % (name, p["charge"], f1(p["per_hour"]), f1(p.get("per_home_hour")),
+                                                   p["capped"], " | ".join(fh(t) for t in p["tier_h"])))
+    for line in hearth_lines(hs):
+        w("")
+        w(line)
+    if hs["by_source"]:
+        w("")
+        w("### Charge by pool and source")
+        w("")
+        w("| Pool | Source | Charge | Per active hour | Share of the pool |")
+        w("|---|---|---:|---:|---:|")
+        for r in hs["by_source"][:60]:
+            w("| %s | %s | %.0f | %s | %s |" % (r["pool"], r["source"] or "-", r["charge"], f1(r["per_hour"]),
+                                               fp(r["share"])))
+    w("")
+    w("### Who feeds the Hearth")
+    w("")
+    w("| Player | Server | Charge | %s | Top sources |" % " | ".join(HEARTH_POOLS))
+    w("|---|---|---:|%s---|" % ("---:|" * len(HEARTH_POOLS)))
+    for key, f in sorted(hs["feeders"].items(), key=lambda kv: -kv[1]["total"]):
+        w("| %s | %s | %.0f | %s | %s |" % (hearth_name(d, key, f), f["world"], f["total"],
+                                            " | ".join("%.0f" % f["pools"].get(p, 0.0) for p in HEARTH_POOLS),
+                                            top_sources(f["sources"])))
+    w("")
+    w("Charge by source: %s." % top_sources(hs["sources"], 12))
+    if hs["events"]:
+        w("")
+        w("### Other Hearth events")
+        w("")
+        w("| Kind | Label | Source | Events | Sum |")
+        w("|---|---|---|---:|---:|")
+        for (kind, label, source), (n, total) in sorted(hs["events"].items())[:60]:
+            w("| %s | %s | %s | %d | %.1f |" % (kind, label or "-", source or "-", n, total))
+    w("")
 
 
 # ---------------------------------------------------------------- html
@@ -645,8 +982,56 @@ def page(d):
         w("<tr><td>%s<td>%s<td>%.1f<td>%.1f<td>%.0f<td>%d</tr>" % (
             h(d["names"][key]), h(p["world"]), p["online_s"] / 3600, p["active_s"] / 3600,
             p["xp"], p["deaths"]))
-    w("</table></div></main></body></html>")
+    w("</table></div>")
+    hearth_page(d, w)
+    w("</main></body></html>")
     return "".join(o)
+
+
+def hearth_page(d, w):
+    hs = d["hearth"]
+    w("<h2>Hearth</h2>")
+    if not hs["any"]:
+        w("<p class=note>No Hearth telemetry in the window.</p>")
+        return
+    w("<p class=note>Charge the Hearths gathered, every Hearth of a server summed, per hour of active "
+      "play on the servers with Hearth lines (%.1f h). Hours are player-hours, here and at home: two "
+      "players at home together count twice, since the telemetry has no Hearth to count a shared hour "
+      "once. Time to a tier is from no charge at that rate, held to the default hourly cap of %.0f per "
+      "pool, without decay.</p>" % (hs["active_h"], HEARTH_HOURLY_CAP))
+    w("<div class=tablewrap><table><tr><th>Pool<th>Charge<th>Per active hour<th>Per player-hour at home"
+      "<th>Lost to the cap%s</tr>" % "".join("<th>%s" % r for r in HEARTH_ROMAN))
+    for name in sorted(hs["pools"], key=lambda n: HEARTH_POOLS.index(n) if n in HEARTH_POOLS else 99):
+        p = hs["pools"][name]
+        w("<tr><td><span class=bar style='width:10px;margin:0 6px 0 0;background:%s'></span>%s<td>%.0f<td>%s<td>%s"
+          "<td>%.0f%s</tr>" % (HEARTH_COLORS.get(name, "#999"), h(name), p["charge"], h(f1(p["per_hour"])),
+                               h(f1(p.get("per_home_hour"))), p["capped"],
+                               "".join("<td>%s" % h(fh(t)) for t in p["tier_h"])))
+    w("</table></div>")
+    for line in hearth_lines(hs):
+        w("<p class=note>%s</p>" % h(line))
+    if hs["by_source"]:
+        w("<h2>Charge by pool and source</h2><div class=tablewrap><table><tr><th>Pool<th>Source<th>Charge"
+          "<th>Per active hour<th>Share of the pool</tr>")
+        for r in hs["by_source"][:60]:
+            w("<tr><td>%s<td>%s<td>%.0f<td>%s<td>%s</tr>" % (h(r["pool"]), h(r["source"] or "-"), r["charge"],
+                                                         h(f1(r["per_hour"])), h(fp(r["share"]))))
+        w("</table></div>")
+    w("<h2>Who feeds the Hearth</h2><div class=tablewrap><table><tr><th>Player<th>Server<th>Charge"
+      "<th>By pool<th>Top sources</tr>")
+    for key, f in sorted(hs["feeders"].items(), key=lambda kv: -kv[1]["total"]):
+        segs = "".join("<i style='width:%.2f%%;background:%s' title='%s %.0f'></i>" % (
+            f["pools"][p] * 100 / f["total"], HEARTH_COLORS[p], h(p), f["pools"][p])
+            for p in HEARTH_POOLS if f["total"] > 0 and f["pools"].get(p, 0) > 0)
+        w("<tr><td>%s<td>%s<td>%.0f<td><div class=mixbar>%s</div><td style='text-align:left'>%s</tr>" % (
+            h(hearth_name(d, key, f)), h(f["world"]), f["total"], segs, h(top_sources(f["sources"]))))
+    w("</table></div><p class=note>Charge by source: %s.</p>" % h(top_sources(hs["sources"], 12)))
+    if hs["events"]:
+        w("<h2>Other Hearth events</h2><div class=tablewrap><table><tr><th>Kind<th>Label<th>Source"
+          "<th>Events<th>Sum</tr>")
+        for (kind, label, source), (n, total) in sorted(hs["events"].items())[:60]:
+            w("<tr><td>%s<td>%s<td>%s<td>%d<td>%.1f</tr>" % (h(kind), h(label or "-"), h(source or "-"), n, total))
+        w("</table></div>")
 
 
 # ---------------------------------------------------------------- main

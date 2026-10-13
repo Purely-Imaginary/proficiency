@@ -1,0 +1,27 @@
+{
+  "replace": false,
+  "values": [
+    { "id": "#handcrafted:cupboards", "required": false },
+    { "id": "#handcrafted:drawers", "required": false },
+    { "id": "#handcrafted:nightstands", "required": false },
+    { "id": "#handcrafted:counters", "required": false },
+    { "id": "#handcrafted:desks", "required": false },
+    { "id": "#handcrafted:tables", "required": false },
+    { "id": "#handcrafted:side_tables", "required": false },
+    { "id": "#handcrafted:shelves", "required": false },
+    { "id": "#another_furniture:drawers", "required": false },
+    { "id": "#another_furniture:shelves", "required": false },
+    { "id": "#another_furniture:tables", "required": false },
+    { "id": "farmersdelight:acacia_cabinet", "required": false },
+    { "id": "farmersdelight:bamboo_cabinet", "required": false },
+    { "id": "farmersdelight:birch_cabinet", "required": false },
+    { "id": "farmersdelight:cherry_cabinet", "required": false },
+    { "id": "farmersdelight:crimson_cabinet", "required": false },
+    { "id": "farmersdelight:dark_oak_cabinet", "required": false },
+    { "id": "farmersdelight:jungle_cabinet", "required": false },
+    { "id": "farmersdelight:mangrove_cabinet", "required": false },
+    { "id": "farmersdelight:oak_cabinet", "required": false },
+    { "id": "farmersdelight:spruce_cabinet", "required": false },
+    { "id": "farmersdelight:warped_cabinet", "required": false }
+  ]
+}

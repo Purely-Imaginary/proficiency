@@ -10,12 +10,17 @@ import dev.amman.proficiency.platform.damage.DamageContainer;
 import dev.amman.proficiency.platform.event.entity.player.PlayerEvent;
 import dev.amman.proficiency.platform.event.tick.PlayerTickEvent;
 import dev.amman.proficiency.platform.hooks.DamageHooks;
+import dev.amman.proficiency.platform.event.entity.player.CriticalHitEvent;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.state.BlockState;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Constant;
+import org.spongepowered.asm.mixin.injection.ModifyConstant;
+import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
@@ -25,6 +30,28 @@ public abstract class PlayerMixin {
     @Unique
     private Player proficiency$self() {
         return (Player) (Object) this;
+    }
+
+    /** The crit multiplier the last crit event settled on, read by {@link #proficiency$critDamage}. */
+    @Unique
+    private float proficiency$critMultiplier = 1.5f;
+
+    /**
+     * NeoForge: CommonHooks.fireCriticalHit, right where vanilla stores its crit test in attack
+     * (boolean local 9 in 1.21.1). By index: a production jar has no local variable table.
+     */
+    @ModifyVariable(method = "attack", at = @At("STORE"), index = 9)
+    private boolean proficiency$criticalHit(boolean vanilla, Entity target) {
+        var event = NeoForge.EVENT_BUS.post(new CriticalHitEvent(proficiency$self(), target, vanilla,
+                vanilla ? 1.5f : 1.0f));
+        proficiency$critMultiplier = event.getDamageMultiplier();
+        return event.isCriticalHit();
+    }
+
+    /** Vanilla's crit damage is the only 1.5f in attack; it is applied only when the hit is a crit. */
+    @ModifyConstant(method = "attack", constant = @Constant(floatValue = 1.5f))
+    private float proficiency$critDamage(float vanilla) {
+        return proficiency$critMultiplier;
     }
 
     /** NeoForge: firePlayerTickPre / firePlayerTickPost, at the two ends of Player.tick, both sides. */

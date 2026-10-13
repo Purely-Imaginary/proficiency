@@ -25,6 +25,14 @@ public interface SkillTuning {
 
     double procChance(Skill skill);
 
+    /**
+     * The signature and the ability also wait for the tree's root to be bought in full, so they
+     * come from a choice the player made in the tree and not out of nowhere (user rule 2026-10-11).
+     */
+    default boolean signatureNeedsRoot() {
+        return true;
+    }
+
     /** Mastery stars: star 1 costs this times the XP of level 99 to 100 (see {@link Mastery}). */
     default double masteryStarFactor() {
         return 1.0;

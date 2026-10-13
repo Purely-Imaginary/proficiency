@@ -1,0 +1,4133 @@
+{
+ "legend": {
+  "F": "the fire (the Hearth block itself; row 4, column 4, layer 0 only)",
+  ".": "air (smoke column, walkways, doorways)",
+  " ": "anything (not checked)",
+  "S": "stone block (#proficiency:hearth/stone)",
+  "s": "stone shape: stairs, slabs, walls (#proficiency:hearth/stone_shaped)",
+  "W": "log (#minecraft:logs)",
+  "P": "planks (#minecraft:planks)",
+  "w": "wood shape: stairs, slabs, fences, gates, trapdoors",
+  "N": "banner (#minecraft:banners)",
+  "i": "iron block",
+  "c": "copper block or cut copper, any oxidation, waxed or not",
+  "g": "gold block",
+  "b": "iron bars",
+  "h": "chain",
+  "l": "lantern or soul lantern",
+  "a": "anvil",
+  "u": "cauldron",
+  "B": "bell",
+  "v": "water source block (a waterlogged block does NOT count)",
+  "V": "lava source block (forge and demonic lanes only; never under or beside anything flammable)",
+  "f": "flower pot, empty or potted (#minecraft:flower_pots)",
+  "x": "storage: chest, trapped chest or barrel",
+  "C": "candle, any colour (#minecraft:candles)",
+  "m": "carpet (#minecraft:wool_carpets) or moss carpet",
+  "G": "glass: any glass, stained or tinted glass block, or pane",
+  "z": "skull or head, any",
+  "I": "packed ice or blue ice (not plain ice, which melts near the Hearth light)",
+  "n": "snow block",
+  "q": "moss block",
+  "Y": "magma block",
+  "O": "obsidian or crying obsidian",
+  "L": "leaves, any (player placed, so persistent)",
+  "r": "lightning rod",
+  "k": "lodestone (stage VI, under the fire)"
+ },
+ "lanes": [
+  {
+   "id": "longhouse",
+   "palette": {
+    "S": "minecraft:cobbled_deepslate",
+    "s": "minecraft:cobbled_deepslate_slab",
+    "W": "minecraft:spruce_log",
+    "P": "minecraft:spruce_planks",
+    "w": "minecraft:dark_oak_slab",
+    "G": "minecraft:glass",
+    "N": "minecraft:red_banner",
+    "m": "minecraft:red_carpet",
+    "f": "minecraft:potted_fern",
+    "C": "minecraft:candle",
+    "c": "minecraft:weathered_cut_copper",
+    "x": "minecraft:barrel",
+    "h": "minecraft:chain",
+    "l": "minecraft:lantern"
+   },
+   "stages": [
+    {
+     "stage": 1,
+     "layers": {
+      "-1": [
+       "         ",
+       "         ",
+       "         ",
+       "   SSS   ",
+       "   SSS   ",
+       "   SSS   ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "0": [
+       "         ",
+       "         ",
+       "         ",
+       "   W.W   ",
+       "   .F.   ",
+       "   W.W   ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "1": [
+       "         ",
+       "         ",
+       "         ",
+       "   l.l   ",
+       "   ...   ",
+       "   l.l   ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "2": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "3": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "4": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ]
+     }
+    },
+    {
+     "stage": 2,
+     "layers": {
+      "-1": [
+       "         ",
+       "         ",
+       "  SSSSS  ",
+       "  SSSSS  ",
+       "  SSSSS  ",
+       "  SSSSS  ",
+       "  SSSSS  ",
+       "         ",
+       "         "
+      ],
+      "0": [
+       "         ",
+       "         ",
+       "  Sw.wS  ",
+       "  wW.Ww  ",
+       "  ..F..  ",
+       "  wW.Ww  ",
+       "  Sw.wS  ",
+       "         ",
+       "         "
+      ],
+      "1": [
+       "         ",
+       "         ",
+       "  W . W  ",
+       "   l.l   ",
+       "  .....  ",
+       "   l.l   ",
+       "  W . W  ",
+       "         ",
+       "         "
+      ],
+      "2": [
+       "         ",
+       "         ",
+       "  l   l  ",
+       "         ",
+       "    .    ",
+       "         ",
+       "  l   l  ",
+       "         ",
+       "         "
+      ],
+      "3": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "4": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ]
+     }
+    },
+    {
+     "stage": 3,
+     "layers": {
+      "-1": [
+       "         ",
+       " SSSSSSS ",
+       " SSSSSSS ",
+       " SSSSSSS ",
+       " SSSSSSS ",
+       " SSSSSSS ",
+       " SSSSSSS ",
+       " SSSSSSS ",
+       "         "
+      ],
+      "0": [
+       "  S   S  ",
+       " SvS.SvS ",
+       "SvSw.wSvS",
+       " SwW.WwS ",
+       " ...F... ",
+       " SwW.WwS ",
+       "SvSw.wSvS",
+       " SvS.SvS ",
+       "  S   S  "
+      ],
+      "1": [
+       "         ",
+       " W W.W W ",
+       "  W . W  ",
+       " W l.l W ",
+       " ....... ",
+       " W l.l W ",
+       "  W . W  ",
+       " W W.W W ",
+       "         "
+      ],
+      "2": [
+       "         ",
+       " W W W W ",
+       "  l   l  ",
+       " W     W ",
+       "    .    ",
+       " W     W ",
+       "  l   l  ",
+       " W W W W ",
+       "         "
+      ],
+      "3": [
+       "         ",
+       " WWWWWWW ",
+       " W     W ",
+       " W     W ",
+       " W  .  W ",
+       " W     W ",
+       " W     W ",
+       " WWWWWWW ",
+       "         "
+      ],
+      "4": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ]
+     }
+    },
+    {
+     "stage": 4,
+     "layers": {
+      "-1": [
+       "sssssssss",
+       "sSSSSSSSs",
+       "sSSSSSSSs",
+       "sSSSSSSSs",
+       "sSSSSSSSs",
+       "sSSSSSSSs",
+       "sSSSSSSSs",
+       "sSSSSSSSs",
+       "sssssssss"
+      ],
+      "0": [
+       "  S . S  ",
+       " SvS.SvS ",
+       "SvSw.wSvS",
+       " SwW.WwS ",
+       "....F....",
+       " SwW.WwS ",
+       "SvSw.wSvS",
+       " SvS.SvS ",
+       "  S . S  "
+      ],
+      "1": [
+       "    .    ",
+       " W W.W W ",
+       "  W . W  ",
+       " W l.l W ",
+       ".........",
+       " W l.l W ",
+       "  W . W  ",
+       " W W.W W ",
+       "    .    "
+      ],
+      "2": [
+       "         ",
+       " W W W W ",
+       "  l   l  ",
+       " W     W ",
+       "    .    ",
+       " W     W ",
+       "  l   l  ",
+       " W W W W ",
+       "         "
+      ],
+      "3": [
+       "wwwwwwwww",
+       "wWWWWWWWw",
+       "wW     Ww",
+       "wW     Ww",
+       "wW  .  Ww",
+       "wW     Ww",
+       "wW     Ww",
+       "wWWWWWWWw",
+       "wwwwwwwww"
+      ],
+      "4": [
+       "         ",
+       " wwwwwww ",
+       " w     w ",
+       " w     w ",
+       " w  .  w ",
+       " w     w ",
+       " w     w ",
+       " wwwwwww ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ]
+     }
+    },
+    {
+     "stage": 5,
+     "layers": {
+      "-1": [
+       "sssssssss",
+       "sSSSSSSSs",
+       "sSSSSSSSs",
+       "sSSSSSSSs",
+       "sSSSSSSSs",
+       "sSSSSSSSs",
+       "sSSSSSSSs",
+       "sSSSSSSSs",
+       "sssssssss"
+      ],
+      "0": [
+       "  S . S  ",
+       " SvS.SvS ",
+       "SvSw.wSvS",
+       " SwW.WwS ",
+       "....F....",
+       " SwW.WwS ",
+       "SvSw.wSvS",
+       " SvS.SvS ",
+       "  S . S  "
+      ],
+      "1": [
+       "l f . f l",
+       " W W.W W ",
+       "f W . W f",
+       " W l.l W ",
+       ".........",
+       " W l.l W ",
+       "f W . W f",
+       " W W.W W ",
+       "l f . f l"
+      ],
+      "2": [
+       "h       h",
+       " W W W W ",
+       "  l   l  ",
+       " W     W ",
+       "    .    ",
+       " W     W ",
+       "  l   l  ",
+       " W W W W ",
+       "h       h"
+      ],
+      "3": [
+       "wwwwwwwww",
+       "wWWWWWWWw",
+       "wW     Ww",
+       "wW     Ww",
+       "wW  .  Ww",
+       "wW     Ww",
+       "wW     Ww",
+       "wWWWWWWWw",
+       "wwwwwwwww"
+      ],
+      "4": [
+       "         ",
+       " wwwwwww ",
+       " wPPPPPw ",
+       " wP   Pw ",
+       " wP . Pw ",
+       " wP   Pw ",
+       " wPPPPPw ",
+       " wwwwwww ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       "         ",
+       "  wwwww  ",
+       "  w   w  ",
+       "  w . w  ",
+       "  w   w  ",
+       "  wwwww  ",
+       "         ",
+       "         "
+      ]
+     }
+    },
+    {
+     "stage": 6,
+     "layers": {
+      "-1": [
+       "sssssssss",
+       "sSSSSSSSs",
+       "sSSSSSSSs",
+       "sSSSSSSSs",
+       "sSSSkSSSs",
+       "sSSSSSSSs",
+       "sSSSSSSSs",
+       "sSSSSSSSs",
+       "sssssssss"
+      ],
+      "0": [
+       "  SN.NSx ",
+       "xSvS.SvS ",
+       "SvSw.wSvS",
+       "NSwW.WwSN",
+       "....F....",
+       "NSwW.WwSN",
+       "SvSw.wSvS",
+       " SvS.SvSx",
+       " xSN.NS  "
+      ],
+      "1": [
+       "l f . f l",
+       " W W.W W ",
+       "f W . W f",
+       " W l.l W ",
+       ".........",
+       " W l.l W ",
+       "f W . W f",
+       " W W.W W ",
+       "l f . f l"
+      ],
+      "2": [
+       "h       h",
+       " W W W W ",
+       "  l   l  ",
+       " W     W ",
+       "    .    ",
+       " W     W ",
+       "  l   l  ",
+       " W W W W ",
+       "h       h"
+      ],
+      "3": [
+       "wwwwwwwww",
+       "wWWWWWWWw",
+       "wW     Ww",
+       "wW     Ww",
+       "wW  .  Ww",
+       "wW     Ww",
+       "wW     Ww",
+       "wWWWWWWWw",
+       "wwwwwwwww"
+      ],
+      "4": [
+       "c       c",
+       " wwwwwww ",
+       " wPPPPPw ",
+       " wPPPPPw ",
+       " wPP.PPw ",
+       " wPPPPPw ",
+       " wPPPPPw ",
+       " wwwwwww ",
+       "c       c"
+      ],
+      "5": [
+       "         ",
+       "         ",
+       "  wwwww  ",
+       "  wwwww  ",
+       "  ww.ww  ",
+       "  wwwww  ",
+       "  wwwww  ",
+       "         ",
+       "         "
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "forge",
+   "palette": {
+    "S": "minecraft:deepslate_tiles",
+    "s": "minecraft:deepslate_tile_slab",
+    "W": "minecraft:crimson_stem",
+    "P": "minecraft:crimson_planks",
+    "w": "minecraft:crimson_slab",
+    "G": "minecraft:glass",
+    "N": "minecraft:black_banner",
+    "m": "minecraft:red_carpet",
+    "f": "minecraft:potted_crimson_roots",
+    "C": "minecraft:black_candle",
+    "c": "minecraft:cut_copper",
+    "x": "minecraft:barrel"
+   },
+   "stages": [
+    {
+     "stage": 1,
+     "layers": {
+      "-1": [
+       "         ",
+       "         ",
+       "         ",
+       "   SPS   ",
+       "   PSP   ",
+       "   SPS   ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "0": [
+       "         ",
+       "         ",
+       "         ",
+       "   S.S   ",
+       "   .F.   ",
+       "   S.S   ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "1": [
+       "         ",
+       "         ",
+       "         ",
+       "   b.b   ",
+       "   ...   ",
+       "   b.b   ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "2": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "3": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "4": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ]
+     }
+    },
+    {
+     "stage": 2,
+     "layers": {
+      "-1": [
+       "         ",
+       "         ",
+       "  SSSSS  ",
+       "  SSPSS  ",
+       "  SPSPS  ",
+       "  SSPSS  ",
+       "  SSSSS  ",
+       "         ",
+       "         "
+      ],
+      "0": [
+       "         ",
+       "         ",
+       "   S.S   ",
+       "  SS.SS  ",
+       "  ..F..  ",
+       "  SS.SS  ",
+       "   S.S   ",
+       "         ",
+       "         "
+      ],
+      "1": [
+       "         ",
+       "         ",
+       "    .u   ",
+       "  ub.b   ",
+       "  .....  ",
+       "   b.bu  ",
+       "   u.    ",
+       "         ",
+       "         "
+      ],
+      "2": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "3": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "4": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ]
+     }
+    },
+    {
+     "stage": 3,
+     "layers": {
+      "-1": [
+       "         ",
+       " SSSSSSS ",
+       " SSSSSSS ",
+       " SSSPSSS ",
+       " SSPSPSS ",
+       " SSSPSSS ",
+       " SSSSSSS ",
+       " SSSSSSS ",
+       "         "
+      ],
+      "0": [
+       "         ",
+       "  SS.SS  ",
+       " SvS.SvS ",
+       " SSS.SSS ",
+       " ...F... ",
+       " SSS.SSS ",
+       " SvS.SvS ",
+       "  SS.SS  ",
+       "         "
+      ],
+      "1": [
+       "         ",
+       " bbS.Sbb ",
+       " b  .u b ",
+       " Sub.b S ",
+       " ....... ",
+       " S b.buS ",
+       " b u.  b ",
+       " bbS.Sbb ",
+       "         "
+      ],
+      "2": [
+       "         ",
+       " SSSsSSS ",
+       " S     S ",
+       " S SSS S ",
+       " s S.S s ",
+       " S SSS S ",
+       " S     S ",
+       " SSSsSSS ",
+       "         "
+      ],
+      "3": [
+       "         ",
+       "         ",
+       "         ",
+       "   SSS   ",
+       "   S.S   ",
+       "   SSS   ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "4": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ]
+     }
+    },
+    {
+     "stage": 4,
+     "layers": {
+      "-1": [
+       "S       S",
+       " SSSSSSS ",
+       " SSSSSSS ",
+       " SSSPSSS ",
+       " SSPSPSS ",
+       " SSSPSSS ",
+       " SSSSSSS ",
+       " SSSSSSS ",
+       "S       S"
+      ],
+      "0": [
+       "ab  .  ba",
+       "bVSS.SSVb",
+       " SvS.SvS ",
+       " SSS.SSS ",
+       "....F....",
+       " SSS.SSS ",
+       " SvS.SvS ",
+       "bVSS.SSVb",
+       "ab  .  ba"
+      ],
+      "1": [
+       "    .    ",
+       " bbS.Sbb ",
+       " b  .u b ",
+       " Sub.b S ",
+       ".........",
+       " S b.buS ",
+       " b u.  b ",
+       " bbS.Sbb ",
+       "    .    "
+      ],
+      "2": [
+       "         ",
+       " SSSsSSS ",
+       " S     S ",
+       " S SSS S ",
+       " s S.S s ",
+       " S SSS S ",
+       " S     S ",
+       " SSSsSSS ",
+       "         "
+      ],
+      "3": [
+       "         ",
+       " csssssc ",
+       " sssssss ",
+       " ssSSSss ",
+       " ssS.Sss ",
+       " ssSSSss ",
+       " sssssss ",
+       " csssssc ",
+       "         "
+      ],
+      "4": [
+       "         ",
+       "         ",
+       "         ",
+       "   SSS   ",
+       "   S.S   ",
+       "   SSS   ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ]
+     }
+    },
+    {
+     "stage": 5,
+     "layers": {
+      "-1": [
+       "S       S",
+       " SSSSSSS ",
+       " SSSSSSS ",
+       " SSSPSSS ",
+       " SSPSPSS ",
+       " SSSPSSS ",
+       " SSSSSSS ",
+       " SSSSSSS ",
+       "S       S"
+      ],
+      "0": [
+       "ab  .u ba",
+       "bVSS.SSVb",
+       " SvS.SvS ",
+       "uSSS.SSS ",
+       "....F....",
+       " SSS.SSSu",
+       " SvS.SvS ",
+       "bVSS.SSVb",
+       "ab u.  ba"
+      ],
+      "1": [
+       "    .    ",
+       " bbS.Sbb ",
+       " b  .u b ",
+       " Sub.b S ",
+       ".........",
+       " S b.buS ",
+       " b u.  b ",
+       " bbS.Sbb ",
+       "    .    "
+      ],
+      "2": [
+       "         ",
+       " SSSsSSS ",
+       " S     S ",
+       " S SSS S ",
+       " s S.S s ",
+       " S SSS S ",
+       " S     S ",
+       " SSSsSSS ",
+       "         "
+      ],
+      "3": [
+       "         ",
+       " csssssc ",
+       " sssssss ",
+       " ssSSSss ",
+       " ssS.Sss ",
+       " ssSSSss ",
+       " sssssss ",
+       " csssssc ",
+       "         "
+      ],
+      "4": [
+       "         ",
+       " sssssss ",
+       " s     s ",
+       " s SSS s ",
+       " s S.S s ",
+       " s SSS s ",
+       " s     s ",
+       " sssssss ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       "         ",
+       "         ",
+       "    b    ",
+       "   b.b   ",
+       "    b    ",
+       "         ",
+       "         ",
+       "         "
+      ]
+     }
+    },
+    {
+     "stage": 6,
+     "layers": {
+      "-1": [
+       "S       S",
+       " SSSSSSS ",
+       " SSSSSSS ",
+       " SSSPSSS ",
+       " SSPkPSS ",
+       " SSSPSSS ",
+       " SSSSSSS ",
+       " SSSSSSS ",
+       "S       S"
+      ],
+      "0": [
+       "ab S.u ba",
+       "bVSS.SSVb",
+       " SvS.SvS ",
+       "uSSS.SSSS",
+       "....F....",
+       "SSSS.SSSu",
+       " SvS.SvS ",
+       "bVSS.SSVb",
+       "ab u.S ba"
+      ],
+      "1": [
+       "   S.    ",
+       " bbS.Sbb ",
+       " b  .u b ",
+       " Sub.b SS",
+       ".........",
+       "SS b.buS ",
+       " b u.  b ",
+       " bbS.Sbb ",
+       "    .S   "
+      ],
+      "2": [
+       "   s     ",
+       " SSSsSSS ",
+       " S     S ",
+       " S SSS Ss",
+       " s S.S s ",
+       "sS SSS S ",
+       " S     S ",
+       " SSSsSSS ",
+       "     s   "
+      ],
+      "3": [
+       "         ",
+       " csssssc ",
+       " sssssss ",
+       " ssSSSss ",
+       " ssS.Sss ",
+       " ssSSSss ",
+       " sssssss ",
+       " csssssc ",
+       "         "
+      ],
+      "4": [
+       "         ",
+       " sssssss ",
+       " s     s ",
+       " s SSS s ",
+       " s S.S s ",
+       " s SSS s ",
+       " s     s ",
+       " sssssss ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       "         ",
+       "         ",
+       "   cbc   ",
+       "   b.b   ",
+       "   cbc   ",
+       "         ",
+       "         ",
+       "         "
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "shrine",
+   "palette": {
+    "S": "minecraft:quartz_block",
+    "s": "minecraft:quartz_slab",
+    "W": "minecraft:cherry_log",
+    "P": "minecraft:cherry_planks",
+    "w": "minecraft:cherry_slab",
+    "G": "minecraft:glass",
+    "N": "minecraft:white_banner",
+    "m": "minecraft:white_carpet",
+    "f": "minecraft:potted_cherry_sapling",
+    "C": "minecraft:white_candle",
+    "c": "minecraft:oxidized_cut_copper"
+   },
+   "stages": [
+    {
+     "stage": 1,
+     "layers": {
+      "-1": [
+       "         ",
+       "         ",
+       "         ",
+       "   SSS   ",
+       "   SSS   ",
+       "   SSS   ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "0": [
+       "         ",
+       "         ",
+       "         ",
+       "   w.w   ",
+       "   .F.   ",
+       "   w.w   ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "1": [
+       "         ",
+       "         ",
+       "         ",
+       "   l.l   ",
+       "   ...   ",
+       "   l.l   ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "2": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "3": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "4": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ]
+     }
+    },
+    {
+     "stage": 2,
+     "layers": {
+      "-1": [
+       "         ",
+       "         ",
+       "  SSSSS  ",
+       "  SSSSS  ",
+       "  SSSSS  ",
+       "  SSSSS  ",
+       "  SSSSS  ",
+       "         ",
+       "         "
+      ],
+      "0": [
+       "         ",
+       "         ",
+       "  Ss.sS  ",
+       "  sw.ws  ",
+       "  ..F..  ",
+       "  sw.ws  ",
+       "  Ss.sS  ",
+       "         ",
+       "         "
+      ],
+      "1": [
+       "         ",
+       "         ",
+       "  w . w  ",
+       "   l.l   ",
+       "  .....  ",
+       "   l.l   ",
+       "  w . w  ",
+       "         ",
+       "         "
+      ],
+      "2": [
+       "         ",
+       "         ",
+       "  c   c  ",
+       "         ",
+       "    .    ",
+       "         ",
+       "  c   c  ",
+       "         ",
+       "         "
+      ],
+      "3": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "4": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ]
+     }
+    },
+    {
+     "stage": 3,
+     "layers": {
+      "-1": [
+       "         ",
+       " sSsssSs ",
+       " SSSSSSS ",
+       " sSSSSSs ",
+       " sSSSSSs ",
+       " sSSSSSs ",
+       " SSSSSSS ",
+       " sSsssSs ",
+       "         "
+      ],
+      "0": [
+       "  S   S  ",
+       " SvS.SvS ",
+       "SvSs.sSvS",
+       " Ssw.wsS ",
+       " ...F... ",
+       " Ssw.wsS ",
+       "SvSs.sSvS",
+       " SvS.SvS ",
+       "  S   S  "
+      ],
+      "1": [
+       "         ",
+       "    .    ",
+       "  w . w  ",
+       "   l.l   ",
+       " ....... ",
+       "   l.l   ",
+       "  w . w  ",
+       "    .    ",
+       "         "
+      ],
+      "2": [
+       "         ",
+       "         ",
+       "  c   c  ",
+       "         ",
+       "    .    ",
+       "         ",
+       "  c   c  ",
+       "         ",
+       "         "
+      ],
+      "3": [
+       "         ",
+       "         ",
+       "  wwwww  ",
+       "  w   w  ",
+       "  w . w  ",
+       "  w   w  ",
+       "  wwwww  ",
+       "         ",
+       "         "
+      ],
+      "4": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ]
+     }
+    },
+    {
+     "stage": 4,
+     "layers": {
+      "-1": [
+       "         ",
+       " sSsssSs ",
+       " SSSSSSS ",
+       " sSSSSSs ",
+       " sSSSSSs ",
+       " sSSSSSs ",
+       " SSSSSSS ",
+       " sSsssSs ",
+       "         "
+      ],
+      "0": [
+       "  S   S  ",
+       " SvS.SvS ",
+       "SvSs.sSvS",
+       " Ssw.wsS ",
+       " ...F... ",
+       " Ssw.wsS ",
+       "SvSs.sSvS",
+       " SvS.SvS ",
+       "  S   S  "
+      ],
+      "1": [
+       "         ",
+       " w  .  w ",
+       "  wf.fw  ",
+       "  fl.lf  ",
+       " ....... ",
+       "  fl.lf  ",
+       "  wf.fw  ",
+       " w  .  w ",
+       "         "
+      ],
+      "2": [
+       "         ",
+       " c     c ",
+       "  c   c  ",
+       "         ",
+       "    .    ",
+       "         ",
+       "  c   c  ",
+       " c     c ",
+       "         "
+      ],
+      "3": [
+       "         ",
+       " wwwwwww ",
+       " wwwwwww ",
+       " ww   ww ",
+       " ww . ww ",
+       " ww   ww ",
+       " wwwwwww ",
+       " wwwwwww ",
+       "         "
+      ],
+      "4": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ]
+     }
+    },
+    {
+     "stage": 5,
+     "layers": {
+      "-1": [
+       "sssssssss",
+       "ssSsssSss",
+       "sSSSSSSSs",
+       "ssSSSSSss",
+       "ssSSSSSss",
+       "ssSSSSSss",
+       "sSSSSSSSs",
+       "ssSsssSss",
+       "sssssssss"
+      ],
+      "0": [
+       "  S . S  ",
+       " SvS.SvS ",
+       "SvSs.sSvS",
+       " Ssw.wsS ",
+       "....F....",
+       " Ssw.wsS ",
+       "SvSs.sSvS",
+       " SvS.SvS ",
+       "  S . S  "
+      ],
+      "1": [
+       "    .    ",
+       " w C.B w ",
+       "  wf.fw  ",
+       " Bfl.lfC ",
+       ".........",
+       " Cfl.lfB ",
+       "  wf.fw  ",
+       " w B.C w ",
+       "    .    "
+      ],
+      "2": [
+       "         ",
+       " c   h c ",
+       "  c   c  ",
+       " h       ",
+       "    .    ",
+       "       h ",
+       "  c   c  ",
+       " c h   c ",
+       "         "
+      ],
+      "3": [
+       "         ",
+       " wwwwwww ",
+       " wwwwwww ",
+       " ww   ww ",
+       " ww . ww ",
+       " ww   ww ",
+       " wwwwwww ",
+       " wwwwwww ",
+       "         "
+      ],
+      "4": [
+       "         ",
+       "         ",
+       "  wwwww  ",
+       "  wwwww  ",
+       "  ww.ww  ",
+       "  wwwww  ",
+       "  wwwww  ",
+       "         ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ]
+     }
+    },
+    {
+     "stage": 6,
+     "layers": {
+      "-1": [
+       "sssssssss",
+       "ssSsssSss",
+       "sSSSSSSSs",
+       "ssSSSSSss",
+       "ssSSkSSss",
+       "ssSSSSSss",
+       "sSSSSSSSs",
+       "ssSsssSss",
+       "sssssssss"
+      ],
+      "0": [
+       "ssSs.sSss",
+       "sSvS.SvSs",
+       "SvSs.sSvS",
+       "sSsw.wsSs",
+       "....F....",
+       "sSsw.wsSs",
+       "SvSs.sSvS",
+       "sSvS.SvSs",
+       "ssSs.sSss"
+      ],
+      "1": [
+       "   N.N   ",
+       " w C.B w ",
+       "  wf.fw  ",
+       "NBfl.lfCN",
+       ".........",
+       "NCfl.lfBN",
+       "  wf.fw  ",
+       " w B.C w ",
+       "   N.N   "
+      ],
+      "2": [
+       "         ",
+       " c   h c ",
+       "  c   c  ",
+       " h       ",
+       "    .    ",
+       "       h ",
+       "  c   c  ",
+       " c h   c ",
+       "         "
+      ],
+      "3": [
+       "         ",
+       " wwwwwww ",
+       " wwwwwww ",
+       " ww   ww ",
+       " ww . ww ",
+       " ww   ww ",
+       " wwwwwww ",
+       " wwwwwww ",
+       "         "
+      ],
+      "4": [
+       "         ",
+       "         ",
+       "  wwwww  ",
+       "  wwwww  ",
+       "  ww.ww  ",
+       "  wwwww  ",
+       "  wwwww  ",
+       "         ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       "         ",
+       "  r   r  ",
+       "   gcg   ",
+       "   c.c   ",
+       "   gcg   ",
+       "  r   r  ",
+       "         ",
+       "         "
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "demonic",
+   "palette": {
+    "S": "minecraft:polished_blackstone_bricks",
+    "s": "minecraft:polished_blackstone_brick_slab",
+    "W": "minecraft:crimson_stem",
+    "P": "minecraft:crimson_planks",
+    "w": "minecraft:crimson_slab",
+    "G": "minecraft:red_stained_glass",
+    "N": "minecraft:black_banner",
+    "m": "minecraft:red_carpet",
+    "f": "minecraft:potted_crimson_fungus",
+    "C": "minecraft:black_candle",
+    "Y": "minecraft:magma_block",
+    "O": "minecraft:crying_obsidian",
+    "z": "minecraft:wither_skeleton_skull",
+    "l": "minecraft:soul_lantern"
+   },
+   "stages": [
+    {
+     "stage": 1,
+     "layers": {
+      "-1": [
+       "         ",
+       "         ",
+       "         ",
+       "   SPS   ",
+       "   PSP   ",
+       "   SPS   ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "0": [
+       "         ",
+       "         ",
+       "         ",
+       "   Y.Y   ",
+       "   .F.   ",
+       "   Y.Y   ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "1": [
+       "         ",
+       "         ",
+       "         ",
+       "   l.l   ",
+       "   ...   ",
+       "   l.l   ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "2": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "3": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "4": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ]
+     }
+    },
+    {
+     "stage": 2,
+     "layers": {
+      "-1": [
+       "         ",
+       "         ",
+       "  SSPSS  ",
+       "  SSPSS  ",
+       "  PPSPP  ",
+       "  SSPSS  ",
+       "  SSPSS  ",
+       "         ",
+       "         "
+      ],
+      "0": [
+       "         ",
+       "         ",
+       "   S.S   ",
+       "  SY.YS  ",
+       "  ..F..  ",
+       "  SY.YS  ",
+       "   S.S   ",
+       "         ",
+       "         "
+      ],
+      "1": [
+       "         ",
+       "         ",
+       "   b.b   ",
+       "  bl.lb  ",
+       "  .....  ",
+       "  bl.lb  ",
+       "   b.b   ",
+       "         ",
+       "         "
+      ],
+      "2": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "3": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "4": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ]
+     }
+    },
+    {
+     "stage": 3,
+     "layers": {
+      "-1": [
+       "         ",
+       " SSSSSSS ",
+       " SSSPSSS ",
+       " SSSPSSS ",
+       " SPPSPPS ",
+       " SSSPSSS ",
+       " SSSPSSS ",
+       " SSSSSSS ",
+       "         "
+      ],
+      "0": [
+       "         ",
+       " SSS.SSS ",
+       " SvS.SvS ",
+       " SSY.YSS ",
+       " ...F... ",
+       " SSY.YSS ",
+       " SvS.SvS ",
+       " SSS.SSS ",
+       "         "
+      ],
+      "1": [
+       "         ",
+       "  SS.S   ",
+       "   b.b S ",
+       " Sbl.lbS ",
+       " ....... ",
+       " Sbl.lbS ",
+       " S b.b   ",
+       "   S.SS  ",
+       "         "
+      ],
+      "2": [
+       "         ",
+       " bSSsSbb ",
+       " b     S ",
+       " S     S ",
+       " s  .  s ",
+       " S     S ",
+       " S     b ",
+       " bbSsSSb ",
+       "         "
+      ],
+      "3": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "4": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ]
+     }
+    },
+    {
+     "stage": 4,
+     "layers": {
+      "-1": [
+       "         ",
+       " SSSSSSS ",
+       " SSSPSSS ",
+       " SSSPSSS ",
+       " SPPSPPS ",
+       " SSSPSSS ",
+       " SSSPSSS ",
+       " SSSSSSS ",
+       "         "
+      ],
+      "0": [
+       "    .    ",
+       " SSS.SSS ",
+       " SvS.SvS ",
+       " SSY.YSS ",
+       "....F....",
+       " SSY.YSS ",
+       " SvS.SvS ",
+       " SSS.SSS ",
+       "    .    "
+      ],
+      "1": [
+       " b  . bb ",
+       "bVSS.SVVb",
+       "bVbb.bbS ",
+       " Sbl.lbS ",
+       ".........",
+       " Sbl.lbS ",
+       " Sbb.bbVb",
+       "bVVS.SSVb",
+       " bb .  b "
+      ],
+      "2": [
+       "         ",
+       " bSSsSbb ",
+       " b     S ",
+       " S     S ",
+       " s  .  s ",
+       " S     S ",
+       " S     b ",
+       " bbSsSSb ",
+       "         "
+      ],
+      "3": [
+       "         ",
+       " SsssssS ",
+       " sssssss ",
+       " ss   ss ",
+       " ss . ss ",
+       " ss   ss ",
+       " sssssss ",
+       " SsssssS ",
+       "         "
+      ],
+      "4": [
+       "         ",
+       " S     S ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       " S     S ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ]
+     }
+    },
+    {
+     "stage": 5,
+     "layers": {
+      "-1": [
+       "         ",
+       " SSSSSSS ",
+       " SSSPSSS ",
+       " SSSPSSS ",
+       " SPPSPPS ",
+       " SSSPSSS ",
+       " SSSPSSS ",
+       " SSSSSSS ",
+       "         "
+      ],
+      "0": [
+       "   O.O   ",
+       " SSS.SSS ",
+       " SvS.SvS ",
+       "OSSY.YSSO",
+       "....F....",
+       "OSSY.YSSO",
+       " SvS.SvS ",
+       " SSS.SSS ",
+       "   O.O   "
+      ],
+      "1": [
+       " b l.lbb ",
+       "bVSS.SVVb",
+       "bVbb.bbS ",
+       "lSbl.lbSl",
+       ".........",
+       "lSbl.lbSl",
+       " Sbb.bbVb",
+       "bVVS.SSVb",
+       " bbl.l b "
+      ],
+      "2": [
+       "         ",
+       " bSSsSbb ",
+       " b  l  S ",
+       " S     S ",
+       " sl . ls ",
+       " S     S ",
+       " S  l  b ",
+       " bbSsSSb ",
+       "         "
+      ],
+      "3": [
+       "         ",
+       " SsssssS ",
+       " sssssss ",
+       " ss   ss ",
+       " ss . ss ",
+       " ss   ss ",
+       " sssssss ",
+       " SsssssS ",
+       "         "
+      ],
+      "4": [
+       "         ",
+       " S     S ",
+       "  sssss  ",
+       "  s   s  ",
+       "  s . s  ",
+       "  s   s  ",
+       "  sssss  ",
+       " S     S ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ]
+     }
+    },
+    {
+     "stage": 6,
+     "layers": {
+      "-1": [
+       "         ",
+       " SSSSSSS ",
+       " SSSPSSS ",
+       " SSSPSSS ",
+       " SPPkPPS ",
+       " SSSPSSS ",
+       " SSSPSSS ",
+       " SSSSSSS ",
+       "         "
+      ],
+      "0": [
+       "   O.O   ",
+       " SSS.SSS ",
+       " SvS.SvS ",
+       "OSSY.YSSO",
+       "....F....",
+       "OSSY.YSSO",
+       " SvS.SvS ",
+       " SSS.SSS ",
+       "   O.O   "
+      ],
+      "1": [
+       " b l.lbb ",
+       "bVSS.SVVb",
+       "bVbb.bbS ",
+       "lSbl.lbSl",
+       ".........",
+       "lSbl.lbSl",
+       " Sbb.bbVb",
+       "bVVS.SSVb",
+       " bbl.l b "
+      ],
+      "2": [
+       "         ",
+       " bSSsSbb ",
+       " b  l  S ",
+       " S     S ",
+       " sl . ls ",
+       " S     S ",
+       " S  l  b ",
+       " bbSsSSb ",
+       "         "
+      ],
+      "3": [
+       "         ",
+       " SsssssS ",
+       " sssssss ",
+       " ss   ss ",
+       " ss . ss ",
+       " ss   ss ",
+       " sssssss ",
+       " SsssssS ",
+       "         "
+      ],
+      "4": [
+       "         ",
+       " S     S ",
+       "  sssss  ",
+       "  s   s  ",
+       "  s . s  ",
+       "  s   s  ",
+       "  sssss  ",
+       " S     S ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       " z     z ",
+       "  bwwwb  ",
+       "  w   w  ",
+       "  w . w  ",
+       "  w   w  ",
+       "  bwwwb  ",
+       " z     z ",
+       "         "
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "gothic",
+   "palette": {
+    "S": "minecraft:deepslate_tiles",
+    "s": "minecraft:deepslate_tile_slab",
+    "W": "minecraft:dark_oak_log",
+    "P": "minecraft:dark_oak_planks",
+    "w": "minecraft:dark_oak_slab",
+    "G": "minecraft:purple_stained_glass",
+    "N": "minecraft:black_banner",
+    "m": "minecraft:black_carpet",
+    "f": "minecraft:potted_wither_rose",
+    "C": "minecraft:purple_candle",
+    "z": "minecraft:skeleton_skull",
+    "l": "minecraft:soul_lantern"
+   },
+   "stages": [
+    {
+     "stage": 1,
+     "layers": {
+      "-1": [
+       "         ",
+       "         ",
+       "         ",
+       "   SPS   ",
+       "   PSP   ",
+       "   SPS   ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "0": [
+       "         ",
+       "         ",
+       "         ",
+       "   S.S   ",
+       "   .F.   ",
+       "   S.S   ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "1": [
+       "         ",
+       "         ",
+       "         ",
+       "   l.l   ",
+       "   ...   ",
+       "   l.l   ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "2": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "3": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "4": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ]
+     }
+    },
+    {
+     "stage": 2,
+     "layers": {
+      "-1": [
+       "         ",
+       "         ",
+       "  SSPSS  ",
+       "  SSPSS  ",
+       "  PPSPP  ",
+       "  SSPSS  ",
+       "  SSPSS  ",
+       "         ",
+       "         "
+      ],
+      "0": [
+       "         ",
+       "         ",
+       "   S.S   ",
+       "  SS.SS  ",
+       "  ..F..  ",
+       "  SS.SS  ",
+       "   S.S   ",
+       "         ",
+       "         "
+      ],
+      "1": [
+       "         ",
+       "         ",
+       "   C.C   ",
+       "  Cl.lC  ",
+       "  .....  ",
+       "  Cl.lC  ",
+       "   C.C   ",
+       "         ",
+       "         "
+      ],
+      "2": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "3": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "4": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ]
+     }
+    },
+    {
+     "stage": 3,
+     "layers": {
+      "-1": [
+       "         ",
+       " SSSSSSS ",
+       " SSSPSSS ",
+       " SSSPSSS ",
+       " SPPSPPS ",
+       " SSSPSSS ",
+       " SSSPSSS ",
+       " SSSSSSS ",
+       "         "
+      ],
+      "0": [
+       "         ",
+       " SSS.SSS ",
+       " SvS.SvS ",
+       " SSS.SSS ",
+       " ...F... ",
+       " SSS.SSS ",
+       " SvS.SvS ",
+       " SSS.SSS ",
+       "         "
+      ],
+      "1": [
+       "         ",
+       " SGW.WGS ",
+       " G C.C G ",
+       " WCl.lCW ",
+       " ....... ",
+       " WCl.lCW ",
+       " G C.C G ",
+       " SGW.WGS ",
+       "         "
+      ],
+      "2": [
+       "         ",
+       " SGWsWGS ",
+       " G     G ",
+       " W     W ",
+       " s  .  s ",
+       " W     W ",
+       " G     G ",
+       " SGWsWGS ",
+       "         "
+      ],
+      "3": [
+       "         ",
+       " s     s ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       " s     s ",
+       "         "
+      ],
+      "4": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ]
+     }
+    },
+    {
+     "stage": 4,
+     "layers": {
+      "-1": [
+       "         ",
+       " SSSSSSS ",
+       " SSSPSSS ",
+       " SSSPSSS ",
+       " SPPSPPS ",
+       " SSSPSSS ",
+       " SSSPSSS ",
+       " SSSSSSS ",
+       "         "
+      ],
+      "0": [
+       "  S . S  ",
+       " SSS.SSS ",
+       "SSvS.SvSS",
+       " SSS.SSS ",
+       "....F....",
+       " SSS.SSS ",
+       "SSvS.SvSS",
+       " SSS.SSS ",
+       "  S . S  "
+      ],
+      "1": [
+       "  S . S  ",
+       " SGW.WGS ",
+       "SG C.C GS",
+       " WCl.lCW ",
+       ".........",
+       " WCl.lCW ",
+       "SG C.C GS",
+       " SGW.WGS ",
+       "  S . S  "
+      ],
+      "2": [
+       "  s   s  ",
+       " SGWsWGS ",
+       "sGl   lGs",
+       " W     W ",
+       " s  .  s ",
+       " W     W ",
+       "sGl   lGs",
+       " SGWsWGS ",
+       "  s   s  "
+      ],
+      "3": [
+       "         ",
+       " sssssss ",
+       " sh   hs ",
+       " s     s ",
+       " s  .  s ",
+       " s     s ",
+       " sh   hs ",
+       " sssssss ",
+       "         "
+      ],
+      "4": [
+       "         ",
+       " S     S ",
+       "  sssss  ",
+       "  s   s  ",
+       "  s . s  ",
+       "  s   s  ",
+       "  sssss  ",
+       " S     S ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ]
+     }
+    },
+    {
+     "stage": 5,
+     "layers": {
+      "-1": [
+       "         ",
+       " SSSSSSS ",
+       " SSSPSSS ",
+       " SSSPSSS ",
+       " SPPSPPS ",
+       " SSSPSSS ",
+       " SSSPSSS ",
+       " SSSSSSS ",
+       "         "
+      ],
+      "0": [
+       "  S . S  ",
+       " SSS.SSS ",
+       "SSvS.SvSS",
+       " SSS.SSS ",
+       "....F....",
+       " SSS.SSS ",
+       "SSvS.SvSS",
+       " SSS.SSS ",
+       "  S . S  "
+      ],
+      "1": [
+       "  S . S  ",
+       " SGW.WGS ",
+       "SG C.C GS",
+       " WCl.lCW ",
+       ".........",
+       " WCl.lCW ",
+       "SG C.C GS",
+       " SGW.WGS ",
+       "  S . S  "
+      ],
+      "2": [
+       "  s   s  ",
+       " SGWsWGS ",
+       "sGl B lGs",
+       " W     W ",
+       " sB . Bs ",
+       " W     W ",
+       "sGl B lGs",
+       " SGWsWGS ",
+       "  s   s  "
+      ],
+      "3": [
+       "         ",
+       " sssssss ",
+       " sh h hs ",
+       " s     s ",
+       " sh . hs ",
+       " s     s ",
+       " sh h hs ",
+       " sssssss ",
+       "         "
+      ],
+      "4": [
+       "         ",
+       " S     S ",
+       "  sssss  ",
+       "  s   s  ",
+       "  s . s  ",
+       "  s   s  ",
+       "  sssss  ",
+       " S     S ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       " s     s ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       " s     s ",
+       "         "
+      ]
+     }
+    },
+    {
+     "stage": 6,
+     "layers": {
+      "-1": [
+       "         ",
+       " SSSSSSS ",
+       " SSSPSSS ",
+       " SSSPSSS ",
+       " SPPkPPS ",
+       " SSSPSSS ",
+       " SSSPSSS ",
+       " SSSSSSS ",
+       "         "
+      ],
+      "0": [
+       "  SN.NS  ",
+       " SSS.SSS ",
+       "SSvS.SvSS",
+       "NSSS.SSSN",
+       "....F....",
+       "NSSS.SSSN",
+       "SSvS.SvSS",
+       " SSS.SSS ",
+       "  SN.NS  "
+      ],
+      "1": [
+       "  S . S  ",
+       " SGW.WGS ",
+       "SG C.C GS",
+       " WCl.lCW ",
+       ".........",
+       " WCl.lCW ",
+       "SG C.C GS",
+       " SGW.WGS ",
+       "  S . S  "
+      ],
+      "2": [
+       "  s   s  ",
+       " SGWsWGS ",
+       "sGl B lGs",
+       " W     W ",
+       " sB . Bs ",
+       " W     W ",
+       "sGl B lGs",
+       " SGWsWGS ",
+       "  s   s  "
+      ],
+      "3": [
+       "         ",
+       " sssssss ",
+       " sh h hs ",
+       " s     s ",
+       " sh . hs ",
+       " s     s ",
+       " sh h hs ",
+       " sssssss ",
+       "         "
+      ],
+      "4": [
+       "         ",
+       " S  S  S ",
+       "  sssss  ",
+       "  s   s  ",
+       " Ss . sS ",
+       "  s   s  ",
+       "  sssss  ",
+       " S  S  S ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       " s  r  s ",
+       "         ",
+       "         ",
+       " r  .  r ",
+       "         ",
+       "         ",
+       " s  r  s ",
+       "         "
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "girly",
+   "palette": {
+    "S": "minecraft:polished_diorite",
+    "s": "minecraft:polished_diorite_slab",
+    "W": "minecraft:cherry_log",
+    "P": "minecraft:cherry_planks",
+    "w": "minecraft:cherry_slab",
+    "G": "minecraft:pink_stained_glass",
+    "N": "minecraft:pink_banner",
+    "m": "minecraft:pink_carpet",
+    "f": "minecraft:potted_pink_tulip",
+    "C": "minecraft:pink_candle",
+    "c": "minecraft:cut_copper",
+    "l": "minecraft:lantern"
+   },
+   "stages": [
+    {
+     "stage": 1,
+     "layers": {
+      "-1": [
+       "         ",
+       "         ",
+       "         ",
+       "   SSS   ",
+       "   SSS   ",
+       "   SSS   ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "0": [
+       "         ",
+       "         ",
+       "         ",
+       "   w.w   ",
+       "   .F.   ",
+       "   w.w   ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "1": [
+       "         ",
+       "         ",
+       "         ",
+       "   l.l   ",
+       "   ...   ",
+       "   l.l   ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "2": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "3": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "4": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ]
+     }
+    },
+    {
+     "stage": 2,
+     "layers": {
+      "-1": [
+       "         ",
+       "         ",
+       "  SSSSS  ",
+       "  SSSSS  ",
+       "  SSSSS  ",
+       "  SSSSS  ",
+       "  SSSSS  ",
+       "         ",
+       "         "
+      ],
+      "0": [
+       "         ",
+       "         ",
+       "  SP.PS  ",
+       "  Pw.wP  ",
+       "  ..F..  ",
+       "  Pw.wP  ",
+       "  SP.PS  ",
+       "         ",
+       "         "
+      ],
+      "1": [
+       "         ",
+       "         ",
+       "  wm.fw  ",
+       "  fl.lm  ",
+       "  .....  ",
+       "  ml.lf  ",
+       "  wf.mw  ",
+       "         ",
+       "         "
+      ],
+      "2": [
+       "         ",
+       "         ",
+       "  l   l  ",
+       "         ",
+       "    .    ",
+       "         ",
+       "  l   l  ",
+       "         ",
+       "         "
+      ],
+      "3": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "4": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ]
+     }
+    },
+    {
+     "stage": 3,
+     "layers": {
+      "-1": [
+       "         ",
+       " SSSSSSS ",
+       " SSSSSSS ",
+       " SSSSSSS ",
+       " SSSSSSS ",
+       " SSSSSSS ",
+       " SSSSSSS ",
+       " SSSSSSS ",
+       "         "
+      ],
+      "0": [
+       "  S   S  ",
+       " SvS.SvS ",
+       "SvSP.PSvS",
+       " SPw.wPS ",
+       " ...F... ",
+       " SPw.wPS ",
+       "SvSP.PSvS",
+       " SvS.SvS ",
+       "  S   S  "
+      ],
+      "1": [
+       "  f   f  ",
+       " w w.w w ",
+       "f wm.fw f",
+       " wfl.lmw ",
+       " ....... ",
+       " wml.lfw ",
+       "f wf.mw f",
+       " w w.w w ",
+       "  f   f  "
+      ],
+      "2": [
+       "         ",
+       " w www w ",
+       "  l   l  ",
+       " w     w ",
+       " w  .  w ",
+       " w     w ",
+       "  l   l  ",
+       " w www w ",
+       "         "
+      ],
+      "3": [
+       "         ",
+       "         ",
+       "  wwwww  ",
+       "  w   w  ",
+       "  w . w  ",
+       "  w   w  ",
+       "  wwwww  ",
+       "         ",
+       "         "
+      ],
+      "4": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ]
+     }
+    },
+    {
+     "stage": 4,
+     "layers": {
+      "-1": [
+       "         ",
+       " SSSSSSS ",
+       " SSSSSSS ",
+       " SSSSSSS ",
+       " SSSSSSS ",
+       " SSSSSSS ",
+       " SSSSSSS ",
+       " SSSSSSS ",
+       "         "
+      ],
+      "0": [
+       "  S . S  ",
+       " SvS.SvS ",
+       "SvSP.PSvS",
+       " SPw.wPS ",
+       "....F....",
+       " SPw.wPS ",
+       "SvSP.PSvS",
+       " SvS.SvS ",
+       "  S . S  "
+      ],
+      "1": [
+       "  f . f  ",
+       " wlw.wlw ",
+       "flwm.fwlf",
+       " wfl.lmw ",
+       ".........",
+       " wml.lfw ",
+       "flwf.mwlf",
+       " wlw.wlw ",
+       "  f . f  "
+      ],
+      "2": [
+       "         ",
+       " whwwwhw ",
+       " hl   lh ",
+       " w     w ",
+       " w  .  w ",
+       " w     w ",
+       " hl   lh ",
+       " whwwwhw ",
+       "         "
+      ],
+      "3": [
+       "         ",
+       " wwwwwww ",
+       " wwwwwww ",
+       " ww   ww ",
+       " ww . ww ",
+       " ww   ww ",
+       " wwwwwww ",
+       " wwwwwww ",
+       "         "
+      ],
+      "4": [
+       "         ",
+       "         ",
+       "  wwwww  ",
+       "  w   w  ",
+       "  w . w  ",
+       "  w   w  ",
+       "  wwwww  ",
+       "         ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ]
+     }
+    },
+    {
+     "stage": 5,
+     "layers": {
+      "-1": [
+       "sssssssss",
+       "sSSSSSSSs",
+       "sSSSSSSSs",
+       "sSSSSSSSs",
+       "sSSSSSSSs",
+       "sSSSSSSSs",
+       "sSSSSSSSs",
+       "sSSSSSSSs",
+       "sssssssss"
+      ],
+      "0": [
+       "wCS . SCw",
+       "CSvS.SvSC",
+       "SvSP.PSvS",
+       " SPw.wPS ",
+       "....F....",
+       " SPw.wPS ",
+       "SvSP.PSvS",
+       "CSvS.SvSC",
+       "wCS . SCw"
+      ],
+      "1": [
+       "l f . f l",
+       " wlw.wlw ",
+       "flwm.fwlf",
+       " wfl.lmw ",
+       ".........",
+       " wml.lfw ",
+       "flwf.mwlf",
+       " wlw.wlw ",
+       "l f . f l"
+      ],
+      "2": [
+       "         ",
+       " whwwwhw ",
+       " hl   lh ",
+       " w     w ",
+       " w  .  w ",
+       " w     w ",
+       " hl   lh ",
+       " whwwwhw ",
+       "         "
+      ],
+      "3": [
+       "         ",
+       " wwwwwww ",
+       " wwwwwww ",
+       " ww   ww ",
+       " ww . ww ",
+       " ww   ww ",
+       " wwwwwww ",
+       " wwwwwww ",
+       "         "
+      ],
+      "4": [
+       "         ",
+       "         ",
+       "  wwwww  ",
+       "  wGGGw  ",
+       "  wG.Gw  ",
+       "  wGGGw  ",
+       "  wwwww  ",
+       "         ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       "         ",
+       "         ",
+       "   www   ",
+       "   w.w   ",
+       "   www   ",
+       "         ",
+       "         ",
+       "         "
+      ]
+     }
+    },
+    {
+     "stage": 6,
+     "layers": {
+      "-1": [
+       "sssssssss",
+       "sSSSSSSSs",
+       "sSSSSSSSs",
+       "sSSSSSSSs",
+       "sSSSkSSSs",
+       "sSSSSSSSs",
+       "sSSSSSSSs",
+       "sSSSSSSSs",
+       "sssssssss"
+      ],
+      "0": [
+       "wCSN.NSCw",
+       "CSvS.SvSC",
+       "SvSP.PSvS",
+       "NSPw.wPSN",
+       "....F....",
+       "NSPw.wPSN",
+       "SvSP.PSvS",
+       "CSvS.SvSC",
+       "wCSN.NSCw"
+      ],
+      "1": [
+       "l f . f l",
+       " wlw.wlw ",
+       "flwm.fwlf",
+       " wfl.lmw ",
+       ".........",
+       " wml.lfw ",
+       "flwf.mwlf",
+       " wlw.wlw ",
+       "l f . f l"
+      ],
+      "2": [
+       "         ",
+       " whwwwhw ",
+       " hl   lh ",
+       " w     w ",
+       " w  .  w ",
+       " w     w ",
+       " hl   lh ",
+       " whwwwhw ",
+       "         "
+      ],
+      "3": [
+       "         ",
+       " wwwwwww ",
+       " wwwwwww ",
+       " ww   ww ",
+       " ww . ww ",
+       " ww   ww ",
+       " wwwwwww ",
+       " wwwwwww ",
+       "         "
+      ],
+      "4": [
+       "         ",
+       "         ",
+       "  wwwww  ",
+       "  wGGGw  ",
+       "  wG.Gw  ",
+       "  wGGGw  ",
+       "  wwwww  ",
+       "         ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       "         ",
+       "  gwwwg  ",
+       "  wwwww  ",
+       "  ww.ww  ",
+       "  wwwww  ",
+       "  gwwwg  ",
+       "         ",
+       "         "
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "ruin",
+   "palette": {
+    "S": "minecraft:cracked_stone_bricks",
+    "s": "minecraft:stone_brick_slab",
+    "W": "minecraft:dark_oak_log",
+    "P": "minecraft:dark_oak_planks",
+    "w": "minecraft:dark_oak_slab",
+    "G": "minecraft:glass",
+    "N": "minecraft:gray_banner",
+    "m": "minecraft:moss_carpet",
+    "f": "minecraft:potted_fern",
+    "C": "minecraft:candle",
+    "q": "minecraft:moss_block",
+    "L": "minecraft:oak_leaves",
+    "c": "minecraft:weathered_cut_copper"
+   },
+   "stages": [
+    {
+     "stage": 1,
+     "layers": {
+      "-1": [
+       "         ",
+       "         ",
+       "         ",
+       "   SSS   ",
+       "   SSS   ",
+       "   SSS   ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "0": [
+       "         ",
+       "         ",
+       "         ",
+       "   W.W   ",
+       "   .F.   ",
+       "   W.W   ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "1": [
+       "         ",
+       "         ",
+       "         ",
+       "   b.b   ",
+       "   ...   ",
+       "   b.b   ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "2": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "3": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "4": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ]
+     }
+    },
+    {
+     "stage": 2,
+     "layers": {
+      "-1": [
+       "         ",
+       "         ",
+       "  SSPSS  ",
+       "  SSSSS  ",
+       "  PSSSP  ",
+       "  SSSSS  ",
+       "  SSPSS  ",
+       "         ",
+       "         "
+      ],
+      "0": [
+       "         ",
+       "         ",
+       "  SS.SS  ",
+       "  SW.WS  ",
+       "  ..F..  ",
+       "  SW.WS  ",
+       "  SS.SS  ",
+       "         ",
+       "         "
+      ],
+      "1": [
+       "         ",
+       "         ",
+       "  Sq.fS  ",
+       "  fb.bq  ",
+       "  .....  ",
+       "  qb.bf  ",
+       "  Sf.qS  ",
+       "         ",
+       "         "
+      ],
+      "2": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "3": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "4": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ]
+     }
+    },
+    {
+     "stage": 3,
+     "layers": {
+      "-1": [
+       "         ",
+       " SSSSSSS ",
+       " SSSPSSS ",
+       " SSSSSSS ",
+       " SPSSSPS ",
+       " SSSSSSS ",
+       " SSSPSSS ",
+       " SSSSSSS ",
+       "         "
+      ],
+      "0": [
+       "  S   S  ",
+       " SvS.SvS ",
+       "SvSS.SSvS",
+       " SSW.WSS ",
+       " ...F... ",
+       " SSW.WSS ",
+       "SvSS.SSvS",
+       " SvS.SvS ",
+       "  S   S  "
+      ],
+      "1": [
+       "         ",
+       " S S.S S ",
+       "  Sq.fS  ",
+       " Sfb.bqS ",
+       " ....... ",
+       " Sqb.bfS ",
+       "  Sf.qS  ",
+       " S S.S S ",
+       "         "
+      ],
+      "2": [
+       "         ",
+       " SWscsWS ",
+       " W     W ",
+       " s     s ",
+       " c  .  c ",
+       " s     s ",
+       " W     W ",
+       " SWscsWS ",
+       "         "
+      ],
+      "3": [
+       "         ",
+       " L     L ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       " L     L ",
+       "         "
+      ],
+      "4": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ]
+     }
+    },
+    {
+     "stage": 4,
+     "layers": {
+      "-1": [
+       "         ",
+       " SSSSSSS ",
+       " SSSPSSS ",
+       " SSSSSSS ",
+       " SPSSSPS ",
+       " SSSSSSS ",
+       " SSSPSSS ",
+       " SSSSSSS ",
+       "         "
+      ],
+      "0": [
+       "  S . S  ",
+       " SvS.SvS ",
+       "SvSS.SSvS",
+       " SSW.WSS ",
+       "....F....",
+       " SSW.WSS ",
+       "SvSS.SSvS",
+       " SvS.SvS ",
+       "  S . S  "
+      ],
+      "1": [
+       "    .    ",
+       " S S.S S ",
+       "  Sq.fS  ",
+       " Sfb.bqS ",
+       ".........",
+       " Sqb.bfS ",
+       "  Sf.qS  ",
+       " S S.S S ",
+       "    .    "
+      ],
+      "2": [
+       "         ",
+       " SWscsWS ",
+       " WS s SW ",
+       " s     s ",
+       " cs . sc ",
+       " s     s ",
+       " WS s SW ",
+       " SWscsWS ",
+       "         "
+      ],
+      "3": [
+       "         ",
+       " L W W L ",
+       "  q   q  ",
+       " W     W ",
+       "    .    ",
+       " W     W ",
+       "  q   q  ",
+       " L W W L ",
+       "         "
+      ],
+      "4": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ]
+     }
+    },
+    {
+     "stage": 5,
+     "layers": {
+      "-1": [
+       "sssssssss",
+       "sSSSSSSSs",
+       "sSSSPSSSs",
+       "sSSSSSSSs",
+       "sSPSSSPSs",
+       "sSSSSSSSs",
+       "sSSSPSSSs",
+       "sSSSSSSSs",
+       "sssssssss"
+      ],
+      "0": [
+       "  SS.SSm ",
+       "mSvS.SvS ",
+       "SvSS.SSvS",
+       "SSSW.WSSS",
+       "....F....",
+       "SSSW.WSSS",
+       "SvSS.SSvS",
+       " SvS.SvSm",
+       " mSS.SS  "
+      ],
+      "1": [
+       "  fS.Sf  ",
+       " S S.S S ",
+       "f Sq.fS f",
+       "SSfb.bqSS",
+       ".........",
+       "SSqb.bfSS",
+       "f Sf.qS f",
+       " S S.S S ",
+       "  fS.Sf  "
+      ],
+      "2": [
+       "     c   ",
+       " SWscsWS ",
+       " WS s SW ",
+       "cs     s ",
+       " cs . sc ",
+       " s     sc",
+       " WS s SW ",
+       " SWscsWS ",
+       "   c     "
+      ],
+      "3": [
+       "         ",
+       " L W W L ",
+       "  q   q  ",
+       " W     W ",
+       "    .    ",
+       " W     W ",
+       "  q   q  ",
+       " L W W L ",
+       "         "
+      ],
+      "4": [
+       "         ",
+       "   s s   ",
+       "         ",
+       " s     s ",
+       "    .    ",
+       " s     s ",
+       "         ",
+       "   s s   ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ]
+     }
+    },
+    {
+     "stage": 6,
+     "layers": {
+      "-1": [
+       "sssssssss",
+       "sSSSSSSSs",
+       "sSSSPSSSs",
+       "sSSSSSSSs",
+       "sSPSkSPSs",
+       "sSSSSSSSs",
+       "sSSSPSSSs",
+       "sSSSSSSSs",
+       "sssssssss"
+      ],
+      "0": [
+       "  SS.SSm ",
+       "mSvS.SvS ",
+       "SvSS.SSvS",
+       "SSSW.WSSS",
+       "....F....",
+       "SSSW.WSSS",
+       "SvSS.SSvS",
+       " SvS.SvSm",
+       " mSS.SS  "
+      ],
+      "1": [
+       "  fS.Sf  ",
+       " S S.S S ",
+       "f Sq.fS f",
+       "SSfb.bqSS",
+       ".........",
+       "SSqb.bfSS",
+       "f Sf.qS f",
+       " S S.S S ",
+       "  fS.Sf  "
+      ],
+      "2": [
+       "     c   ",
+       " SWscsWS ",
+       " WS s SW ",
+       "cs     s ",
+       " cs . sc ",
+       " s     sc",
+       " WS s SW ",
+       " SWscsWS ",
+       "   c     "
+      ],
+      "3": [
+       "         ",
+       " L W W L ",
+       "  q   q  ",
+       " W     W ",
+       "    .    ",
+       " W     W ",
+       "  q   q  ",
+       " L W W L ",
+       "         "
+      ],
+      "4": [
+       "         ",
+       "   scs   ",
+       "  s   s  ",
+       " s     s ",
+       " c  .  c ",
+       " s     s ",
+       "  s   s  ",
+       "   scs   ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       "   S S   ",
+       "         ",
+       " S     S ",
+       "    .    ",
+       " S     S ",
+       "         ",
+       "   S S   ",
+       "         "
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "frost",
+   "palette": {
+    "S": "minecraft:stone_bricks",
+    "s": "minecraft:stone_brick_slab",
+    "W": "minecraft:spruce_log",
+    "P": "minecraft:spruce_planks",
+    "w": "minecraft:spruce_slab",
+    "G": "minecraft:light_blue_stained_glass",
+    "N": "minecraft:light_blue_banner",
+    "m": "minecraft:light_blue_carpet",
+    "f": "minecraft:potted_azure_bluet",
+    "C": "minecraft:light_blue_candle",
+    "I": "minecraft:blue_ice",
+    "n": "minecraft:snow_block",
+    "l": "minecraft:soul_lantern"
+   },
+   "stages": [
+    {
+     "stage": 1,
+     "layers": {
+      "-1": [
+       "         ",
+       "         ",
+       "         ",
+       "   III   ",
+       "   ISI   ",
+       "   III   ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "0": [
+       "         ",
+       "         ",
+       "         ",
+       "   W.W   ",
+       "   .F.   ",
+       "   W.W   ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "1": [
+       "         ",
+       "         ",
+       "         ",
+       "   l.l   ",
+       "   ...   ",
+       "   l.l   ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "2": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "3": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "4": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ]
+     }
+    },
+    {
+     "stage": 2,
+     "layers": {
+      "-1": [
+       "         ",
+       "         ",
+       "  IIIII  ",
+       "  IIIII  ",
+       "  IISII  ",
+       "  IIIII  ",
+       "  IIIII  ",
+       "         ",
+       "         "
+      ],
+      "0": [
+       "         ",
+       "         ",
+       "  S . S  ",
+       "   W.W   ",
+       "  ..F..  ",
+       "   W.W   ",
+       "  S . S  ",
+       "         ",
+       "         "
+      ],
+      "1": [
+       "         ",
+       "         ",
+       "  W . W  ",
+       "   l.l   ",
+       "  .....  ",
+       "   l.l   ",
+       "  W . W  ",
+       "         ",
+       "         "
+      ],
+      "2": [
+       "         ",
+       "         ",
+       "  n   n  ",
+       "         ",
+       "    .    ",
+       "         ",
+       "  n   n  ",
+       "         ",
+       "         "
+      ],
+      "3": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "4": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ]
+     }
+    },
+    {
+     "stage": 3,
+     "layers": {
+      "-1": [
+       "         ",
+       " IIIIIII ",
+       " IIIIIII ",
+       " IIIIIII ",
+       " IIISIII ",
+       " IIIIIII ",
+       " IIIIIII ",
+       " IIIIIII ",
+       "         "
+      ],
+      "0": [
+       "  S   S  ",
+       " SvS.SvS ",
+       "SvS . SvS",
+       " S W.W S ",
+       " ...F... ",
+       " S W.W S ",
+       "SvS . SvS",
+       " SvS.SvS ",
+       "  S   S  "
+      ],
+      "1": [
+       "         ",
+       " WGW.WGW ",
+       " GW . WG ",
+       " W l.l W ",
+       " ....... ",
+       " W l.l W ",
+       " GW . WG ",
+       " WGW.WGW ",
+       "         "
+      ],
+      "2": [
+       "         ",
+       " WPWWWPW ",
+       " Pn   nP ",
+       " W     W ",
+       " W  .  W ",
+       " W     W ",
+       " Pn   nP ",
+       " WPWWWPW ",
+       "         "
+      ],
+      "3": [
+       "         ",
+       " WWWWWWW ",
+       " W     W ",
+       " W     W ",
+       " W  .  W ",
+       " W     W ",
+       " W     W ",
+       " WWWWWWW ",
+       "         "
+      ],
+      "4": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ]
+     }
+    },
+    {
+     "stage": 4,
+     "layers": {
+      "-1": [
+       "         ",
+       " IIIIIII ",
+       " IIIIIII ",
+       " IIIIIII ",
+       " IIISIII ",
+       " IIIIIII ",
+       " IIIIIII ",
+       " IIIIIII ",
+       "         "
+      ],
+      "0": [
+       "  S . S  ",
+       " SvS.SvS ",
+       "SvS . SvS",
+       " S W.W S ",
+       "....F....",
+       " S W.W S ",
+       "SvS . SvS",
+       " SvS.SvS ",
+       "  S . S  "
+      ],
+      "1": [
+       "l   .   l",
+       " WGW.WGW ",
+       " GW . WG ",
+       " W l.l W ",
+       ".........",
+       " W l.l W ",
+       " GW . WG ",
+       " WGW.WGW ",
+       "l   .   l"
+      ],
+      "2": [
+       "h       h",
+       " WPWWWPW ",
+       " Pn   nP ",
+       " W     W ",
+       " W  .  W ",
+       " W     W ",
+       " Pn   nP ",
+       " WPWWWPW ",
+       "h       h"
+      ],
+      "3": [
+       "wwwwwwwww",
+       "wWWWWWWWw",
+       "wW     Ww",
+       "wW     Ww",
+       "wW  .  Ww",
+       "wW     Ww",
+       "wW     Ww",
+       "wWWWWWWWw",
+       "wwwwwwwww"
+      ],
+      "4": [
+       "         ",
+       " nnnnnnn ",
+       " n     n ",
+       " n     n ",
+       " n  .  n ",
+       " n     n ",
+       " n     n ",
+       " nnnnnnn ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       "         ",
+       "         ",
+       "         ",
+       "    .    ",
+       "         ",
+       "         ",
+       "         ",
+       "         "
+      ]
+     }
+    },
+    {
+     "stage": 5,
+     "layers": {
+      "-1": [
+       "         ",
+       " IIIIIII ",
+       " IIIIIII ",
+       " IIIIIII ",
+       " IIISIII ",
+       " IIIIIII ",
+       " IIIIIII ",
+       " IIIIIII ",
+       "         "
+      ],
+      "0": [
+       "  S . S  ",
+       " SvS.SvS ",
+       "SvS . SvS",
+       " S W.W S ",
+       "....F....",
+       " S W.W S ",
+       "SvS . SvS",
+       " SvS.SvS ",
+       "  S . S  "
+      ],
+      "1": [
+       "l   .   l",
+       " WGW.WGW ",
+       " GW . WG ",
+       " W l.l W ",
+       ".........",
+       " W l.l W ",
+       " GW . WG ",
+       " WGW.WGW ",
+       "l   .   l"
+      ],
+      "2": [
+       "h       h",
+       " WPWWWPW ",
+       " Pn   nP ",
+       " W     W ",
+       " W  .  W ",
+       " W     W ",
+       " Pn   nP ",
+       " WPWWWPW ",
+       "h       h"
+      ],
+      "3": [
+       "wwwwwwwww",
+       "wWWWWWWWw",
+       "wW     Ww",
+       "wW SSS Ww",
+       "wW S.S Ww",
+       "wW SSS Ww",
+       "wW     Ww",
+       "wWWWWWWWw",
+       "wwwwwwwww"
+      ],
+      "4": [
+       "         ",
+       " nnnnnnn ",
+       " nPPPPPn ",
+       " nPSSSPn ",
+       " nPS.SPn ",
+       " nPSSSPn ",
+       " nPPPPPn ",
+       " nnnnnnn ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       "         ",
+       "  nnnnn  ",
+       "  nSSSn  ",
+       "  nS.Sn  ",
+       "  nSSSn  ",
+       "  nnnnn  ",
+       "         ",
+       "         "
+      ]
+     }
+    },
+    {
+     "stage": 6,
+     "layers": {
+      "-1": [
+       "   I I   ",
+       " IIIIIII ",
+       " IIIIIII ",
+       "IIIIIIIII",
+       " IIIkIII ",
+       "IIIIIIIII",
+       " IIIIIII ",
+       " IIIIIII ",
+       "   I I   "
+      ],
+      "0": [
+       "  SW.WS  ",
+       " SvS.SvS ",
+       "SvS . SvS",
+       "WS W.W SW",
+       "....F....",
+       "WS W.W SW",
+       "SvS . SvS",
+       " SvS.SvS ",
+       "  SW.WS  "
+      ],
+      "1": [
+       "l  W.W  l",
+       " WGW.WGW ",
+       " GW . WG ",
+       "WW l.l WW",
+       ".........",
+       "WW l.l WW",
+       " GW . WG ",
+       " WGW.WGW ",
+       "l  W.W  l"
+      ],
+      "2": [
+       "hh W W hh",
+       "hWPWWWPWh",
+       " Pn   nP ",
+       "WW     WW",
+       " W  .  W ",
+       "WW     WW",
+       " Pn   nP ",
+       "hWPWWWPWh",
+       "hh W W hh"
+      ],
+      "3": [
+       "wwwwwwwww",
+       "wWWWWWWWw",
+       "wW     Ww",
+       "wW SSS Ww",
+       "wW S.S Ww",
+       "wW SSS Ww",
+       "wW     Ww",
+       "wWWWWWWWw",
+       "wwwwwwwww"
+      ],
+      "4": [
+       "         ",
+       " nnnnnnn ",
+       " nPPPPPn ",
+       " nPSSSPn ",
+       " nPS.SPn ",
+       " nPSSSPn ",
+       " nPPPPPn ",
+       " nnnnnnn ",
+       "         "
+      ],
+      "5": [
+       "         ",
+       "         ",
+       "  nnnnn  ",
+       "  nSSSn  ",
+       "  nS.Sn  ",
+       "  nSSSn  ",
+       "  nnnnn  ",
+       "         ",
+       "         "
+      ]
+     }
+    }
+   ]
+  }
+ ]
+}

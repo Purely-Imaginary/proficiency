@@ -28,6 +28,35 @@ public record DiscoveryPayload(int kind, String name, String id, int skill, floa
     /** Stepping into a structure already found: a small banner, no XP. */
     public static final int ENTER = 4;
 
+    /**
+     * A Hearth stage sealed (lighting is stage I): {@code name} is the stage name's key, {@code id}
+     * is {@link #hearthId}, {@code with} names who sealed it ("" for the player who did), no XP.
+     */
+    public static final int HEARTH = 5;
+
+    /** The first Hearth this player ever lit: as {@link #HEARTH}, with its own kicker. */
+    public static final int HEARTH_FIRST = 6;
+
+    private static final String HEARTH_ID = "proficiency:hearth/";
+
+    /** The id a Hearth banner carries: {@code proficiency:hearth/<stage>}. */
+    public static String hearthId(int stage) {
+        return HEARTH_ID + stage;
+    }
+
+    /** The stage of a Hearth banner's id, 1..6; 0 when the id is not one. */
+    public static int hearthStage(String id) {
+        if (id == null || !id.startsWith(HEARTH_ID)) {
+            return 0;
+        }
+        try {
+            int stage = Integer.parseInt(id.substring(HEARTH_ID.length()));
+            return stage >= 1 && stage <= 6 ? stage : 0;
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
     private static final int MAX_LENGTH = 256;
 
     public static final CustomPacketPayload.Type<DiscoveryPayload> TYPE =

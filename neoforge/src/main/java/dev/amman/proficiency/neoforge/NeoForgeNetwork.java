@@ -73,5 +73,13 @@ public final class NeoForgeNetwork {
                         ProficiencyNetwork.onUnlock(payload, player);
                     }
                 }));
+        registrar.playToServer(dev.amman.proficiency.net.ExpertisePayload.TYPE,
+                dev.amman.proficiency.net.ExpertisePayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> {
+                    if (context.player() instanceof ServerPlayer player) {
+                        ProficiencyNetwork.onExpertise(payload, player);
+                    }
+                }));
+        NeoForgeHearthNetwork.register(registrar);
     }
 }

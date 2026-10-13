@@ -53,21 +53,36 @@ def main():
     open(JAVA, "w").write("\n".join(out))
 
     lang = json.load(open(LANG), object_pairs_hook=collections.OrderedDict)
-    for key in [k for k in lang if k.startswith("proficiency.talent.") and not (
-            k.startswith("proficiency.talent.msg.") or k.startswith("proficiency.talent.kind."))]:
-        del lang[key]
-    for key in [k for k in lang if k.startswith("proficiency.special.")]:
-        del lang[key]
+
+    def generated(k):
+        return (k.startswith("proficiency.talent.") and not (
+            k.startswith("proficiency.talent.msg.") or k.startswith("proficiency.talent.kind."))) \
+            or k.startswith("proficiency.special.")
+
     # One-line versions for the short tooltip (tools/talent_short.json); a node whose description is
     # already short has none, and the root nodes share one line.
     shorts = json.load(open(os.path.join(ROOT, "tools/talent_short.json")))
-    lang["proficiency.talent.root.short"] = shorts["root"]
+    fresh = collections.OrderedDict()
+    fresh["proficiency.talent.root.short"] = shorts["root"]
     for skill, nodes in spec.TREES.items():
         for n in nodes:
-            lang[f"proficiency.talent.{skill}.{n['id']}"] = n["name"]
-            lang[f"proficiency.talent.{skill}.{n['id']}.desc"] = n["desc"]
+            fresh[f"proficiency.talent.{skill}.{n['id']}"] = n["name"]
+            fresh[f"proficiency.talent.{skill}.{n['id']}.desc"] = n["desc"]
             if f"{skill}.{n['id']}" in shorts:
-                lang[f"proficiency.talent.{skill}.{n['id']}.short"] = shorts[f"{skill}.{n['id']}"]
+                fresh[f"proficiency.talent.{skill}.{n['id']}.short"] = shorts[f"{skill}.{n['id']}"]
+    # Every generated key keeps its place and a new one goes in right after the generated key before
+    # it, so a run changes only the lines that changed (2026-10-09: it used to move the whole block
+    # to the end of the file, a 930-line diff that clashed with every other change to the file).
+    items = [(k, fresh[k] if k in fresh else v) for k, v in lang.items() if not generated(k) or k in fresh]
+    index = {k: i for i, (k, _) in enumerate(items)}
+    previous = None
+    for key, value in fresh.items():
+        if key not in index:
+            at = index[previous] + 1 if previous is not None else len(items)
+            items.insert(at, (key, value))
+            index = {k: i for i, (k, _) in enumerate(items)}
+        previous = key
+    lang = collections.OrderedDict(items)
     json.dump(lang, open(LANG, "w"), ensure_ascii=False, indent=2)
     open(LANG, "a").write("\n")
     write_reference()

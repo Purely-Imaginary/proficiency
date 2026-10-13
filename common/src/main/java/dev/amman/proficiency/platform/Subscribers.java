@@ -17,6 +17,7 @@ public final class Subscribers {
                 dev.amman.proficiency.event.XpReloadEvents.class,
                 dev.amman.proficiency.event.PlayerLifecycleEvents.class,
                 dev.amman.proficiency.event.CombatEvents.class,
+                dev.amman.proficiency.event.CritEvents.class,
                 dev.amman.proficiency.event.CraftingEvents.class,
                 dev.amman.proficiency.event.ExpansionEvents.class,
                 dev.amman.proficiency.event.GatheringEvents.class,
@@ -30,12 +31,14 @@ public final class Subscribers {
                 dev.amman.proficiency.event.EnduranceEvents.class,
                 dev.amman.proficiency.event.TalentEnduranceEvents.class,
                 dev.amman.proficiency.event.NightwalkerEvents.class,
+                dev.amman.proficiency.event.ExhaustionWatch.class,
                 dev.amman.proficiency.event.CourageEvents.class,
                 dev.amman.proficiency.event.GuardianEvents.class,
                 dev.amman.proficiency.event.ChargerEvents.class,
                 dev.amman.proficiency.event.TacticianEvents.class,
                 dev.amman.proficiency.item.SpecialItemEvents.class,
                 dev.amman.proficiency.recipe.StationEvents.class,
+                dev.amman.proficiency.hearth.HearthCommonEvents.class,
         }) {
             NeoForge.EVENT_BUS.register(holder);
         }
@@ -50,5 +53,9 @@ public final class Subscribers {
         NeoForge.EVENT_BUS.register(dev.amman.proficiency.client.DarkSight.class);
         NeoForge.EVENT_BUS.register(dev.amman.proficiency.client.CalledShotMarks.class);
         NeoForge.EVENT_BUS.register(dev.amman.proficiency.client.ProcFxPlayer.class);
+        // The Hearth's client lane installs its payload handler and HUD listeners.
+        dev.amman.proficiency.hearth.client.HearthClientInit.init();
+        // Homebuilder's channel ring, a friend's House Proud glow and the wheel's two slots.
+        dev.amman.proficiency.client.HomebuilderHud.install();
     }
 }

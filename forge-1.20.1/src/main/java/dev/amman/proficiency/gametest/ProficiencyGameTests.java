@@ -244,6 +244,9 @@ public final class ProficiencyGameTests {
     @GameTest(template = "empty")
     public static void theStreakPaysAndADeathTakesItAndTheBarButNoLevel(GameTestHelper helper) {
         ServerPlayer player = MockPlayers.make(helper);
+        // Company is per skill: a player of a test beside this one at the spawn point could be a mentor
+        // in one of the two skills only. Alone, nobody's company reaches either grant.
+        MockPlayers.isolate(player);
         PlayerSkills skills = ProficiencyAttachments.of(player);
         skills.setLevel(Skill.MINING, 20);
         skills.setLevel(Skill.EXCAVATION, 20);
@@ -327,6 +330,9 @@ public final class ProficiencyGameTests {
     @GameTest(template = "empty")
     public static void environmentalEnduranceXpIsCapped(GameTestHelper helper) {
         ServerPlayer player = MockPlayers.make(helper);
+        // The allowance below has room for tempo only: a neighbour's company (x1.25 with a mentor) would
+        // push a capped player past it.
+        MockPlayers.isolate(player);
         player.setGameMode(GameType.SURVIVAL);
         clearSpawnProtection(player);
         PlayerSkills skills = ProficiencyAttachments.of(player);
@@ -789,7 +795,7 @@ public final class ProficiencyGameTests {
             helper.assertTrue(dev.amman.proficiency.skill.NightwalkerService.isDark(zombie),
                     "the zombie's room is not dark");
             ProficiencyAttachments.of(player).setLevel(Skill.NIGHTWALKER, 50);
-            helper.assertTrue(dev.amman.proficiency.skill.ActiveService.activate(player, Skill.NIGHTWALKER) == null,
+            helper.assertTrue(dev.amman.proficiency.skill.ActiveService.activate(GameTestRoots.open(player, Skill.NIGHTWALKER), Skill.NIGHTWALKER) == null,
                     "Eclipse did not start");
 
             player.setPos(zombie.getX() + 12, zombie.getY(), zombie.getZ());
@@ -974,6 +980,20 @@ public final class ProficiencyGameTests {
     }
 
     // ---- Discovery and the first-time bonus ---------------------------------------------------
+
+    /** As {@link #logged}, but the XP the call sites asked for, before any multiplier. */
+    private static float loggedBase(ServerPlayer player, Skill skill, String sourcePrefix) {
+        var log = SkillService.xpLog(player);
+        float sum = 0f;
+        if (log != null) {
+            for (var entry : log.entries()) {
+                if (entry.skill() == skill.ordinal() && entry.source().startsWith(sourcePrefix)) {
+                    sum += entry.base();
+                }
+            }
+        }
+        return sum;
+    }
 
     /** The XP a log entry set paid for one skill and source prefix, and how many gains it merged. */
     private static float logged(ServerPlayer player, Skill skill, String sourcePrefix, int[] gains) {
@@ -1226,7 +1246,9 @@ public final class ProficiencyGameTests {
             player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.DIAMOND_SWORD));
             mobs[i].setNoAi(true);
             mobs[i].hurt(player.damageSources().playerAttack(player), 2.0f);
-            paid[i] = logged(player, Skill.SWORDS, "entity.minecraft.zombie", null);
+            // What the hit asked for, before the player's own multipliers: three fresh mock players
+            // among the default batch's others need not get the same company bonus (common's fix, e4ba6c4).
+            paid[i] = loggedBase(player, Skill.SWORDS, "entity.minecraft.zombie");
         }
         helper.assertTrue(paid[0] > 0f, "a natural zombie paid no Swords XP");
         helper.assertTrue(paid[1] == 0f, "a spawn-egg zombie paid Swords XP: " + paid[1]);

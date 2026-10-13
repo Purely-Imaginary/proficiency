@@ -128,6 +128,9 @@ public final class GuardianEvents {
     private static final Map<String, Long> PULSE_AT = new ConcurrentHashMap<>();
     /** Per player: until when Shield Wall's armour stays on them. */
     private static final Map<UUID, Long> WALLED = new ConcurrentHashMap<>();
+    /** Lifeguard: game time each lifeguard last gave Water Breathing. Field Medic: each ally's last cure. */
+    private static final Map<UUID, Long> LIFEGUARD_AT = new ConcurrentHashMap<>();
+    private static final Map<UUID, Long> MEDIC_AT = new ConcurrentHashMap<>();
     /** A cloud's potion, read once. Weak keys: a gone cloud drops out. Server thread only. */
     private static final Map<AreaEffectCloud, java.util.Optional<List<MobEffectInstance>>> CLOUD_CONTENTS =
             new java.util.WeakHashMap<>();
@@ -455,6 +458,7 @@ public final class GuardianEvents {
         if (event.getEntity() instanceof ServerPlayer ally && event.getAmount() > 0
                 && !ally.level().isClientSide()) {
             payHeal(ally, event.getAmount());
+            fieldMedic(ally);
         }
     }
 
@@ -472,6 +476,38 @@ public final class GuardianEvents {
         double xp = GuardianMath.healXp(amount, ally.getHealth(), ally.getMaxHealth(),
                 ProficiencyConfig.guardianHealXp());
         return xp > 0 ? SkillService.grant(healer, Skill.GUARDIAN, xp, SOURCE_HEAL) : 0f;
+    }
+
+    /**
+     * Field Medic: a healing splash or cloud thrown by a medic also cures the longest harmful effect
+     * on each friend it heals, at most once per 2 s per friend. Hooked on the heal itself, not on
+     * payHeal, because payHeal stays silent unless the friend was hurt by the world a moment ago.
+     */
+    private static void fieldMedic(ServerPlayer ally) {
+        long now = now(ally);
+        Long last = MEDIC_AT.get(ally.getUUID());
+        if (last != null && now - last < 40) {
+            return;
+        }
+        ServerPlayer medic = potionHealer(ally);
+        if (medic == null || !TalentService.hasSynergy(medic, "field_medic")) {
+            return;
+        }
+        var worst = ally.getActiveEffects().stream()
+                .filter(active -> active.getEffect().getCategory() == net.minecraft.world.effect.MobEffectCategory.HARMFUL)
+                .max(Comparator.comparingInt(MobEffectInstance::getAmplifier)
+                        .thenComparingInt(active -> active.isInfiniteDuration()
+                                ? Integer.MAX_VALUE : active.getDuration()))
+                .map(MobEffectInstance::getEffect);
+        if (worst.isEmpty()) {
+            return;
+        }
+        ally.removeEffect(worst.get());
+        MEDIC_AT.put(ally.getUUID(), now);
+        ally.serverLevel().sendParticles(net.minecraft.core.particles.ParticleTypes.HAPPY_VILLAGER,
+                ally.getX(), ally.getY() + 1.0, ally.getZ(), 8, 0.3, 0.5, 0.3, 0.0);
+        ally.level().playSound(null, ally.getX(), ally.getY(), ally.getZ(), SoundEvents.BREWING_STAND_BREW,
+                SoundSource.PLAYERS, 0.6f, 1.4f);
     }
 
     /**
@@ -496,6 +532,12 @@ public final class GuardianEvents {
                 REGEN_BY.remove(ally.getUUID(), regen);
             }
         }
+        return potionHealer(ally);
+    }
+
+    /** The owner of a healing splash potion landing next to this ally, or of a healing cloud they stand in. */
+    @Nullable
+    private static ServerPlayer potionHealer(ServerPlayer ally) {
         // A splash potion is still in the world while it applies itself.
         for (ThrownPotion potion : ally.level().getEntitiesOfClass(ThrownPotion.class,
                 ally.getBoundingBox().inflate(GuardianMath.HEAL_SCAN_RADIUS))) {
@@ -608,9 +650,55 @@ public final class GuardianEvents {
             if (ActiveService.isFrenzied(player, Skill.GUARDIAN)) {
                 shieldWall(player, walls);
             }
+            tickSynergies(player);
         }
         applyWalls(server, walls);
         expireWalls(server);
+    }
+
+    /**
+     * First Responder and Lifeguard, every half second per player. Public so a GameTest can run it
+     * without waiting for the server tick.
+     */
+    public static void tickSynergies(ServerPlayer player) {
+        if (!player.isAlive() || player.isSpectator()) {
+            return;
+        }
+        long now = now(player);
+        // First Responder: sprinting while a friend within 24 blocks is under 30% health: Speed II.
+        if (player.isSprinting() && TalentService.hasSynergy(player, "first_responder")) {
+            ServerPlayer hurt = mostHurtAlly(player, 24.0);
+            if (hurt != null && GuardianMath.share(hurt.getHealth(), hurt.getMaxHealth()) < 0.30) {
+                MobEffectInstance running = player.getEffect(MobEffects.MOVEMENT_SPEED);
+                boolean fresh = running == null || running.getAmplifier() < 1;
+                player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, 40, 1, false, true, true));
+                if (fresh) {
+                    player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
+                            SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.PLAYERS, 0.7f, 1.4f);
+                }
+            }
+        }
+        // Lifeguard: a friend within 8 blocks low on air gets Water Breathing 5 s, once a minute.
+        if (TalentService.hasSynergy(player, "lifeguard")) {
+            Long last = LIFEGUARD_AT.get(player.getUUID());
+            if (last != null && now - last < 1200) {
+                return;
+            }
+            for (ServerPlayer friend : player.serverLevel().players()) {
+                if (!isAlly(player, friend) || friend.distanceToSqr(player) > 64.0
+                        || friend.getAirSupply() >= friend.getMaxAirSupply() / 3
+                        || friend.hasEffect(MobEffects.WATER_BREATHING)) {
+                    continue;
+                }
+                friend.addEffect(new MobEffectInstance(MobEffects.WATER_BREATHING, 100, 0, false, true, true));
+                LIFEGUARD_AT.put(player.getUUID(), now);
+                friend.serverLevel().sendParticles(net.minecraft.core.particles.ParticleTypes.BUBBLE,
+                        friend.getX(), friend.getEyeY(), friend.getZ(), 12, 0.3, 0.3, 0.3, 0.05);
+                friend.level().playSound(null, friend.getX(), friend.getY(), friend.getZ(),
+                        SoundEvents.BUBBLE_COLUMN_UPWARDS_AMBIENT, SoundSource.PLAYERS, 0.8f, 1.2f);
+                break;
+            }
+        }
     }
 
     /** Pays and ends the watches that are done. Public so a GameTest can run it without waiting. */
@@ -787,13 +875,21 @@ public final class GuardianEvents {
 
     /** Taunt: a mob you hit turns on you and cannot switch away for 5 s. */
     public static void taunt(ServerPlayer player, Mob mob) {
-        if (TalentService.rank(player, Skill.GUARDIAN, "taunt") <= 0 || !mob.isAlive()) {
+        if (TalentService.rank(player, Skill.GUARDIAN, "taunt") <= 0) {
+            return;
+        }
+        tauntFor(player, mob, GuardianMath.TAUNT_TICKS);
+    }
+
+    /** The lock itself, with no talent check and its own length (Earthbound Oath's 4 s). */
+    public static void tauntFor(ServerPlayer player, Mob mob, long ticks) {
+        if (!mob.isAlive()) {
             return;
         }
         mob.getPersistentData().remove(TAUNT_UNTIL);
         mob.setTarget(player);
         mob.getPersistentData().putUUID(TAUNT_BY, player.getUUID());
-        mob.getPersistentData().putLong(TAUNT_UNTIL, now(mob) + GuardianMath.TAUNT_TICKS);
+        mob.getPersistentData().putLong(TAUNT_UNTIL, now(mob) + ticks);
     }
 
     /**
@@ -1019,6 +1115,8 @@ public final class GuardianEvents {
         forgetDanger(player);
         BLOCK_HEAL_AT.remove(player);
         WALLED.remove(player);
+        LIFEGUARD_AT.remove(player);
+        MEDIC_AT.remove(player);
         String prefix = player + "|";
         String suffix = "|" + player;
         REVIVE_PAID.keySet().removeIf(key -> key.startsWith(prefix) || key.endsWith(suffix));
@@ -1035,6 +1133,8 @@ public final class GuardianEvents {
         BLOCK_HEAL_AT.clear();
         PULSE_AT.clear();
         WALLED.clear();
+        LIFEGUARD_AT.clear();
+        MEDIC_AT.clear();
         CLOUD_CONTENTS.clear();
     }
 

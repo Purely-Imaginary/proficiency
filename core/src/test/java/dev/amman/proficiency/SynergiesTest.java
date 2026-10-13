@@ -15,6 +15,7 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -58,7 +59,12 @@ class SynergiesTest {
     void theSpecialsTheEventCodeReadsExist() {
         Set<String> specials = new HashSet<>();
         Synergies.all().forEach(synergy -> specials.add(synergy.special()));
-        for (String tag : new String[] {"forge_smelt", "woodsman", "deep_delver", "ambush", "juggernaut", "tidecaller"}) {
+        for (String tag : new String[] {"forge_smelt", "woodsman", "deep_delver", "ambush", "juggernaut", "tidecaller",
+                "turn_and_thrust", "single_combat", "reavers_rush", "falling_hammer", "earthbound_oath", "nerve_strike", "pavise", "colossus_bane",
+                "shared_quarry", "hanging_shot", "dragonbolt", "first_responder", "lifeguard", "field_medic",
+                "harpooneer", "orchard_keeper", "charcoal_burner", "dredger", "moon_garden", "shore_supper", "fishing_trip", "sunday_roast",
+                "play_dead", "ranger", "seismic_survey", "freerunner", "high_diver", "steeplejack", "housewarming",
+                "leaping_blade"}) {
             assertTrue(specials.contains(tag), tag);
         }
     }
@@ -116,13 +122,83 @@ class SynergiesTest {
         assertEquals(Synergies.DISCIPLINE_CAP, Synergies.discipline(skills, SkillCategory.COMBAT), 1e-9);
     }
 
-    /** Every skill should be in at least one pairing, so no tree is a dead end for synergies. */
+    /** About ten per tree (docs/SYNERGIES-2-SPEC.md): every skill is a need in 9 to 11 synergies. */
     @Test
-    void everyTreeFeedsSomePairing() {
-        Set<Skill> covered = new HashSet<>();
+    void everyTreeIsANeedInNineToElevenSynergies() {
+        java.util.Map<Skill, Integer> count = new java.util.EnumMap<>(Skill.class);
         for (Synergy synergy : Synergies.all()) {
-            synergy.requires().forEach(need -> covered.add(need.skill()));
+            Set<Skill> skills = new HashSet<>();
+            synergy.requires().forEach(need -> skills.add(need.skill()));
+            skills.forEach(skill -> count.merge(skill, 1, Integer::sum));
         }
-        assertEquals(Skill.VALUES.length, covered.size(), "only " + covered.size() + " skills feed a synergy");
+        for (Skill skill : Skill.VALUES) {
+            int n = count.getOrDefault(skill, 0);
+            assertTrue(n >= 9 && n <= 11, skill.id() + " is a need in " + n + " synergies");
+        }
+    }
+
+    @Test
+    void noTwoSynergiesShareANeedSet() {
+        Set<Set<String>> seen = new HashSet<>();
+        for (Synergy synergy : Synergies.all()) {
+            if (synergy.requires().isEmpty()) {
+                continue;
+            }
+            Set<String> key = new HashSet<>();
+            synergy.requires().forEach(need -> key.add(need.skill().id() + "/" + need.talentId() + "/" + need.minRank()));
+            assertTrue(seen.add(key), synergy.id() + " repeats another synergy's needs");
+        }
+    }
+
+    /** Grants stay inside the pairing: only skills that are needs, 5% to 20%, never a death ward. */
+    @Test
+    void grantsStayWithinTheRules() {
+        for (Synergy synergy : Synergies.all()) {
+            if (synergy.requires().isEmpty()) {
+                continue; // Renaissance
+            }
+            Set<Skill> needed = new HashSet<>();
+            synergy.requires().forEach(need -> needed.add(need.skill()));
+            for (Synergy.Grant grant : synergy.grants()) {
+                assertNotNull(grant.skill(), synergy.id());
+                assertTrue(needed.contains(grant.skill()), synergy.id() + " grants a skill it does not need");
+                assertTrue(grant.multiplier() >= 1.05 - 1e-9 && grant.multiplier() <= 1.20 + 1e-9,
+                        synergy.id() + " multiplier " + grant.multiplier());
+                assertNotEquals(PerkEffect.DEATH_WARD, grant.effect(), synergy.id());
+            }
+        }
+    }
+
+    @Test
+    void noSynergyStacksPastTheCeilingWithEverythingActive() {
+        for (Skill skill : Skill.VALUES) {
+            for (PerkEffect effect : PerkEffect.values()) {
+                double product = 1.0;
+                for (Synergy synergy : Synergies.all()) {
+                    for (Synergy.Grant grant : synergy.grants()) {
+                        if (grant.effect() == effect && grant.appliesTo(skill)) {
+                            product *= grant.multiplier();
+                        }
+                    }
+                }
+                assertTrue(product < 1.75, skill.id() + " " + effect + " stacks to " + product);
+            }
+        }
+    }
+
+    @Test
+    void everySynergyHasItsNameAndDescriptionStrings() throws Exception {
+        for (String lang : new String[] {"en_us", "pl_pl"}) {
+            java.nio.file.Path file = java.nio.file.Path.of("..", "common", "src", "main", "resources", "assets",
+                    "proficiency", "lang", lang + ".json");
+            if (!java.nio.file.Files.exists(file)) {
+                continue; // run from another working directory
+            }
+            String json = java.nio.file.Files.readString(file);
+            for (Synergy synergy : Synergies.all()) {
+                assertTrue(json.contains("\"" + synergy.nameKey() + "\""), lang + " " + synergy.nameKey());
+                assertTrue(json.contains("\"" + synergy.descriptionKey() + "\""), lang + " " + synergy.descriptionKey());
+            }
+        }
     }
 }

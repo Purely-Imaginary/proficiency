@@ -35,12 +35,12 @@ public final class SkillNumbers {
         line.append(" · ");
         line.append(procPart(skills, skill));
         line.append(" · ");
-        if (level >= ActiveService.unlockLevel()) {
+        if (ActiveService.unlocked(skills, skill)) {
             line.append(Component.translatable("proficiency.stats.ability",
                     seconds(ActiveService.durationTicks(skills, skill)),
                     seconds(ActiveService.cooldownTicks(skills, skill))));
         } else {
-            line.append(abilityLockedPart());
+            line.append(abilityLockedPart(skills, skill));
         }
         return line;
     }
@@ -56,11 +56,32 @@ public final class SkillNumbers {
         if (chance > 0) {
             return Component.translatable("proficiency.stats.proc", pct(chance), times(skills.procPower(skill)));
         }
+        if (skills.level(skill) >= procUnlock() && !skills.rootOpen(skill)) {
+            return Component.translatable("proficiency.stats.proc_root", rootName(skill));
+        }
         return Component.translatable("proficiency.stats.proc_locked", procUnlock());
     }
 
-    static MutableComponent abilityLockedPart() {
+    /** "Ability at level 50", or "Ability: fill Pickwork" once the level is there and the root is not. */
+    static MutableComponent abilityLockedPart(PlayerSkills skills, Skill skill) {
+        if (skills.level(skill) >= ActiveService.unlockLevel() && !skills.rootOpen(skill)) {
+            return Component.translatable("proficiency.stats.ability_root", rootName(skill));
+        }
         return Component.translatable("proficiency.stats.ability_locked", ActiveService.unlockLevel());
+    }
+
+    /** The name of the node that wakes the signature and the ability: the tree's root. */
+    static Component rootName(Skill skill) {
+        var root = dev.amman.proficiency.perk.Talents.root(skill);
+        return root == null ? Component.empty() : Component.translatable(root.nameKey());
+    }
+
+    /** Says the proc is waiting for the root, not for a level, when that is what it waits for. */
+    static MutableComponent procLockedDetail(PlayerSkills skills, Skill skill, Component procName) {
+        if (skills.level(skill) >= procUnlock() && !skills.rootOpen(skill)) {
+            return Component.translatable("proficiency.stats.proc.root_locked", procName, rootName(skill));
+        }
+        return Component.translatable("proficiency.stats.proc.locked", procName, procUnlock());
     }
 
     // ---- The passive as concrete stats ----------------------------------------------------------
@@ -104,7 +125,7 @@ public final class SkillNumbers {
 
     /** The ability's state on an item: ready or cooling down; null before the ability unlocks. */
     private static Component abilityState(PlayerSkills skills, Skill skill, long gameTime) {
-        if (skills.level(skill) < ActiveService.unlockLevel()) {
+        if (!ActiveService.unlocked(skills, skill)) {
             return null;
         }
         Component abilityName = Component.translatable(skill.activeKey());
@@ -127,12 +148,15 @@ public final class SkillNumbers {
             lines.add(headline(skills, skill));
             if (ability != null) {
                 lines.add(ability);
+            } else if (skills.level(skill) >= procUnlock() && !skills.rootOpen(skill)) {
+                // The level is there and only the tree is missing: the one hint worth the room.
+                lines.add(procPart(skills, skill).withStyle(ChatFormatting.DARK_PURPLE));
             }
             return lines;
         }
         lines.addAll(statRows(skills, skill));
         lines.add(procPart(skills, skill));
-        lines.add(ability != null ? ability : abilityLockedPart());
+        lines.add(ability != null ? ability : abilityLockedPart(skills, skill));
         return lines;
     }
 
@@ -173,9 +197,9 @@ public final class SkillNumbers {
         lines.add(Component.translatable("proficiency.stats.passive", pct(skills.bonus(skill)))
                 .withStyle(ChatFormatting.DARK_AQUA));
         lines.addAll(statRows(skills, skill));
-        lines.add(Component.translatable("proficiency.stats.passive.parts",
+        lines.add(withExpertise(Component.translatable("proficiency.stats.passive.parts",
                 pct(SkillMath.bonus(skill, level)), times(passive.ranks()), times(passive.synergies()),
-                times(passive.discipline())).withStyle(ChatFormatting.DARK_GRAY));
+                times(passive.discipline())), passive).withStyle(ChatFormatting.DARK_GRAY));
         if (!maxed) {
             lines.add(Component.translatable("proficiency.stats.next",
                     "+" + pct(skills.bonusAt(skill, level + 1)) + "%").withStyle(ChatFormatting.DARK_GRAY));
@@ -190,19 +214,18 @@ public final class SkillNumbers {
             lines.add(Component.translatable("proficiency.stats.proc.named", procName,
                     pct(skills.procChance(skill)), times(skills.procPower(skill)))
                     .withStyle(ChatFormatting.LIGHT_PURPLE));
-            lines.add(Component.translatable("proficiency.stats.proc.parts",
-                    pct(SkillMath.procChance(skill, level)), times(chance.ranks()), times(chance.synergies()))
+            lines.add(withExpertise(Component.translatable("proficiency.stats.proc.parts",
+                    pct(SkillMath.procChance(skill, level)), times(chance.ranks()), times(chance.synergies())), chance)
                     .withStyle(ChatFormatting.DARK_GRAY));
             if (!maxed) {
                 lines.add(Component.translatable("proficiency.stats.next",
                         pct(skills.procChanceAt(skill, level + 1)) + "%").withStyle(ChatFormatting.DARK_GRAY));
             }
         } else {
-            lines.add(Component.translatable("proficiency.stats.proc.locked", procName, procUnlock())
-                    .withStyle(ChatFormatting.DARK_PURPLE));
+            lines.add(procLockedDetail(skills, skill, procName).withStyle(ChatFormatting.DARK_PURPLE));
         }
-        lines.add(Component.translatable("proficiency.stats.power.parts",
-                times(power.ranks()), times(power.synergies())).withStyle(ChatFormatting.DARK_GRAY));
+        lines.add(withExpertise(Component.translatable("proficiency.stats.power.parts",
+                times(power.ranks()), times(power.synergies())), power).withStyle(ChatFormatting.DARK_GRAY));
         if (situational(skill)) {
             lines.add(Component.translatable("proficiency.stats.proc.situational")
                     .withStyle(ChatFormatting.DARK_GRAY));
@@ -211,10 +234,13 @@ public final class SkillNumbers {
         // Ability.
         lines.add(Component.literal(" "));
         Component abilityName = Component.translatable(skill.activeKey());
-        if (level >= ActiveService.unlockLevel()) {
+        if (ActiveService.unlocked(skills, skill)) {
             lines.add(Component.translatable("proficiency.stats.ability.named", abilityName,
                     seconds(ActiveService.durationTicks(skills, skill)),
                     seconds(ActiveService.cooldownTicks(skills, skill))).withStyle(ChatFormatting.GOLD));
+        } else if (level >= ActiveService.unlockLevel()) {
+            lines.add(Component.translatable("proficiency.stats.ability.root_locked", abilityName,
+                    rootName(skill)).withStyle(ChatFormatting.GOLD));
         } else {
             lines.add(Component.translatable("proficiency.stats.ability.locked", abilityName,
                     ActiveService.unlockLevel()).withStyle(ChatFormatting.GOLD));
@@ -229,6 +255,17 @@ public final class SkillNumbers {
         lines.add(Component.literal(" "));
         lines.add(Component.translatable(skill.descriptionKey()).withStyle(ChatFormatting.GRAY));
         return lines;
+    }
+
+    /**
+     * Adds ", Expertise ×1.06" to a breakdown line when the Expertise tree moves that number, so the
+     * parts shown still multiply back to the number the game uses.
+     */
+    static MutableComponent withExpertise(MutableComponent parts, PlayerSkills.Modifier modifier) {
+        if (Math.abs(modifier.expertise() - 1.0) > 1e-9) {
+            parts.append(Component.translatable("proficiency.stats.expertise_part", times(modifier.expertise())));
+        }
+        return parts;
     }
 
     /** The skills whose proc chance ProcService raises by where you are (see its situational()). */

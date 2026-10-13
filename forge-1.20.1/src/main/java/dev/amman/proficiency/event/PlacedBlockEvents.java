@@ -13,7 +13,11 @@ import net.minecraftforge.event.level.PistonEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
-/** Keeps the placed-block marks on blocks that move: pistons and falling sand. */
+/**
+ * Keeps the placed-block marks on blocks that move: pistons and falling sand. A falling block's tag is
+ * the set of marks it carries ({@link PlacedBlocks#MARK_GATHERING} and {@link PlacedBlocks#MARK_COMFORT});
+ * an older save's boolean {@code true} reads as the gathering mark (a byte 1 read as an int).
+ */
 @Mod.EventBusSubscriber(modid = Proficiency.MOD_ID)
 public final class PlacedBlockEvents {
 
@@ -33,9 +37,11 @@ public final class PlacedBlockEvents {
     @SubscribeEvent
     public static void onJoin(EntityJoinLevelEvent event) {
         if (event.getLevel() instanceof ServerLevel level && event.getEntity() instanceof FallingBlockEntity fall
-                && !fall.getPersistentData().getBoolean(FALL_TAG)
-                && PlacedBlocks.pickUp(level, fall.blockPosition(), fall.getBlockState())) {
-            fall.getPersistentData().putBoolean(FALL_TAG, true);
+                && fall.getPersistentData().getInt(FALL_TAG) == 0) {
+            int marks = PlacedBlocks.pickUp(level, fall.blockPosition(), fall.getBlockState());
+            if (marks != 0) {
+                fall.getPersistentData().putInt(FALL_TAG, marks);
+            }
         }
     }
 
@@ -43,11 +49,11 @@ public final class PlacedBlockEvents {
     public static void onLeave(EntityLeaveLevelEvent event) {
         Entity entity = event.getEntity();
         if (event.getLevel() instanceof ServerLevel level && entity instanceof FallingBlockEntity fall
-                && fall.getPersistentData().getBoolean(FALL_TAG)
+                && fall.getPersistentData().getInt(FALL_TAG) != 0
                 && fall.getRemovalReason() == Entity.RemovalReason.DISCARDED) {
             BlockState there = level.getBlockState(fall.blockPosition());
             if (there.is(fall.getBlockState().getBlock())) {
-                PlacedBlocks.land(level, fall.blockPosition(), there);
+                PlacedBlocks.land(level, fall.blockPosition(), there, fall.getPersistentData().getInt(FALL_TAG));
             }
         }
     }

@@ -12,6 +12,13 @@ public final class PlacedBlocksData extends SavedData {
 
     final PlacedBlockStore store = new PlacedBlockStore();
 
+    /**
+     * The Hearth's own mark (docs/HEARTH-SPEC.md, "Comfort"): every player placement, whatever
+     * {@code placedBlocksPayXp} says, so Comfort and Character count placed blocks only. It is cleared
+     * when the block is broken and rides on pistons and falling blocks like the gathering mark.
+     */
+    final PlacedBlockStore comfort = new PlacedBlockStore();
+
     /** Blocks a refund talent paid for: position to (block hash with the refunded count in the low byte). */
     final PlacedBlockStore refunded = new PlacedBlockStore();
 
@@ -30,6 +37,11 @@ public final class PlacedBlocksData extends SavedData {
         for (int i = 0; i < refunds.size(); i++) {
             CompoundTag chunk = refunds.getCompound(i);
             data.refunded.decode(chunk.getLong("c"), chunk.getLongArray("e"));
+        }
+        ListTag comfort = tag.getList("comfort", 10);
+        for (int i = 0; i < comfort.size(); i++) {
+            CompoundTag chunk = comfort.getCompound(i);
+            data.comfort.decode(chunk.getLong("c"), chunk.getLongArray("e"));
         }
         return data;
     }
@@ -52,6 +64,14 @@ public final class PlacedBlocksData extends SavedData {
             refunds.add(chunk);
         }
         tag.put("refunded", refunds);
+        ListTag comfortMarks = new ListTag();
+        for (long key : comfort.chunkKeys()) {
+            CompoundTag chunk = new CompoundTag();
+            chunk.putLong("c", key);
+            chunk.putLongArray("e", comfort.encode(key));
+            comfortMarks.add(chunk);
+        }
+        tag.put("comfort", comfortMarks);
         return tag;
     }
 

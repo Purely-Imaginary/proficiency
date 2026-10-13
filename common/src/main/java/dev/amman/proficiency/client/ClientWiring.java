@@ -81,6 +81,7 @@ public final class ClientWiring {
 
     public static void onProcFx(ProcFxPayload payload) {
         ProcFxPlayer.accept(payload);
+        ProcCallout.accept(payload);
     }
 
     /**
@@ -96,6 +97,10 @@ public final class ClientWiring {
         CalledShotMarks.clear();
         ProcFxPlayer.clear();
         HudState.reset();
+        HomebuilderHud.reset();
+        // A tale panel still inside its five seconds (or waiting for a screen to close) must not greet the next world.
+        TalesPayInHud.reset();
+        dev.amman.proficiency.hearth.net.HearthClients.leaveWorld();
     }
 
     // ---- Compass needles ----------------------------------------------------------------------

@@ -1,0 +1,8 @@
+{
+  "_comment": "Entities of the art kind. An item frame counts only while it holds an item.",
+  "values": [
+    "minecraft:painting",
+    "minecraft:item_frame",
+    "minecraft:glow_item_frame"
+  ]
+}

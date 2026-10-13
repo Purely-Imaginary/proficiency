@@ -651,16 +651,25 @@ public final class ProficiencyGameTests {
             helper.assertFalse(dev.amman.proficiency.skill.NightwalkerService.isDark(lit),
                     "the glowstone room counts as dark");
 
+            // Only this grant's share in the pot, and Nightwalker's XP as it stands now: the 5-second
+            // payout of the player loop may already have paid something the mock player earned in its
+            // first 40 ticks (it failed now and then on Fabric when the test asked "nothing earned yet").
+            dev.amman.proficiency.skill.NightwalkerService.forget(dark.getUUID());
+            PlayerSkills darkSkills = ProficiencyAttachments.of(dark);
+            int levelBefore = darkSkills.level(Skill.NIGHTWALKER);
+            float xpBefore = darkSkills.xp(Skill.NIGHTWALKER);
             SkillService.grant(dark, Skill.MINING, 10.0, null);
             double expected = dev.amman.proficiency.skill.NightwalkerMath.share(10.0,
                     ProficiencyConfig.xpRate(Skill.MINING), 1.0, ProficiencyConfig.nightShare());
             double pending = dev.amman.proficiency.skill.NightwalkerService.pending(dark);
             helper.assertTrue(pending > 0 && Math.abs(pending - expected) < 1e-4,
                     "the dark grant should hold " + expected + ", holds " + pending);
-            helper.assertFalse(earned(ProficiencyAttachments.of(dark), Skill.NIGHTWALKER),
+            helper.assertTrue(darkSkills.level(Skill.NIGHTWALKER) == levelBefore
+                            && darkSkills.xp(Skill.NIGHTWALKER) == xpBefore,
                     "Nightwalker was paid before the 5-second payout");
             float paid = dev.amman.proficiency.skill.NightwalkerService.flush(dark);
-            helper.assertTrue(paid > 0 && earned(ProficiencyAttachments.of(dark), Skill.NIGHTWALKER),
+            helper.assertTrue(paid > 0 && (darkSkills.level(Skill.NIGHTWALKER) > levelBefore
+                            || darkSkills.xp(Skill.NIGHTWALKER) > xpBefore),
                     "the payout added no Nightwalker XP");
             helper.assertTrue(logged(dark, Skill.NIGHTWALKER,
                             dev.amman.proficiency.skill.NightwalkerService.DARK_SOURCE, null) > 0f,
@@ -787,7 +796,7 @@ public final class ProficiencyGameTests {
             helper.assertTrue(dev.amman.proficiency.skill.NightwalkerService.isDark(zombie),
                     "the zombie's room is not dark");
             ProficiencyAttachments.of(player).setLevel(Skill.NIGHTWALKER, 50);
-            helper.assertTrue(dev.amman.proficiency.skill.ActiveService.activate(player, Skill.NIGHTWALKER) == null,
+            helper.assertTrue(dev.amman.proficiency.skill.ActiveService.activate(GameTestRoots.open(player, Skill.NIGHTWALKER), Skill.NIGHTWALKER) == null,
                     "Eclipse did not start");
 
             player.setPos(zombie.getX() + 12, zombie.getY(), zombie.getZ());
@@ -986,6 +995,20 @@ public final class ProficiencyGameTests {
                     if (gains != null) {
                         gains[0] += entry.count();
                     }
+                }
+            }
+        }
+        return sum;
+    }
+
+    /** As {@link #logged}, but the XP the call sites asked for, before any multiplier. */
+    private static float loggedBase(ServerPlayer player, Skill skill, String sourcePrefix) {
+        var log = SkillService.xpLog(player);
+        float sum = 0f;
+        if (log != null) {
+            for (var entry : log.entries()) {
+                if (entry.skill() == skill.ordinal() && entry.source().startsWith(sourcePrefix)) {
+                    sum += entry.base();
                 }
             }
         }
@@ -1226,7 +1249,10 @@ public final class ProficiencyGameTests {
             player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.DIAMOND_SWORD));
             mobs[i].setNoAi(true);
             mobs[i].hurt(player.damageSources().playerAttack(player), 2.0f);
-            paid[i] = logged(player, Skill.SWORDS, "entity.minecraft.zombie", null);
+            // What the hit asked for, before the player's own multipliers: three fresh mock players
+            // among the default batch's others need not get the same multipliers (on Fabric, master
+            // cabe847, one paid 1.15 and the spawner's 0.3125 = 0.25 x 1.25, and the ratio failed).
+            paid[i] = loggedBase(player, Skill.SWORDS, "entity.minecraft.zombie");
         }
         helper.assertTrue(paid[0] > 0f, "a natural zombie paid no Swords XP");
         helper.assertTrue(paid[1] == 0f, "a spawn-egg zombie paid Swords XP: " + paid[1]);

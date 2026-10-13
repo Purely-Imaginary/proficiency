@@ -1,0 +1,6 @@
+{
+  "replace": false,
+  "values": [
+    { "id": "#another_furniture:lamps", "required": false }
+  ]
+}

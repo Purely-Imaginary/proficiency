@@ -36,6 +36,9 @@ public final class ClientInputEvents {
         }
         SkillTooltip.tick();
         Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.level != null) {
+            dev.amman.proficiency.compat.XaeroHearthMap.tick();
+        }
         LayoutDemo.tick(minecraft);
         if (OPEN_TREE != null && !openedFromEnvironment && minecraft.player != null
                 && (minecraft.screen == null
@@ -59,6 +62,14 @@ public final class ClientInputEvents {
                 minecraft.setScreen(new SkillsScreen());
             }
         }
+        while (ProficiencyClient.HEARTH_MAP.consumeClick()) {
+            if (minecraft.player != null) {
+                boolean shown = dev.amman.proficiency.hearth.client.HearthMapMarks.toggle();
+                dev.amman.proficiency.compat.XaeroHearthMap.refresh();
+                minecraft.player.displayClientMessage(Component.translatable(shown
+                        ? "proficiency.hearth.map.shown" : "proficiency.hearth.map.hidden"), true);
+            }
+        }
         // A tap casts what the hands say; a hold opens the wheel. The press is only counted here,
         // and the tap is decided on release, so a hold never casts the held item's ability first.
         while (ProficiencyClient.USE_ABILITY.consumeClick()) {
@@ -76,7 +87,7 @@ public final class ClientInputEvents {
                     AbilityWheelScreen wheel = AbilityWheelScreen.forPlayer(minecraft.player);
                     if (wheel == null) {
                         minecraft.player.displayClientMessage(Component.translatable(
-                                "proficiency.wheel.none", ActiveService.unlockLevel()), true);
+                                "proficiency.wheel.none_root", ActiveService.unlockLevel()), true);
                     } else {
                         minecraft.setScreen(wheel);
                     }

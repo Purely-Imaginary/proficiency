@@ -69,6 +69,10 @@ public final class RestedGameTests {
     public static void aGrantFromAPoolPaysDoubleAndDrainsIt(GameTestHelper helper) {
         ServerPlayer rested = player(helper);
         ServerPlayer plain = player(helper);
+        // Side by side, away from the batch: a mock player spawns anywhere in the spawn radius, so another
+        // test's player could give one of the two a Social company or mentor bonus (failed once on
+        // NeoForge, 2026-10-10: "25.0 against 11.5").
+        isolate(5, rested, plain);
         PlayerSkills restedSkills = setup(rested, 40, true, 0);
         setup(plain, 40, false, 0);
         float before = restedSkills.rested(Skill.MINING);
@@ -86,6 +90,8 @@ public final class RestedGameTests {
     public static void restedAddsToTheSurvivalBonusInsteadOfMultiplyingIt(GameTestHelper helper) {
         ServerPlayer rested = player(helper);
         ServerPlayer plain = player(helper);
+        // Side by side, away from the batch (see aGrantFromAPoolPaysDoubleAndDrainsIt).
+        isolate(6, rested, plain);
         setup(rested, 40, true, 20);
         setup(plain, 40, false, 20);
 

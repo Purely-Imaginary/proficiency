@@ -535,6 +535,11 @@ public final class ChargerEvents {
         LAST_CHARGE.put(player.getUUID(), now);
         trail(player).clear();
         payCharge(player, target, closed, sprint);
+        // Reaver's Rush: a charge with an axe makes the next axe hit a certain Cleave.
+        if (dev.amman.proficiency.skill.SkillTools.meleeSkill(player.getMainHandItem()) == Skill.AXES
+                && TalentService.hasSynergy(player, "reavers_rush")) {
+            TalentMeleeEvents.armReaversRush(player);
+        }
         SPRINT_ROLL.set(sprint);
         boolean breach;
         try {

@@ -42,5 +42,10 @@ public final class FabricNetwork {
                 (payload, context) -> ProficiencyNetwork.onActivate(payload, context.player()));
         ServerPlayNetworking.registerGlobalReceiver(UnlockPerkPayload.TYPE,
                 (payload, context) -> ProficiencyNetwork.onUnlock(payload, context.player()));
+        PayloadTypeRegistry.playC2S().register(dev.amman.proficiency.net.ExpertisePayload.TYPE,
+                dev.amman.proficiency.net.ExpertisePayload.STREAM_CODEC);
+        ServerPlayNetworking.registerGlobalReceiver(dev.amman.proficiency.net.ExpertisePayload.TYPE,
+                (payload, context) -> ProficiencyNetwork.onExpertise(payload, context.player()));
+        FabricHearthNetwork.register();
     }
 }

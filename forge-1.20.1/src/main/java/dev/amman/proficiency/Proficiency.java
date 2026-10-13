@@ -32,11 +32,19 @@ public class Proficiency {
         dev.amman.proficiency.item.ProficiencyItems.TABS.register(modBus);
         dev.amman.proficiency.item.ProficiencyEnchantments.ENCHANTMENTS.register(modBus);
         dev.amman.proficiency.compat.DropsModifier.SERIALIZERS.register(modBus);
+        // The Hearth (docs/HEARTH-FORGE-CONTRACT.md): its block, block entity and items, the player's
+        // Hearth capability (proficiency:hearth).
+        dev.amman.proficiency.hearth.HearthBlocks.register(modBus);
+        modBus.addListener(dev.amman.proficiency.hearth.HearthAttachments::registerCapabilities);
+        MinecraftForge.EVENT_BUS.addGenericListener(net.minecraft.world.entity.Entity.class,
+                dev.amman.proficiency.hearth.HearthAttachments::attach);
         ProficiencyNetwork.register();
         // Forge resets the held stack around the place event, so refunds given there wait a tick.
         dev.amman.proficiency.event.RefundGuard.deferPlacementRefunds = true;
         // Tactician's side of Hammer and Anvil hooks into Charger's first blood.
         dev.amman.proficiency.event.TacticianEvents.init();
+        // The Hearth: every lane registers its listeners (docs/HEARTH-FORGE-CONTRACT.md).
+        dev.amman.proficiency.hearth.Hearth.init();
         container.registerConfig(ModConfig.Type.SERVER, ProficiencyConfig.SPEC);
         // A pack's own material lists (config/proficiency-materials.json), before any tree is shown.
         dev.amman.proficiency.perk.MaterialOverrides.load(FMLPaths.CONFIGDIR.get());

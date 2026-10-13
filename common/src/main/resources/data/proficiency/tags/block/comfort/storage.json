@@ -1,0 +1,8 @@
+{
+  "_comment": "Comfort kind: storage. Packs add cabinets, drawers and tables.",
+  "values": [
+    "minecraft:barrel",
+    "minecraft:chest",
+    "minecraft:decorated_pot"
+  ]
+}

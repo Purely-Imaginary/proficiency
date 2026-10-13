@@ -42,7 +42,7 @@ def N(id, name, row, col, ranks, cost, fx, special, parents, desc, mat=None, per
     return n
 
 def root(id, name):
-    return N(id, name, 0, 2, 5, 1, {"XP": 0.05}, None, [], "Where the tree starts. Fill it to open the branches.", 1)
+    return N(id, name, 0, 2, 5, 1, {"XP": 0.05}, None, [], "Where the tree starts. Fill it to open the branches, the signature move and the ability.", 1)
 
 def cap(id, name, special, desc, parents, **extra):
     return N(id, name, 5, 2, 1, 3, {**CAP, **extra}, special, parents, desc)
@@ -54,6 +54,7 @@ TREES["swords"] = [
     N("keen_edge", "Keen Edge", 1, 1, 5, 1, {"BON": 0.05}, None, ["swordplay"], "A sharper blade in a surer hand."),
     N("opening", "Find the Opening", 1, 3, 5, 1, {"PC": 0.10}, None, ["swordplay"], "Perfect Strike comes more often."),
     N("parry", "Parry", 2, 0, 3, 1, {}, "parry", ["keen_edge"], "Holding a sword, 5% chance per rank to turn aside a melee hit completely."),
+    N("lunge", "Lunge", 2, 1, 3, 1, {}, "lunge", ["keen_edge"], "A sprinting sword hit is a critical hit. Ready again after 9 seconds, 3 seconds sooner per rank."),
     N("crosscut", "Crosscut", 2, 2, 3, 1, {"PP": 0.10}, None, ["keen_edge", "opening"], "Perfect Strike cuts deeper."),
     N("hemorrhage", "Hemorrhage", 2, 4, 3, 1, {}, "bleed", ["opening"], "Perfect Strike makes the target bleed (Wither) for 2 seconds per rank."),
     N("executioner", "Executioner", 3, 0, 3, 1, {}, "executioner", ["parry"], "+10% damage per rank to targets under 30% health.", 2),
@@ -67,6 +68,7 @@ TREES["axes"] = [
     root("hewing", "Hewing"),
     N("heavy_blows", "Heavy Blows", 1, 0, 5, 1, {"BON": 0.05}, None, ["hewing"], "Every swing lands harder."),
     N("cleaving_arc", "Cleaving Arc", 1, 2, 3, 1, {}, "wide_cleave", ["hewing"], "Cleave reaches 1 block further per rank."),
+    N("rend", "Rend", 1, 3, 1, 1, {}, "rend", ["hewing"], "A critical axe hit opens a wound: for 4 seconds the target takes 15% more damage from weapon hits."),
     N("bloodlust", "Bloodlust", 1, 4, 5, 1, {"PC": 0.10}, None, ["hewing"], "Cleave comes more often."),
     N("berserker", "Berserker", 2, 0, 3, 1, {}, "berserker", ["heavy_blows"], "+3% damage per rank for every 10% of health you are missing."),
     N("sunder", "Sunder", 2, 2, 3, 1, {}, "sunder", ["cleaving_arc"], "Everything Cleave hits is Weakened for 2 seconds per rank."),
@@ -111,6 +113,7 @@ TREES["unarmed"] = [
     N("stagger", "Stagger", 2, 2, 3, 1, {}, "stagger", ["iron_fist", "haymaker"], "The knockout blow Weakens the target for 2 seconds per rank."),
     N("iron_skin", "Iron Skin", 2, 4, 3, 1, {}, "iron_skin", ["haymaker"], "With an empty main hand you take 5% less damage per rank."),
     N("fury", "Fury", 3, 1, 3, 1, {"TMP": 0.30, "AD": 0.10}, None, ["combo", "stagger"], "A longer ability and a streak that pays more.", 2),
+    N("flow", "Flow", 3, 2, 3, 1, {}, "flow", ["stagger"], "A critical punch gives Speed and Haste for 1 second per rank."),
     N("dragon_palm", "Dragon Palm", 3, 4, 5, 1, {"PP": 0.10}, None, ["iron_skin"], "The knockout blow hits harder.", 3),
     N("one_inch_punch", "One-Inch Punch", 4, 2, 1, 3, {}, "one_inch", ["fury", "dragon_palm"], "The knockout blow sends its target flying three times as far.", 4),
     cap("the_unbroken", "The Unbroken", "fist_heal", "Every bare-handed hit heals you half a heart.", ["one_inch_punch"]),
@@ -486,7 +489,7 @@ TREES["courage"] = [
     N("unyielding", "Unyielding", 3, 2, 3, 1, {"AD": 0.15}, None, ["unshaken"], "Stand Your Ground lasts longer."),
     N("challenge", "Challenge", 3, 4, 3, 1, {}, "challenge", ["war_drums"], "Hit a mob that is after another player within 4 blocks of you per rank, and it turns on you.", 3),
     N("rallying_cry", "Rallying Cry", 4, 2, 1, 3, {}, "rally_friends", ["spoils_of_valor", "challenge"], "Rally also gives its Strength and Speed to every player within 8 blocks.", 4),
-    cap("lionheart", "Lionheart", "lionheart", "The passive counts up to 8 mobs after you, not 4, and a kill while outnumbered takes 5 seconds off Stand Your Ground's cooldown.", ["rallying_cry", "unyielding"]),
+    cap("lionheart", "Lionheart", "lionheart", "The passive reaches its full bonus with 3 mobs after you, not 5, and a kill while outnumbered takes 5 seconds off Stand Your Ground's cooldown.", ["rallying_cry", "unyielding"]),
 ]
 
 # Guardian (idea 38, 2026-09-30): protecting other players. Blocking keeps Bastion (shield
@@ -541,4 +544,23 @@ TREES["tactician"] = [
     N("painted_target", "Painted Target", 3, 4, 1, 1, {}, "mark_long", ["opening"], "Your mark lasts 4 seconds longer, and friends deal 5% more damage to it on top.", 3),
     N("focus_fire", "Focus Fire", 4, 2, 1, 3, {}, "mark_jump", ["quartermaster", "painted_target"], "When a mob you marked dies, the mark jumps to the nearest hostile mob within 8 blocks.", 4),
     cap("field_marshal", "Field Marshal", "field_marshal", "Your mark lasts 4 seconds longer, each kill a friend makes on it takes 3 seconds off Suppressing Fire's cooldown, and Suppressing Fire slows one level harder.", ["focus_fire", "suppression"]),
+]
+
+# Homebuilder (docs/HOMEBUILDER-SPEC.md): the home skill. Paid only as a share of what you do at a
+# Hearth and for the home's milestones; the passive (speed, reach, magnet) works only at home. The
+# numbers are in core skill/HomebuilderMath.java. Open House carries no tempo effect: Homebuilder is
+# paid in 5-second lumps, so a tempo chain never builds (docs/hearth-build-log/homebuilder.md).
+TREES["homebuilder"] = [
+    root("hearthkeeper", "Hearthkeeper"),
+    N("light_step", "Light Step", 1, 0, 5, 1, {"BON": 0.05}, None, ["hearthkeeper"], "At home you move, reach and pull a little further."),
+    N("tidy_home", "Tidy Home", 1, 2, 3, 1, {}, "tidy_home", ["hearthkeeper"], "Rank 1 turns on the item magnet at home. Rank 2 also pulls experience orbs. Rank 3 pulls twice as fast."),
+    N("kindling", "Kindling", 1, 4, 5, 1, {"PC": 0.10}, None, ["hearthkeeper"], "Hearthglow comes more often."),
+    N("scaffolder", "Scaffolder", 2, 0, 3, 1, {}, "scaffolder", ["light_step"], "At home a fall has to be 3 blocks higher before it hurts you, 5 at rank 2 and 8 at rank 3. For building on the roof."),
+    N("long_pull", "Long Pull", 2, 2, 3, 1, {}, "long_pull", ["tidy_home"], "The magnet reaches 1 block further per rank."),
+    N("ember_heart", "Ember Heart", 2, 4, 3, 1, {"PP": 0.15}, None, ["kindling"], "Hearthglow charges more."),
+    N("warm_welcome", "Warm Welcome", 3, 0, 3, 1, {}, "warm_welcome", ["scaffolder"], "Your Warmth fills 10% faster per rank, on top of Homecoming's readiness.", 2),
+    N("storyteller", "Storyteller", 3, 2, 3, 1, {}, "storyteller", ["long_pull"], "You bank 10% more Tales per rank on your trips."),
+    N("open_house", "Open House", 3, 4, 3, 1, {"AD": 0.15}, "open_house", ["ember_heart"], "House Proud lasts longer, and friends up to 8 blocks per rank outside the Hearth's range share it too.", 3),
+    N("night_watch", "Night Watch", 4, 1, 1, 3, {}, "night_watch", ["warm_welcome", "storyteller"], "Siege mobs in range glow for you, and you hear the siege horn an in-game hour early.", 4),
+    cap("homeward", "Homeward", "homeward", "Once per in-game day, a 10 second channel (broken by damage or moving) takes you home to the Hearth you fed most. After its bell calls you home, the channel takes 5 seconds for a minute.", ["night_watch", "open_house"]),
 ]

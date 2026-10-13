@@ -53,6 +53,24 @@ public final class TalentMath {
         return Math.min(MAX_UNDERGROUND_REDUCTION, passive * 0.4);
     }
 
+    /** Echolocation's pulse: every 10 s, or every 5 s with Seismic Survey. */
+    public static final int ECHO_INTERVAL = 200;
+    public static final int ECHO_INTERVAL_SURVEY = 100;
+    /** Seismic Survey reaches this many blocks further. */
+    public static final int ECHO_SURVEY_EXTRA_RADIUS = 2;
+
+    public static int echoInterval(boolean survey) {
+        return survey ? ECHO_INTERVAL_SURVEY : ECHO_INTERVAL;
+    }
+
+    /** Echolocation's reveal radius: 3 plus the rank, and 2 more with Seismic Survey (0 with no rank). */
+    public static int echoRadius(int rank, boolean survey) {
+        if (rank <= 0) {
+            return 0;
+        }
+        return 3 + rank + (survey ? ECHO_SURVEY_EXTRA_RADIUS : 0);
+    }
+
     public static int caveSenseRadius(double power) {
         if (!Double.isFinite(power) || power < 1.0) {
             return CAVE_SENSE_RADIUS;

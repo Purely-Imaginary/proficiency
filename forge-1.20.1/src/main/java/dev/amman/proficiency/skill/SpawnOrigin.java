@@ -16,6 +16,8 @@ public final class SpawnOrigin {
     static final String TAG = "proficiency_spawn";
     static final String ARTIFICIAL = "artificial";
     static final String SPAWNER = "spawner";
+    /** A Hearth siege's mob (docs/HEARTH-SPEC.md, "The siege itself"): full combat XP, and it may feed the Hearth. */
+    public static final String SIEGE = "siege";
 
     private SpawnOrigin() {
     }
@@ -35,6 +37,16 @@ public final class SpawnOrigin {
         if (kind != null) {
             data(mob).putString(TAG, kind);
         }
+    }
+
+    /** Marks a mob the Sieges lane spawned for a siege. */
+    public static void tagSiege(Mob mob) {
+        data(mob).putString(TAG, SIEGE);
+    }
+
+    /** Whether this entity was spawned for a Hearth siege. */
+    public static boolean isSiege(Entity entity) {
+        return entity instanceof Mob && SIEGE.equals(data(entity).getString(TAG));
     }
 
     /** What share of the usual combat XP killing or hitting this entity pays: 1.0 unless it was spawned artificially. */

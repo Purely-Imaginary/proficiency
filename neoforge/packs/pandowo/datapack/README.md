@@ -21,6 +21,33 @@ What it changes:
 
 Kills of the listed summons, livestock and golems also pay no kill bonus and no first-time bonus.
 
+## Comfort tags (the Hearth, 1.5.0)
+
+The Hearth counts twelve kinds of furniture, each a block tag `proficiency:comfort/<kind>`
+(docs/HEARTH-SPEC.md, "Comfort"). `data/proficiency/tags/block/comfort/` adds this pack's furniture to them, for
+Handcrafted, Another Furniture and Farmer's Delight (Macaw's Furniture is not in this pack):
+
+| Kind | Added |
+|---|---|
+| `seat` | Handcrafted chairs, benches, couches and dining benches; Another Furniture chairs, benches, sofas, stools and tall stools |
+| `storage` | Handcrafted cupboards, drawers, nightstands, counters, desks, tables, side tables and shelves; Another Furniture drawers, shelves and tables; the Farmer's Delight cabinets (tables are storage here: the spec leaves "storage or seat" to the pack) |
+| `bed` | Handcrafted fancy beds |
+| `light` | Another Furniture lamps |
+| `plant` | Handcrafted pots, Another Furniture flower boxes |
+| `books` | Handcrafted stackable books |
+| `trophy` | Handcrafted mob trophies |
+| `carpet` | the Farmer's Delight canvas rug |
+| `fireplace` (counts as `fire`) | the Farmer's Delight stove, the Handcrafted oven |
+
+The table covers nine of the twelve kinds. Banner, art and music have only their vanilla members here, which is
+enough: all twelve are reachable with vanilla blocks. This datapack is not inside the jar (see Installing).
+
+Most entries are the mods' own block tags (`#handcrafted:chairs`), so a new wood type in a mod update is
+covered without a change here. Every entry is `required: false`. Left out on purpose: trims, crockery,
+curtains, shutters, crates, cushions and Another Furniture's lamp connectors, which are no furniture.
+`comfort-tag-ids.txt` lists what the jars carry (the unit test holds the tags to it); regenerate both with
+`python3 -I tools/packs/gen_comfort_tags.py --pandowo JARS_DIR`.
+
 Regenerate with `python3 -I tools/packs/gen_pandowo.py JARS_DIR...`.
 
 Left alone on purpose: modded mobs not listed here (hostile ones) pay as before; real logs, planks and

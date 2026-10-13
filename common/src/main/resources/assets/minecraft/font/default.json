@@ -17,6 +17,24 @@
       "chars": [
         "\ue001"
       ]
+    },
+    {
+      "type": "bitmap",
+      "file": "proficiency:font/hearth_warmth.png",
+      "ascent": 8,
+      "height": 9,
+      "chars": [
+        "\ue010\ue011\ue012\ue013\ue014\ue015\ue016\ue017\ue018"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "proficiency:font/hearth_hud.png",
+      "ascent": 8,
+      "height": 9,
+      "chars": [
+        "\ue019\ue01a\ue01b\ue01c\ue01d\ue01e"
+      ]
     }
   ]
 }

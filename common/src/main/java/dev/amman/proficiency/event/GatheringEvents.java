@@ -95,10 +95,26 @@ public final class GatheringEvents {
         if (skill == null || skill == Skill.FARMING) {
             return;
         }
+        float base = event.getOriginalSpeed();
+        // Dredger: the shovel digs at its dry, grounded speed, under water and in the air.
+        boolean dredge = skill == Skill.EXCAVATION && TalentService.hasSynergy(player, "dredger");
+        if (dredge) {
+            base *= dredgeFactor(player);
+        }
         double bonus = SkillService.bonus(player, skill);
         if (bonus > 0) {
-            event.setNewSpeed((float) (event.getOriginalSpeed() * dev.amman.proficiency.skill.SkillPassives.more(bonus)));
+            event.setNewSpeed((float) (base * dev.amman.proficiency.skill.SkillPassives.more(bonus)));
+        } else if (dredge) {
+            event.setNewSpeed(base);
         }
+    }
+
+    /** What Dredger gives back: vanilla's water penalty (no Aqua Affinity) and its not-on-the-ground penalty. */
+    public static float dredgeFactor(Player player) {
+        float submerged = player.isEyeInFluid(net.minecraft.tags.FluidTags.WATER)
+                ? (float) player.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.SUBMERGED_MINING_SPEED)
+                : 1f;
+        return GatheringMath.dredgeFactor(submerged, !player.onGround());
     }
 
     /**
@@ -254,7 +270,7 @@ public final class GatheringEvents {
     }
 
     /** Fells the rest of the tree: every log connected to the one you cut, up to the limit. */
-    private static void timber(ServerLevel level, Player player, BlockPos origin) {
+    public static void timber(ServerLevel level, Player player, BlockPos origin) {
         Set<BlockPos> seen = new HashSet<>();
         Deque<BlockPos> queue = new ArrayDeque<>();
         List<BlockPos> felling = new ArrayList<>();
@@ -296,6 +312,19 @@ public final class GatheringEvents {
         }
         // Counted before the cascade: afterwards every position is air.
         long logs = felling.stream().filter(pos -> level.getBlockState(pos).is(BlockTags.LOGS)).count();
+        // Charcoal Burner reads the felled kind and where the tree stood before the cascade clears it.
+        java.util.Map<Block, Integer> kinds = new java.util.HashMap<>();
+        net.minecraft.world.phys.AABB treeBox = new net.minecraft.world.phys.AABB(origin);
+        for (BlockPos pos : felling) {
+            BlockState felled = level.getBlockState(pos);
+            if (felled.is(BlockTags.LOGS)) {
+                kinds.merge(felled.getBlock(), 1, Integer::sum);
+            }
+            treeBox = treeBox.minmax(new net.minecraft.world.phys.AABB(pos));
+        }
+        if (level.getBlockState(origin).is(BlockTags.LOGS)) {
+            kinds.merge(level.getBlockState(origin).getBlock(), 1, Integer::sum);
+        }
         // Sapling Keeper: the foot of the trunk may be anywhere in the felled set, not only where you
         // swung, so the bottom logs are noted now and replanted once they are gone.
         List<BlockPos> roots = new ArrayList<>();
@@ -310,13 +339,21 @@ public final class GatheringEvents {
                 }
             }
         }
+        // Sawmill pulls the drops into the pack, so Charcoal Burner needs to know what was already in it.
+        Block charcoalKind = kinds.isEmpty() || !TalentService.hasSynergy(player, "charcoal_burner") ? null
+                : java.util.Collections.max(kinds.entrySet(), java.util.Map.Entry.comparingByValue()).getKey();
+        int packBefore = charcoalKind == null ? 0 : TalentGatheringEvents.countInPack(player, charcoalKind.asItem());
         cascade(level, player, felling, ItemStack.EMPTY);
         for (int i = 0; i < roots.size(); i++) {
             if (level.getRandom().nextDouble() < replant) {
-                TalentGatheringEvents.replantSapling(level, roots.get(i), rootLogs.get(i));
+                TalentGatheringEvents.replantSapling(level, player, roots.get(i), rootLogs.get(i));
             }
         }
         TalentGatheringEvents.woodlandStride(player);
+        if (charcoalKind != null) {
+            TalentGatheringEvents.charcoalBurner(level, player, treeBox.inflate(3.0), charcoalKind,
+                    kinds.values().stream().mapToInt(Integer::intValue).sum(), packBefore);
+        }
         if (logs > 0 && TalentService.hasSynergy(player, "woodsman")) {
             SkillService.grant(player, Skill.AXES, logs * WOODSMAN_AXES_XP, "proficiency.xplog.source.timber");
         }
@@ -612,6 +649,7 @@ public final class GatheringEvents {
         TalentGatheringEvents.doubleHook(player, event.getDrops());
 
         ServerLevel level = (ServerLevel) player.level();
+        TalentGatheringEvents.fishingTripExpire(player);
         if (ProcService.fire(player, Skill.FISHING)) {
             // Deep Waters: proc power is how many times the treasure table is rolled.
             int rolls = Math.max(1, ProcService.roundRandomly(player, ProcService.power(player, Skill.FISHING)));
@@ -622,10 +660,14 @@ public final class GatheringEvents {
             TalentGatheringEvents.sunkenTreasure(level, player, event.getDrops());
         }
         // After Double Hook, so the second fish comes up cooked as well.
-        TalentGatheringEvents.freshCatch(level, player, event.getDrops());
+        boolean cooked = TalentGatheringEvents.freshCatch(level, player, event.getDrops());
         // The log names the catch itself, "Raw Cod", rather than the act of fishing.
         String caught = event.getDrops().isEmpty() ? "proficiency.xplog.source.fishing"
                 : event.getDrops().get(0).getDescriptionId();
         SkillService.grant(player, Skill.FISHING, 3.0 * TalentGatheringEvents.rainAngler(player), caught);
+        // Shore Supper: the fish cooked by the fire also teaches the cook.
+        if (cooked && TalentGatheringEvents.shoreSupper(player)) {
+            SkillService.grant(player, Skill.COOKING, 1.0, caught);
+        }
     }
 }

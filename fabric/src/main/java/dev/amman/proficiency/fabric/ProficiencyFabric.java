@@ -15,6 +15,8 @@ public final class ProficiencyFabric implements ModInitializer {
     public void onInitialize() {
         FabricPlatform.init();
         ProficiencyItems.init();
+        // The Hearth's block, block entity and items (docs/HEARTH-CONTRACT.md).
+        dev.amman.proficiency.hearth.HearthBlocks.init();
         FabricNetwork.register();
         NeoForgeConfigRegistry.INSTANCE.register(Proficiency.MOD_ID, ModConfig.Type.SERVER, ProficiencyConfig.SPEC);
         FabricServerLifecycle.init();

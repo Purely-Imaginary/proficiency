@@ -108,23 +108,32 @@ public final class CombatEvents {
         }
 
         LivingEntity target = event.getEntity();
+        // A critical melee swing (vanilla's jump crit, or a Lunge): decided by the loader's crit
+        // event in Player.attack, which runs before this. Splash hits are never the crit.
+        boolean crit = direct == player && !SPLASHING.get() && CritEvents.takeCrit(player, target);
         double bonus = SkillService.bonus(player, skill);
         float amount = bonus > 0 ? (float) (event.getAmount() * dev.amman.proficiency.skill.SkillPassives.more(bonus)) : event.getAmount();
         amount *= synergyDamage(player, skill);
 
         if (!SPLASHING.get()) {
             amount *= TalentMeleeEvents.damageMultiplier(player, target, skill);
+            // Rend: a wound an axe crit opened earlier. Not this hit's own, which opens below.
+            amount *= CritEvents.rendMultiplier(target);
         }
         // A target dummy gets no procs or talent effects either: they could be farmed on it for free.
         if (!SPLASHING.get() && !paysNoCombatXp(target)) {
             // Sword Saint and Cratermaker force the roll here. Marksman forces it earlier, from a
             // HIGH-priority handler; either way the flag is spent by the fire() just below.
             boolean chained = TalentMeleeEvents.beforeRoll(player, skill);
-            boolean procced = ProcService.fire(player, skill, target);
+            boolean procced = ProcService.fire(player, skill, target,
+                    dev.amman.proficiency.skill.CritRules.procChanceScale(skill, crit));
             if (procced) {
                 amount = applyProc(player, target, skill, amount);
             }
             TalentMeleeEvents.afterHit(player, target, skill, procced, chained);
+            if (crit) {
+                CritEvents.onCritHit(player, target, skill);
+            }
         }
 
         if (amount != event.getAmount()) {
@@ -139,7 +148,8 @@ public final class CombatEvents {
             // Hits pay their XP but never the first-time bonus; that waits for the kill.
             SkillService.grantNoFirstTime(player, skill,
                     dev.amman.proficiency.skill.SpawnOrigin.xpFactor(target),
-                    target.getType().getDescriptionId());
+                    target.getType().getDescriptionId(),
+                    dev.amman.proficiency.skill.CritRules.xpFactor(skill, crit));
         }
         KillCredit.record(target, player, skill);
     }
@@ -251,8 +261,14 @@ public final class CombatEvents {
     private static final java.util.Map<java.util.UUID, Long> JUGGERNAUT_CHARGE =
             new java.util.concurrent.ConcurrentHashMap<>();
 
+    private static final long PAVISE_COOLDOWN = 100;
+    /** Game time each player's Pavise last loaded a crossbow shot. */
+    private static final java.util.Map<java.util.UUID, Long> PAVISE_ARMED_AT =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
     public static void forget(java.util.UUID player) {
         JUGGERNAUT_CHARGE.remove(player);
+        PAVISE_ARMED_AT.remove(player);
     }
 
     /**
@@ -336,6 +352,19 @@ public final class CombatEvents {
         }
         if (TalentService.hasSynergy(player, "juggernaut")) {
             JUGGERNAUT_CHARGE.put(player.getUUID(), player.level().getGameTime());
+        }
+        // Pavise: a hit caught on the shield loads the next crossbow shot as a certain Double Load,
+        // at most once per 5 s so a mob tapping the shield cannot queue it forever.
+        if (TalentService.hasSynergy(player, "pavise")) {
+            long now = player.level().getGameTime();
+            Long armed = PAVISE_ARMED_AT.get(player.getUUID());
+            if (armed == null || now - armed >= PAVISE_COOLDOWN) {
+                PAVISE_ARMED_AT.put(player.getUUID(), now);
+                ProcService.forceNext(player, Skill.CROSSBOWS);
+                player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
+                        net.minecraft.sounds.SoundEvents.CROSSBOW_LOADING_END,
+                        net.minecraft.sounds.SoundSource.PLAYERS, 0.8f, 1.0f);
+            }
         }
         double bonus = SkillService.bonus(player, Skill.BLOCKING);
         if (bonus > 0) {

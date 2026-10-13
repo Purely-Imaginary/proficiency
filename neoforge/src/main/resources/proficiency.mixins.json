@@ -3,6 +3,12 @@
   "minVersion": "0.8",
   "package": "dev.amman.proficiency.mixin",
   "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "HearthBrewingStandMixin",
+    "HearthFoodDataMixin",
+    "HearthFurnaceMixin",
+    "HearthRaiderMixin"
+  ],
   "client": [
     "client.GameRendererMixin",
     "client.LightTextureAccess",

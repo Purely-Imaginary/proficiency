@@ -31,6 +31,25 @@ def mix(a, b, t):
     return tuple(round(a[i] * (1 - t) + b[i] * t) for i in range(3))
 
 
+def outline(img, colour, solid=None):
+    """Give every clear pixel that touches a solid pixel on one of its four sides a 1 px `colour` rim.
+    `solid(x, y)` says which pixels count as solid; by default, any pixel with alpha. Shared by the skill
+    icons and the Hearth art (tools/gen_hearth_art.py): one outline rule for every item-style sprite."""
+    w, h = img.size
+    if solid is None:
+        src = img.copy()
+
+        def solid(x, y):
+            return src.getpixel((x, y))[3] > 0
+    rim = [(x, y) for y in range(h) for x in range(w)
+           if img.getpixel((x, y))[3] == 0
+           and any(0 <= x + dx < w and 0 <= y + dy < h and solid(x + dx, y + dy)
+                   for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)))]
+    for (x, y) in rim:
+        img.putpixel((x, y), tuple(colour[:3]) + (255,))
+    return img
+
+
 def read_categories():
     """skill id -> category name, and category name -> rgb, read from the Java sources."""
     skills = {}
@@ -629,6 +648,22 @@ AAAAA...qi......
 ................
 AAAA............
 ................
+................""","homebuilder": """
+...........O....
+..........O.....
+..........st....
+..........st....
+......AAaast....
+....AAAaaabb....
+..AAAAaaaaaabb..
+.bbbbbbbbbbbbbb.
+..wNNNNNNNNNNw..
+..wOvxOOOfFOOw..
+..wOvxOOOfFOOw..
+..wOvxOOOOOOOw..
+..wOvgOOOOOOOw..
+..wOvxOOOOOOOw..
+.sstsstsstsstst.
 ................""","tactician": """
 ................
 ............Gg..
@@ -649,9 +684,14 @@ AAAA............
 }
 ICONS.pop("masonry2")
 
+# Skills whose icon is drawn before the skill exists in Skill.java (the Hearth build adds Homebuilder in a
+# lane of its own). main() says so on stderr while an entry is in use, warns once Skill.java lists the
+# skill (delete the entry then), and stops if the two categories disagree.
+PENDING = {}  # homebuilder left when Skill.HOMEBUILDER arrived (hearth lane homebuilder, 2026-10-09)
+
 # Colours that get no outline in one icon (thin lines like a fishing line or sparkles).
 NO_OUTLINE = {"fishing": "k", "spellcasting": "Gfgab", "nightwalker": "W", "charger": "Aa",
-              "cooking": "O", "running": "Aa", "smithing": "f", "maces": ""}
+              "cooking": "O", "running": "Aa", "smithing": "f", "maces": "", "homebuilder": "O"}
 
 
 def palette(category_rgb):
@@ -664,13 +704,19 @@ def palette(category_rgb):
     return p
 
 
-def render(name, text, category_rgb):
+def render(name, text, category_rgb, bare=None, extra=None):
+    """One 16x16 map to an RGBA icon. `bare` (default: NO_OUTLINE[name]) lists the letters that get no rim,
+    `extra` adds map letters on top of the shared palette. The Hearth icons (tools/hearth_icon_maps.py,
+    drawn by tools/gen_hearth_art.py) call this with both, so they share the palette and the rim rule."""
     rows = text.strip("\n").split("\n")
     if len(rows) != 16 or any(len(r) != 16 for r in rows):
         raise SystemExit(f"{name}: map must be 16x16, got {[len(r) for r in rows]}")
     pal = palette(category_rgb)
+    if extra:
+        pal.update(extra)
     img = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
-    bare = NO_OUTLINE.get(name, "")
+    if bare is None:
+        bare = NO_OUTLINE.get(name, "")
     filled = [[ch != "." and ch not in bare for ch in row] for row in rows]
     for y, row in enumerate(rows):
         for x, ch in enumerate(row):
@@ -679,21 +725,22 @@ def render(name, text, category_rgb):
             if ch not in pal:
                 raise SystemExit(f"{name}: unknown colour '{ch}' at {x},{y}")
             img.putpixel((x, y), pal[ch] + (255,))
-    outline = pal["o"] + (255,)
-    for y in range(16):
-        for x in range(16):
-            if rows[y][x] != ".":
-                continue
-            for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-                nx, ny = x + dx, y + dy
-                if 0 <= nx < 16 and 0 <= ny < 16 and filled[ny][nx]:
-                    img.putpixel((x, y), outline)
-                    break
-    return img
+    return outline(img, pal["o"], lambda x, y: filled[y][x])
 
 
 def main():
     order, skills, colours = read_categories()
+    for sid, cat in PENDING.items():
+        if sid not in skills:
+            print(f"note: {sid} is not in Skill.java yet, drawn with the PENDING category {cat}", file=sys.stderr)
+            skills[sid] = cat
+            order.append(sid)
+        elif skills[sid] != cat:
+            raise SystemExit(f"{sid}: Skill.java says {skills[sid]} but PENDING says {cat}. "
+                             "Delete the PENDING entry; Skill.java is the source of truth.")
+        else:
+            print(f"WARNING: Skill.java now lists {sid}; delete its PENDING entry in tools/gen_skill_icons.py "
+                  "(the category is read from Skill.java).", file=sys.stderr)
     missing = [s for s in order if s not in ICONS]
     extra = [s for s in ICONS if s not in skills]
     if missing or extra:

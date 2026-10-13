@@ -216,6 +216,19 @@ final class LayoutDemo {
             }
         });
         shot(mc, "panel-end");
+        // The streak block held at a Hearth: the Warmth glyph, "next +n%: at the Hearth" and its tooltip.
+        add("panel hearth", 700, () -> {
+            dev.amman.proficiency.hearth.net.HearthClients.hud(hearthHud(true));
+            mc.setScreen(new SkillsScreen());
+        });
+        add("panel hearth hover", 500, () -> {
+            if (mc.screen instanceof SkillsScreen screen) {
+                int[] p = screen.streakPoint();
+                mouse(mc, p[0], p[1]);
+            }
+        });
+        shot(mc, "panel-hearth");
+        add("panel hearth off", 100, () -> dev.amman.proficiency.hearth.net.HearthClients.hud(hearthHud(false)));
 
         prune(mark, group);
         mark = STEPS.size();
@@ -253,6 +266,96 @@ final class LayoutDemo {
 
         prune(mark, group);
         mark = STEPS.size();
+        group = "synergies";
+        // 2a trees with about ten synergies each: the list sorted awake first, the "+N more" row and
+        // its tooltip, then scrolled to the end. Filled trees wake some of them; the rest show 1/2.
+        for (Skill skill : new Skill[] {Skill.GUARDIAN, Skill.FISHING, Skill.JUMPING}) {
+            add("synergies fill " + skill.id(), 300, () -> command(mc, "proficiency filltree @s " + skill.id()));
+        }
+        for (Skill skill : new Skill[] {Skill.GUARDIAN, Skill.FISHING, Skill.JUMPING}) {
+            add("synergies " + skill.id(), 900, () -> {
+                injectLog(skill);
+                mc.setScreen(new TalentTreeScreen(skill, null));
+            });
+            shot(mc, "synergies-" + skill.id());
+            add("synergies more hover", 500, () -> {
+                if (mc.screen instanceof TalentTreeScreen screen) {
+                    int[] p = screen.morePoint();
+                    if (p != null) {
+                        mouse(mc, p[0], p[1]);
+                    }
+                }
+            });
+            shot(mc, "synergies-more-" + skill.id());
+            add("synergies scrolled", 500, () -> {
+                if (mc.screen instanceof TalentTreeScreen screen) {
+                    int[] p = screen.synergyPoint(0);
+                    for (int i = 0; i < 20; i++) {
+                        screen.mouseScrolled(p[0], p[1], -1);
+                    }
+                    mouse(mc, p[0], p[1]);
+                }
+            });
+            shot(mc, "synergies-scrolled-" + skill.id());
+        }
+        for (Skill skill : new Skill[] {Skill.GUARDIAN, Skill.FISHING, Skill.JUMPING}) {
+            add("synergies respec " + skill.id(), 200, () -> command(mc, "proficiency respec " + skill.id()));
+        }
+
+        prune(mark, group);
+        mark = STEPS.size();
+        group = "expertise";
+        // 2b the Expertise tree: part bought (a node tooltip, then the points header), then full with
+        // the respec button hovered.
+        add("expertise reset", 300, () -> command(mc, "proficiency expertise reset @s"));
+        for (String id : new String[] {"breadth", "breadth", "breadth", "martial", "martial", "martial", "craft",
+                "craft"}) {
+            add("expertise invest " + id, 150, () -> command(mc, "proficiency expertise invest " + id));
+        }
+        add("expertise open", 1500, () -> mc.setScreen(new ExpertiseScreen(null)));
+        add("expertise hover", 500, () -> {
+            if (mc.screen instanceof ExpertiseScreen screen) {
+                String longest = "breadth";
+                int most = -1;
+                for (dev.amman.proficiency.perk.ExpertiseNode node : dev.amman.proficiency.perk.Expertise.nodes()) {
+                    int w = mc.font.width(Component.translatable(node.descriptionKey()));
+                    if (w > most) {
+                        most = w;
+                        longest = node.id();
+                    }
+                }
+                int[] p = screen.nodePoint(longest);
+                mouse(mc, p[0], p[1]);
+            }
+        });
+        shot(mc, "expertise");
+        add("expertise header hover", 500, () -> {
+            if (mc.screen instanceof ExpertiseScreen screen) {
+                int[] p = screen.headerPoint();
+                mouse(mc, p[0], p[1]);
+            }
+        });
+        shot(mc, "expertise-points");
+        add("expertise fill", 400, () -> command(mc, "proficiency expertise fill @s"));
+        add("expertise full", 1800, () -> {
+            if (mc.screen instanceof ExpertiseScreen screen) {
+                int[] p = screen.respecPoint();
+                mouse(mc, p[0], p[1]);
+            }
+        });
+        shot(mc, "expertise-full");
+        add("expertise panel", 700, () -> mc.setScreen(new SkillsScreen()));
+        add("expertise panel hover", 400, () -> {
+            if (mc.screen instanceof SkillsScreen screen) {
+                int[] p = screen.expertisePoint();
+                mouse(mc, p[0], p[1]);
+            }
+        });
+        shot(mc, "expertise-panel");
+        add("expertise done", 300, () -> command(mc, "proficiency expertise reset @s"));
+
+        prune(mark, group);
+        mark = STEPS.size();
         group = "hud";
         // 3 the HUD: skill line, XP feed, a banner, a toast
         add("hud", 600, () -> {
@@ -274,6 +377,12 @@ final class LayoutDemo {
         add("banner 2 wait", 1900, () -> {
         });
         shot(mc, "banner");
+        // A Hearth stage sealed by someone else: the longest stage name, the kicker with a name.
+        add("banner hearth", 300, () -> DiscoveryBanner.show(new DiscoveryPayload(DiscoveryPayload.HEARTH,
+                longestHearthStage(mc), DiscoveryPayload.hearthId(5), -1, 0f, "Wren_The_Builder")));
+        add("banner hearth wait", 1900, () -> {
+        });
+        shot(mc, "banner-hearth");
 
         prune(mark, group);
         mark = STEPS.size();
@@ -301,6 +410,34 @@ final class LayoutDemo {
         });
         shot(mc, "recap");
         add("recap done", 4500, () -> {
+        });
+
+        prune(mark, group);
+        mark = STEPS.size();
+        group = "tales";
+        // 4b the Hearth's tale panel: a homecoming with the longest place names, a Chronicle page, a rated tale
+        add("tales", 700, () -> {
+            mc.setScreen(null);
+            TalesPayInHud.accept(new dev.amman.proficiency.hearth.net.HearthTalesPayload(
+                    dev.amman.proficiency.hearth.net.HearthTalesPayload.PAID,
+                    dev.amman.proficiency.hearth.HearthPool.HOMECOMING.ordinal(), 1423f, 32_000,
+                    -1, List.of("structure.minecraft.ancient_city", "dimension.minecraft.the_nether",
+                            "biome.minecraft.old_growth_pine_taiga"), ""));
+        });
+        add("tales wait", 1700, () -> {
+        });
+        shot(mc, "tales");
+        add("tales retold", 700, () -> {
+            mc.setScreen(null);
+            TalesPayInHud.accept(new dev.amman.proficiency.hearth.net.HearthTalesPayload(
+                    dev.amman.proficiency.hearth.net.HearthTalesPayload.RETOLD,
+                    dev.amman.proficiency.hearth.HearthPool.HOMECOMING.ordinal(), 20f, 0, 4, List.of(),
+                    "We walked to the stronghold at dusk and it was cold"));
+        });
+        add("tales retold wait", 1900, () -> {
+        });
+        shot(mc, "tales-retold");
+        add("tales done", 3000, () -> {
         });
 
         prune(mark, group);
@@ -376,10 +513,267 @@ final class LayoutDemo {
         });
         shot(mc, "actionbar");
         prune(mark, group);
+        mark = STEPS.size();
+        group = "callout";
+        // 8b a proc's name over the crosshair: the widest one in this language, popped, then fading
+        add("callout", 40, () -> {
+            mc.setScreen(null);
+            Skill widest = Skill.VALUES[0];
+            for (Skill skill : Skill.VALUES) {
+                if (mc.font.width(Component.translatable(skill.procKey())) > mc.font.width(Component.translatable(widest.procKey()))) {
+                    widest = skill;
+                }
+            }
+            ProcCallout.accept(new dev.amman.proficiency.net.ProcFxPayload(widest.ordinal(), mc.player.getId(),
+                    false, 0, 0, 0, 0, 0));
+        });
+        shot(mc, "callout");
+        add("callout fading", 650, () -> {
+        });
+        shot(mc, "callout.fading");
+        add("callout done", 700, () -> {
+        });
+        prune(mark, group);
+        mark = STEPS.size();
+        group = "hearth";
+        hearthScenes(mc);
+        prune(mark, group);
+        mark = STEPS.size();
+        group = "guide";
+        guideScenes(mc);
+        prune(mark, group);
         add("close", 300, () -> mc.setScreen(null));
         add("clips", 10, () -> {
             LayoutAudit.note("CLIPS " + lang + " " + setup + " " + TextFit.clips());
             TextFit.resetClips();
+        });
+    }
+
+    /**
+     * The Hearth (docs/HEARTH-SPEC.md, "Finish and polish": every new HUD element and screen passes
+     * this audit): the glyph, the tracker and the siege countdown at home; Provisioned, Tales and a wave
+     * away; a siege outcome; the panel with a pool tooltip, short and with Shift; the keepers tab; a
+     * smouldering Hearth's panel. Fed with the client lane's fake payloads; nothing is sent.
+     */
+    private static void hearthScenes(Minecraft mc) {
+        add("hearth home", 1200, () -> {
+            mc.setScreen(null);
+            dev.amman.proficiency.hearth.client.HearthDemo.forceTracker(true);
+            dev.amman.proficiency.hearth.client.HearthDemo.feed("home");
+            dev.amman.proficiency.hearth.client.HearthDemo.feed("countdown");
+        });
+        shot(mc, "hearth-hud");
+        // A homecoming with the tracker on: the tracker steps under the Tales panel where there is room (the
+        // pay-in's own tier-up plays there) and fades with it where there is none (RightEdge).
+        add("hearth tales", 1500, () -> {
+            dev.amman.proficiency.hearth.client.HearthDemo.feed("tierup");
+            TalesPayInHud.accept(new dev.amman.proficiency.hearth.net.HearthTalesPayload(
+                    dev.amman.proficiency.hearth.net.HearthTalesPayload.PAID,
+                    dev.amman.proficiency.hearth.HearthPool.HOMECOMING.ordinal(), 312f, 4_100,
+                    -1, List.of("structure.minecraft.village_plains"), ""));
+        });
+        shot(mc, "hearth-tales");
+        add("hearth tales done", 3800, () -> {
+        });
+        add("hearth away", 900, () -> {
+            dev.amman.proficiency.hearth.client.HearthDemo.feed("away");
+            dev.amman.proficiency.hearth.client.HearthDemo.feed("waves");
+        });
+        shot(mc, "hearth-away");
+        add("hearth outcome", 700, () -> dev.amman.proficiency.hearth.client.HearthDemo.feed("outcome"));
+        shot(mc, "hearth-outcome");
+        add("hearth panel", 900, () -> {
+            dev.amman.proficiency.hearth.client.HearthDemo.feed("clear");
+            dev.amman.proficiency.hearth.client.HearthDemo.feed("home");
+            dev.amman.proficiency.hearth.client.HearthDemo.feed("panel");
+        });
+        shot(mc, "hearth-panel");
+        add("hearth tip", 500, () -> {
+            int[] p = dev.amman.proficiency.hearth.client.HearthDemo.poolPoint(3);
+            if (p != null) {
+                mouse(mc, p[0], p[1]);
+            }
+            TooltipDetail.force(false);
+        });
+        shot(mc, "hearth-panel-tip");
+        add("hearth tip shift", 400, () -> TooltipDetail.force(true));
+        shot(mc, "hearth-panel-tip-shift");
+        add("hearth tip off", 100, () -> TooltipDetail.force(null));
+        add("hearth keepers", 800, () -> {
+            dev.amman.proficiency.hearth.client.HearthDemo.openKeepers(-1, false);
+            mouse(mc, 2, 2);
+        });
+        shot(mc, "hearth-keepers");
+        add("hearth smoulder", 900, () -> {
+            mc.setScreen(null);
+            dev.amman.proficiency.hearth.client.HearthDemo.feed("smoulder");
+        });
+        shot(mc, "hearth-smoulder");
+        add("hearth done", 300, () -> {
+            mc.setScreen(null);
+            dev.amman.proficiency.hearth.client.HearthDemo.feed("clear");
+            dev.amman.proficiency.hearth.client.HearthDemo.forceTracker(false);
+        });
+    }
+
+    /** The Hearth guide: its button on the Homebuilder tree, each tab at home, and the guide away from home. */
+    private static void guideScenes(Minecraft mc) {
+        add("guide home", 900, () -> {
+            dev.amman.proficiency.hearth.client.HearthDemo.feed("clear");
+            dev.amman.proficiency.hearth.client.HearthDemo.feed("home");
+            mc.setScreen(new TalentTreeScreen(Skill.HOMEBUILDER, null));
+            mouse(mc, 2, 2);
+        });
+        shot(mc, "guide-button");
+        add("guide button hover", 500, () -> {
+            if (mc.screen instanceof TalentTreeScreen screen) {
+                int[] p = screen.guidePoint();
+                if (p != null) {
+                    mouse(mc, p[0], p[1]);
+                }
+            }
+        });
+        shot(mc, "guide-button-tip");
+        add("guide build", 900, () -> {
+            mc.setScreen(new dev.amman.proficiency.hearth.client.HearthGuideScreen(mc.screen));
+            mouse(mc, 2, 2);
+        });
+        shot(mc, "guide-build");
+        // Every lane's Build tab: the top of the list, then scrolled to the later stages.
+        for (int lane = 0; lane < dev.amman.proficiency.hearth.stages.HearthDesigns.shipped().lanes().size(); lane++) {
+            int index = lane;
+            add("guide lane " + lane, 700, () -> {
+                if (mc.screen instanceof dev.amman.proficiency.hearth.client.HearthGuideScreen guide) {
+                    guide.showLane(index);
+                }
+                mouse(mc, 2, 2);
+            });
+            shot(mc, "guide-lane-" + lane);
+            add("guide lane " + lane + " lower", 500, () -> {
+                if (mc.screen instanceof dev.amman.proficiency.hearth.client.HearthGuideScreen guide) {
+                    guide.show(dev.amman.proficiency.hearth.client.HearthGuide.Tab.BUILD, 250);
+                }
+            });
+            shot(mc, "guide-lane-" + lane + "-lower");
+        }
+        add("guide build rules", 500, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.hearth.client.HearthGuideScreen guide) {
+                guide.show(dev.amman.proficiency.hearth.client.HearthGuide.Tab.BUILD, 10_000);
+            }
+        });
+        shot(mc, "guide-build-end");
+        add("guide stage tip", 500, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.hearth.client.HearthGuideScreen guide) {
+                guide.show(dev.amman.proficiency.hearth.client.HearthGuide.Tab.BUILD, 0);
+            }
+            mouse(mc, mc.getWindow().getGuiScaledWidth() / 2, mc.getWindow().getGuiScaledHeight() / 2);
+        });
+        shot(mc, "guide-build-tip");
+        add("guide boons", 500, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.hearth.client.HearthGuideScreen guide) {
+                guide.show(dev.amman.proficiency.hearth.client.HearthGuide.Tab.BOONS, 0);
+            }
+            mouse(mc, 2, 2);
+        });
+        shot(mc, "guide-boons");
+        add("guide boons end", 500, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.hearth.client.HearthGuideScreen guide) {
+                guide.show(dev.amman.proficiency.hearth.client.HearthGuide.Tab.BOONS, 10_000);
+            }
+        });
+        shot(mc, "guide-boons-end");
+        add("guide comfort", 500, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.hearth.client.HearthGuideScreen guide) {
+                guide.show(dev.amman.proficiency.hearth.client.HearthGuide.Tab.COMFORT, 0);
+            }
+        });
+        shot(mc, "guide-comfort");
+        add("guide comfort end", 500, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.hearth.client.HearthGuideScreen guide) {
+                guide.show(dev.amman.proficiency.hearth.client.HearthGuide.Tab.COMFORT, 10_000);
+            }
+        });
+        shot(mc, "guide-comfort-end");
+        add("guide away", 700, () -> {
+            dev.amman.proficiency.hearth.client.HearthDemo.feed("clear");
+            mc.setScreen(new dev.amman.proficiency.hearth.client.HearthGuideScreen(null));
+        });
+        shot(mc, "guide-away");
+        ghostScenes(mc);
+        add("guide done", 300, () -> mc.setScreen(null));
+    }
+
+    /**
+     * The panel's build guide: a forge built to the Hearth's stage on this client only, the Hearth's panel with the guide
+     * switched on, and the ghosts of the next stage standing in the world around it.
+     */
+    private static void ghostScenes(Minecraft mc) {
+        // A plain campfire (stage 0): half of stage I built on this client, its panel, then its guide.
+        add("campfire build", 2000, () -> {
+            mc.setScreen(null);
+            command(mc, "gamemode spectator");
+            net.minecraft.core.BlockPos at = mc.player.blockPosition().offset(0, 0, 8);
+            var lane = dev.amman.proficiency.hearth.stages.HearthDesigns.shipped().lanes().get(1);
+            int i = 0;
+            for (var cell : lane.stage(1).cells()) {
+                net.minecraft.world.level.block.state.BlockState state = cell.role() == 'F'
+                        ? net.minecraft.world.level.block.Blocks.CAMPFIRE.defaultBlockState()
+                        : cell.role() == '.' || i++ % 2 == 0 ? net.minecraft.world.level.block.Blocks.AIR.defaultBlockState()
+                        : dev.amman.proficiency.hearth.stages.StageBlocks.laneState(lane, cell.role());
+                mc.level.setBlock(at.offset(cell.dx(), cell.dy(), cell.dz()), state, 3);
+            }
+            command(mc, "tp @s " + (at.getX() + 0.5) + " " + (at.getY() + 4) + " " + (at.getZ() - 7.5) + " 0 25");
+            dev.amman.proficiency.hearth.net.HearthClients.get().onState(
+                    new dev.amman.proficiency.hearth.net.HearthStatePayload(
+                            dev.amman.proficiency.hearth.net.HearthStatePayload.CAMPFIRE, at.asLong(),
+                            mc.level.dimension().location().toString(), 0, 0, false, 0, java.util.List.of(), 0, 0,
+                            java.util.List.of(), 0, false, 0, -1f, 24f, 8, 16));
+        });
+        shot(mc, "campfire-panel");
+        add("campfire guide", 1500, () -> {
+            var state = dev.amman.proficiency.hearth.client.HearthView.panelState();
+            if (state != null && !dev.amman.proficiency.hearth.client.HearthGhost.showing(state.pos())) {
+                dev.amman.proficiency.hearth.client.HearthGhost.toggle(state);
+            }
+            mc.setScreen(null);
+        });
+        shot(mc, "campfire-ghost");
+        add("campfire off", 300, () -> dev.amman.proficiency.hearth.client.HearthGhost.off());
+        add("ghost build", 2800, () -> {
+            mc.setScreen(null);
+            command(mc, "gamemode spectator");
+            net.minecraft.core.BlockPos at = mc.player.blockPosition().offset(0, 0, 8);
+            dev.amman.proficiency.hearth.client.HearthDemo.at(at, mc.level.dimension().location().toString());
+            dev.amman.proficiency.hearth.client.HearthDemo.feed("clear");
+            dev.amman.proficiency.hearth.client.HearthDemo.feed("home");
+            var shown = dev.amman.proficiency.hearth.client.HearthView.state();
+            int built = shown == null ? 2 : Math.max(1, Math.min(5, shown.stage()));
+            var lane = dev.amman.proficiency.hearth.stages.HearthDesigns.shipped().lanes().get(1);
+            for (var cell : lane.stage(built).cells()) {
+                net.minecraft.world.level.block.state.BlockState state = cell.role() == 'F'
+                        ? dev.amman.proficiency.hearth.HearthBlocks.HEARTH.get().defaultBlockState()
+                                .setValue(dev.amman.proficiency.hearth.HearthBlock.STAGE, built)
+                        : cell.role() == '.' ? net.minecraft.world.level.block.Blocks.AIR.defaultBlockState()
+                        : dev.amman.proficiency.hearth.stages.StageBlocks.laneState(lane, cell.role());
+                mc.level.setBlock(at.offset(cell.dx(), cell.dy(), cell.dz()), state, 3);
+            }
+            command(mc, "tp @s " + (at.getX() + 0.5) + " " + (at.getY() + 5) + " " + (at.getZ() - 11.5) + " 0 20");
+        });
+        add("ghost on", 1500, () -> {
+            var state = dev.amman.proficiency.hearth.client.HearthView.state();
+            if (state != null && !dev.amman.proficiency.hearth.client.HearthGhost.showing(state.pos())) {
+                dev.amman.proficiency.hearth.client.HearthGhost.toggle(state);
+            }
+        });
+        shot(mc, "ghost-world");
+        add("ghost panel", 900, () -> dev.amman.proficiency.hearth.client.HearthDemo.feed("panel"));
+        shot(mc, "ghost-panel");
+        add("ghost off", 700, () -> {
+            dev.amman.proficiency.hearth.client.HearthGhost.off();
+            mc.setScreen(null);
+            dev.amman.proficiency.hearth.client.HearthDemo.feed("clear");
+            command(mc, "gamemode survival @s");
+            command(mc, "tp @s 0 -60 0");
         });
     }
 
@@ -555,6 +949,21 @@ final class LayoutDemo {
         ClientXpLog.accept(new XpLogPayload(List.of(skill.ordinal()), lines));
     }
 
+    /** The Hearth stage name that is widest in the current language. */
+    private static String longestHearthStage(Minecraft mc) {
+        String best = "proficiency.hearth.stages.name.1";
+        int widest = -1;
+        for (int stage = 1; stage <= 6; stage++) {
+            String key = "proficiency.hearth.stages.name." + stage;
+            int width = mc.font.width(Component.translatable(key));
+            if (width > widest) {
+                widest = width;
+                best = key;
+            }
+        }
+        return best;
+    }
+
     private static Skill longestSkill(Minecraft mc) {
         Skill best = Skill.VALUES[0];
         int most = -1;
@@ -570,6 +979,12 @@ final class LayoutDemo {
 
     private static int longestSlot(Minecraft mc, AbilityWheelScreen wheel) {
         return Math.min(3, wheel.slotCount() - 1);
+    }
+
+    /** A HUD payload as the Hearth's server sends it: at home with Warmth 0.6 and the stacks safe, or away. */
+    private static dev.amman.proficiency.hearth.net.HearthHudPayload hearthHud(boolean home) {
+        return new dev.amman.proficiency.hearth.net.HearthHudPayload(home, 0L, home ? 0.6f : 0f, 0f, 0f, 0L, 0L,
+                0f, home ? dev.amman.proficiency.hearth.net.HearthHudPayload.FLAG_STREAK_SAFE : 0);
     }
 
     private static void mouse(Minecraft mc, int guiX, int guiY) {

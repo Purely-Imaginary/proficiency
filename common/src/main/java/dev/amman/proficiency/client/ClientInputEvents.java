@@ -74,7 +74,7 @@ public final class ClientInputEvents {
                     AbilityWheelScreen wheel = AbilityWheelScreen.forPlayer(minecraft.player);
                     if (wheel == null) {
                         minecraft.player.displayClientMessage(Component.translatable(
-                                "proficiency.wheel.none", ActiveService.unlockLevel()), true);
+                                "proficiency.wheel.none_root", ActiveService.unlockLevel()), true);
                     } else {
                         minecraft.setScreen(wheel);
                     }

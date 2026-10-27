@@ -22,7 +22,7 @@ public final class NeoForgeHearthGameTests {
     @GameTest(template = "proficiency:empty", batch = "hearth_neoforge_sleep")
     public static void aRealSleepReachesTheSleepHook(GameTestHelper helper) {
         HearthTestGuard.watch(helper);
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         player.setGameMode(GameType.SURVIVAL);
         AtomicInteger slept = new AtomicInteger();
         HearthHooks.PlayerListener listener = who -> {

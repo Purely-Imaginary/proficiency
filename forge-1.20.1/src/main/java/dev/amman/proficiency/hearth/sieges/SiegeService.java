@@ -1048,7 +1048,7 @@ public final class SiegeService {
         SiegeNotices.chat(concerned, "outcome.defended", ChatFormatting.GOLD, streak);
         SiegeNotices.chat(concerned, "trophy.won", ChatFormatting.YELLOW,
                 SiegeNotices.tierName(tier));
-        HearthEvents.SIEGE_DEFENDED.fire(new HearthEvents.SiegeDefended(level, pos, Map.copyOf(kills), there));
+        HearthEvents.SIEGE_DEFENDED.fire(new HearthEvents.SiegeDefended(level, pos, Map.copyOf(kills), there, siegeLevel));
     }
 
     /**

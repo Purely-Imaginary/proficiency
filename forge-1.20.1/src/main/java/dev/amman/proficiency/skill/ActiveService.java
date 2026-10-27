@@ -100,6 +100,18 @@ public final class ActiveService {
             // Charge! is more than the usual twenty seconds: a dash, a war cry, a first blood.
             dev.amman.proficiency.event.ChargerEvents.chargeOut(player);
         }
+        if (skill == Skill.HUSBANDRY) {
+            // Pasture Blessing: the caster's pets regenerate; Twins fires on every breeding (the frenzy).
+            dev.amman.proficiency.event.HusbandryEvents.blessing(player, duration);
+        }
+        if (skill == Skill.RIDING) {
+            // Full Gallop: the mount you steer and your tamed horses run and jump; Tailwind fires on every roll (the frenzy).
+            dev.amman.proficiency.event.RidingEvents.gallop(player, duration);
+        }
+        if (skill == Skill.COMMERCE) {
+            // Haggle: every price goes down while it lasts (a trade screen that is open too); Good Deal fires on every trade (the frenzy).
+            dev.amman.proficiency.event.CommerceEvents.haggle(player, duration);
+        }
         if (skill == Skill.HOMEBUILDER) {
             // House Proud: the friends at the Hearth share the caster's passive.
             dev.amman.proficiency.homebuilder.HouseProud.started(player);
@@ -140,6 +152,12 @@ public final class ActiveService {
         // Shield Wall is about taking the hits for others: Resistance too.
         if (skill == Skill.ENDURANCE || skill == Skill.GUARDIAN) {
             return MobEffects.DAMAGE_RESISTANCE;
+        }
+        // Pasture Blessing is for the pets, not for you: no buff on the caster.
+        // Haggle is a discount of its own: Hero of the Village on top would add vanilla's cut (and, with
+        // Hero's Welcome, double ours), so Commerce gets no accompanying effect.
+        if (skill == Skill.HUSBANDRY || skill == Skill.COMMERCE) {
+            return null;
         }
         return switch (skill.category()) {
             case GATHERING, CONSTRUCTION -> MobEffects.DIG_SPEED;

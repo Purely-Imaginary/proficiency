@@ -30,32 +30,95 @@ public final class Tempo {
     private Tempo() {
     }
 
+    /** The chain plus what the last committed action left for {@link #announce}. */
     private static final class Streak {
-        long lastTick;
-        long startedTick;
-        int steps;
+        final TempoChain chain = new TempoChain();
+        boolean pending;
+        double multiplier = 1.0;
+        long window;
     }
 
     public static double multiplier(ServerPlayer player, Skill skill) {
-        long now = player.level().getGameTime();
-        Map<Skill, Streak> perSkill = STREAKS.computeIfAbsent(
-                player.getUUID(), id -> new ConcurrentHashMap<>());
-        Streak streak = perSkill.computeIfAbsent(skill, s -> new Streak());
+        return step(player, skill, true, 0);
+    }
 
-        boolean broken = now - streak.lastTick > window(player, skill)
-                || now < streak.lastTick
-                || now - streak.startedTick > MAX_STREAK_TICKS;
-        if (broken) {
-            streak.steps = 0;
-            streak.startedTick = now;
-        } else if (streak.steps < maxSteps()) {
-            streak.steps++;
+    /**
+     * What {@link #multiplier} would answer for the next action, without taking the step: the Jade
+     * tooltip's "XP you would get now" reads it, and looking must never build a chain.
+     */
+    public static double preview(ServerPlayer player, Skill skill) {
+        return step(player, skill, false, 0);
+    }
+
+    /**
+     * {@link #preview(ServerPlayer, Skill)} for an action that comes {@code later} actions after the next
+     * one: a kill lands one step after the hit that precedes it, so its Jade number takes one more.
+     */
+    public static double preview(ServerPlayer player, Skill skill, int later) {
+        return step(player, skill, false, Math.max(0, later));
+    }
+
+    private static double step(ServerPlayer player, Skill skill, boolean commit, int later) {
+        long now = player.level().getGameTime();
+        long window = window(player, skill);
+        Streak real = null;
+        TempoChain chain;
+        if (commit) {
+            real = STREAKS.computeIfAbsent(player.getUUID(), id -> new ConcurrentHashMap<>())
+                    .computeIfAbsent(skill, s -> new Streak());
+            chain = real.chain;
+        } else {
+            Map<Skill, Streak> perSkill = STREAKS.get(player.getUUID());
+            Streak seen = perSkill == null ? null : perSkill.get(skill);
+            chain = seen == null ? new TempoChain() : seen.chain.copy();
         }
-        streak.lastTick = now;
+
+        chain.advance(now, window, maxSteps(), MAX_STREAK_TICKS);
+        int steps = Math.min(maxSteps(), chain.steps + later);
         // Rhythm scales the bonus, not the base: the same streak is simply worth more.
         double rhythm = dev.amman.proficiency.ProficiencyAttachments.of(player)
                 .perkModifier(skill, dev.amman.proficiency.perk.PerkEffect.TEMPO);
-        return 1.0 + streak.steps * ProficiencyConfig.tempoStep() * rhythm;
+        double multiplier = 1.0 + steps * ProficiencyConfig.tempoStep() * rhythm;
+        if (real != null) {
+            real.pending = true;
+            real.multiplier = multiplier;
+            real.window = window;
+        }
+        return multiplier;
+    }
+
+    /**
+     * Tells the client about the chain the last committed action of {@code skill} left, when it changed. Called by
+     * the grant AFTER the XP is paid, so nothing in the send path can lose a grant; one packet per changed skill.
+     */
+    public static void announce(ServerPlayer player, Skill skill) {
+        try {
+            Map<Skill, Streak> perSkill = STREAKS.get(player.getUUID());
+            Streak streak = perSkill == null ? null : perSkill.get(skill);
+            if (streak == null || !streak.pending) {
+                return;
+            }
+            streak.pending = false;
+            long now = player.level().getGameTime();
+            if (!streak.chain.takeAnnouncement(now, streak.window)) {
+                return;
+            }
+            // The client counts the window in real time: a server running slow stretches it.
+            long clientWindow = Math.min(Integer.MAX_VALUE, Math.round(streak.window * slowdown(player)));
+            dev.amman.proficiency.net.ProficiencyNetwork.sendTempo(player, skill, streak.chain.steps, maxSteps(),
+                    (int) Math.round(streak.multiplier * 1000), (int) clientWindow);
+        } catch (RuntimeException ignored) {
+            // A cosmetic packet must never take the grant that follows it down.
+        }
+    }
+
+    /** 1.0 at 20 TPS, more when the server's ticks are longer than 50 ms. */
+    private static double slowdown(ServerPlayer player) {
+        net.minecraft.server.MinecraftServer server = player.getServer();
+        if (server == null) {
+            return 1.0;
+        }
+        return Math.max(1.0, Math.min(4.0, server.getAverageTickTime() / 50.0));
     }
 
     /**

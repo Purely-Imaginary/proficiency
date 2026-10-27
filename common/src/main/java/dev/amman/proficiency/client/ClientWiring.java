@@ -37,7 +37,7 @@ public final class ClientWiring {
     }
 
     public static List<KeyMapping> keyMappings() {
-        return List.of(ProficiencyClient.OPEN_SKILLS, ProficiencyClient.USE_ABILITY);
+        return List.of(ProficiencyClient.OPEN_SKILLS, ProficiencyClient.USE_ABILITY, ProficiencyClient.WAYWHEEL);
     }
 
     // ---- Server-to-client payloads ------------------------------------------------------------
@@ -55,6 +55,10 @@ public final class ClientWiring {
         SkillToasts.show(skill, payload.level());
     }
 
+    public static void onTempo(dev.amman.proficiency.net.TempoPayload payload) {
+        TempoBadge.accept(payload);
+    }
+
     public static void onXpLog(XpLogPayload payload) {
         ClientXpLog.accept(payload);
     }
@@ -64,6 +68,13 @@ public final class ClientWiring {
     }
 
     public static void onDiscovery(DiscoveryPayload payload) {
+        if (payload.kind() == DiscoveryPayload.CODEX) {
+            int index = payload.skill();
+            if (index >= 0 && index < Skill.VALUES.length) {
+                SkillToasts.codex(Skill.VALUES[index], Math.round(payload.xp()));
+            }
+            return;
+        }
         DiscoveryBanner.show(payload);
     }
 
@@ -92,6 +103,7 @@ public final class ClientWiring {
     public static void onLeaveWorld() {
         ClientXpLog.clear();
         XpFeedHud.clear();
+        TempoBadge.reset();
         DiscoveryBanner.clear();
         ClientVisited.clear();
         CalledShotMarks.clear();

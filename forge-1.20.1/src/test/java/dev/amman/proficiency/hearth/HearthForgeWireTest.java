@@ -57,7 +57,7 @@ class HearthForgeWireTest {
 
     @Test
     void theProtocolIsEight() {
-        assertEquals("9", ProficiencyNetwork.PROTOCOL);
+        assertEquals("15", ProficiencyNetwork.PROTOCOL);
     }
 
     @Test

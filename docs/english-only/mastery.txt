@@ -1,0 +1,4 @@
+# Lang keys that exist in en_us only (Mastery riders, 2026-10-26 languages override). A key whose name
+# contains one of these lines is not required in the other 11 languages; the game falls back to English.
+# One substring per line. A later translation pass deletes the line once the keys are translated.
+proficiency.mastery.

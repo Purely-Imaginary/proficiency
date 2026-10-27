@@ -40,7 +40,7 @@ public final class CourageGameTests {
 
     /** The "empty" template's floor is at relative y 1, so everything stands at y 2. */
     private static ServerPlayer fighter(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         player.setGameMode(GameType.SURVIVAL);
         player.setPos(helper.absoluteVec(new Vec3(0.5, 2, 0.5)));
         clearSpawnProtection(player);
@@ -123,7 +123,7 @@ public final class CourageGameTests {
 
         Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, new BlockPos(4, 2, 0));
         helper.assertTrue(CourageEvents.payHit(player, cow, 4f) == 0f, "hitting a cow paid Courage");
-        ServerPlayer friend = helper.makeMockServerPlayerInLevel();
+        ServerPlayer friend = MockPlayers.make(helper);
         helper.assertTrue(CourageEvents.payHit(player, friend, 4f) == 0f, "hitting a player paid Courage");
 
         Mob fourth = foe(helper, EntityType.SILVERFISH, new BlockPos(4, 2, 1), player);

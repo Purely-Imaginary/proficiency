@@ -85,7 +85,7 @@ public final class TrackerHud {
     private TrackerHud() {
     }
 
-    static ResourceLocation icon(String name) {
+    public static ResourceLocation icon(String name) {
         return ICONS.computeIfAbsent(name,
                 n -> ResourceLocation.fromNamespaceAndPath(Proficiency.MOD_ID, "textures/gui/hearth/" + n + ".png"));
     }

@@ -106,7 +106,7 @@ public final class HearthView {
     }
 
     /** The panel closed: the campfire preview is gone. */
-    static void clearPreview() {
+    public static void clearPreview() {
         preview = null;
     }
 
@@ -148,7 +148,7 @@ public final class HearthView {
     }
 
     @Nullable
-    static HearthLedgerPayload ledger() {
+    public static HearthLedgerPayload ledger() {
         return ledger;
     }
 
@@ -161,18 +161,18 @@ public final class HearthView {
         return s == null || s.extra() == null ? null : s.extra();
     }
 
-    static double[] thresholds() {
+    public static double[] thresholds() {
         return TRACKER.thresholdsCopy();
     }
 
     /** Every Comfort kind there is, in data order. */
-    static List<String> comfortAll() {
+    public static List<String> comfortAll() {
         HearthStatePayload.Extra extra = extra();
         return extra != null && !extra.comfortAll().isEmpty() ? extra.comfortAll()
                 : HearthData.DEFAULTS.comfort().kinds();
     }
 
-    static int characterMax() {
+    public static int characterMax() {
         HearthStatePayload.Extra extra = extra();
         return extra != null && extra.characterMax() > 0 ? extra.characterMax() : HearthData.DEFAULTS.character().max();
     }
@@ -206,7 +206,7 @@ public final class HearthView {
         return null;
     }
 
-    static String nextOffering() {
+    public static String nextOffering() {
         HearthStatePayload.Extra extra = extra();
         if (extra != null) {
             return extra.nextOffering();

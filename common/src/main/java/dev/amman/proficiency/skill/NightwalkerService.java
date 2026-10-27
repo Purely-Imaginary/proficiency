@@ -71,8 +71,8 @@ public final class NightwalkerService {
 
     /** Whether an entity stands in the dark, measured at its eyes (the feet can be inside a slab). */
     public static boolean isDark(Entity entity) {
-        // A light in either hand switches Nightwalker off: you are not sneaking through the dark
-        // with a torch. Every dark check for a player goes through here.
+        // A light in either hand or worn (a lantern on the belt) switches Nightwalker off: you are not
+        // sneaking through the dark with a torch. Every dark check for a player goes through here.
         return !holdsLight(entity) && isDark(entity.level(), BlockPos.containing(entity.getEyePosition()));
     }
 
@@ -80,10 +80,11 @@ public final class NightwalkerService {
             net.minecraft.tags.TagKey.create(net.minecraft.core.registries.Registries.ITEM,
                     net.minecraft.resources.ResourceLocation.tryParse("proficiency:held_lights"));
 
-    /** Whether a living entity holds a light in the main or off hand. */
+    /** Whether a living entity holds a light in the main or off hand, or wears one in an accessory slot. */
     public static boolean holdsLight(Entity entity) {
         return entity instanceof net.minecraft.world.entity.LivingEntity living
-                && (isLight(living.getMainHandItem()) || isLight(living.getOffhandItem()));
+                && (isLight(living.getMainHandItem()) || isLight(living.getOffhandItem())
+                        || WornLights.wears(living, NightwalkerService::isLight));
     }
 
     /** A block item whose block emits light (torches, lanterns, glowstone, modded), or the held_lights tag. */

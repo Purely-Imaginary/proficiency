@@ -36,7 +36,7 @@ SKILL_JAVA = os.path.join(HERE, "..", "core", "src", "main", "java", "dev", "amm
 SKILLS = ("swords axes maces tridents unarmed blocking endurance archery crossbows mining "
           "woodcutting excavation farming fishing running sneaking jumping swimming smithing "
           "cooking alchemy spellcasting engineering beastslaying wayfaring spelunking masonry "
-          "decorating social nightwalker courage guardian charger tactician homebuilder").split()
+          "decorating social nightwalker courage guardian charger tactician homebuilder husbandry riding commerce").split()
 
 MIN_ACTIVE_S = 300          # a player needs five minutes in a skill before their rate counts
 DEAD_MIN_H = 10             # under this many active hours in total, "no XP" is too little data to call a skill dead
@@ -1034,6 +1034,58 @@ def hearth_page(d, w):
         w("</table></div>")
 
 
+# ---------------------------------------------------------------- json
+
+def summary_lines(d):
+    """The Summary bullets exactly as report.md prints them, so the screen and the file never disagree."""
+    out, inside = [], False
+    for line in markdown(d).splitlines():
+        if line.startswith("## "):
+            inside = line == "## Summary"
+        elif inside and line.startswith("- "):
+            out.append(line[2:])
+    return out
+
+
+def as_json(d):
+    """The report as plain data for the dashboard's /#mcbalance screen (2026-10-14): the same figures
+    and verdicts as page(), already decided here, so the screen formats and never re-derives a flag."""
+    t = d["table"]
+    hs = d["hearth"]
+    players = [{"name": d["names"][k], "world": p["world"], "online_h": p["online_s"] / 3600,
+                "active_h": p["active_s"] / 3600, "xp": p["xp"], "deaths": p["deaths"]}
+               for k, p in sorted(d["players"].items(), key=lambda kv: -kv[1]["active_s"])]
+    skills = [{k: r[k] for k in ("skill", "xp", "players", "rate_players", "rate", "per_play_hour", "level",
+                                 "rested", "teaching", "levelups", "procs", "rolls", "hits", "expect",
+                                 "observed", "proc_off", "dead", "runaway", "slow", "vs_median",
+                                 "h_next", "h_to_100", "h_total", "mix")} for r in t]
+    deaths = []
+    for world, v in sorted(d["deaths"].items()):
+        deaths.append(dict(v, world=world,
+                           per10=v["deaths"] * 10 / v["active_h"] if v["active_h"] else None,
+                           share=v["xp_lost"] / v["xp"] if v["xp"] else None))
+    hearth = None
+    if hs["any"]:
+        pools = [dict(hs["pools"][n], pool=n, color=HEARTH_COLORS.get(n))
+                 for n in sorted(hs["pools"], key=lambda n: HEARTH_POOLS.index(n) if n in HEARTH_POOLS else 99)]
+        feeders = [{"name": hearth_name(d, k, f), "world": f["world"], "total": f["total"], "pools": f["pools"],
+                    "top": top_sources(f["sources"])}
+                   for k, f in sorted(hs["feeders"].items(), key=lambda kv: -kv[1]["total"])]
+        hearth = {"active_h": hs["active_h"], "cap": HEARTH_HOURLY_CAP, "tiers": list(HEARTH_ROMAN),
+                  "pools": pools, "lines": hearth_lines(hs), "feeders": feeders,
+                  "by_source": hs["by_source"][:60]}
+    return {
+        "since": str(d["since"]), "until": str(d["until"]), "span": list(d["span"]) if d["span"] else None,
+        "files": d["files"], "worlds": d["worlds"], "generated": d["generated"], "anon": d["anon"],
+        "active_h": d["active_h"], "median_rate": d["median_rate"],
+        "deaths_total": sum(p["deaths"] for p in d["players"].values()),
+        "runaway_factor": RUNAWAY_FACTOR, "slow_factor": SLOW_FACTOR, "dead_label": dead_label(d),
+        "dead_min_h": DEAD_MIN_H, "min_active_min": MIN_ACTIVE_S // 60, "proc_min_rolls": PROC_MIN_ROLLS,
+        "curve_text": d["curve_text"], "kind_colors": KIND_COLORS, "summary": summary_lines(d),
+        "skills": skills, "deaths": deaths, "players": players, "hearth": hearth,
+    }
+
+
 # ---------------------------------------------------------------- main
 
 def today():
@@ -1076,6 +1128,8 @@ def main(argv=None):
         fh.write(markdown(d))
     with open(os.path.join(args.out, "report.html"), "w", encoding="utf-8") as fh:
         fh.write(page(d))
+    with open(os.path.join(args.out, "report.json"), "w", encoding="utf-8") as fh:
+        json.dump(as_json(d), fh, ensure_ascii=False, indent=1)
     print("balance_report: %d players, %d files, wrote %s" % (
         len(d["players"]), files, os.path.join(args.out, "report.html")))
     return 0

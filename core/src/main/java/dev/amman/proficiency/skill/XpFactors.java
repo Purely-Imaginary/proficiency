@@ -27,6 +27,10 @@ public final class XpFactors {
     public static final String TIER = "tier";
     /** A critical melee hit (CritRules.XP_MULTIPLIER). */
     public static final String CRIT = "crit";
+    /** A bow or crossbow hit's distance (RangeXp). */
+    public static final String RANGE = "range";
+    /** A Trial Chambers mob's Courage and Charger XP (TrialRules). */
+    public static final String TRIAL = "trial";
 
     /** Most factors one gain can carry; the codec drops the rest. */
     public static final int MAX = 12;

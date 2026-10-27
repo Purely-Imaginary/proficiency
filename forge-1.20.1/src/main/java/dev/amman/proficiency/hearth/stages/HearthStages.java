@@ -67,6 +67,7 @@ public final class HearthStages {
     static void onSecond(ServerLevel level, BlockPos pos, HearthBlockEntity hearth) {
         HearthPresence.tick(level, pos, hearth);
         HearthStageCheck.tick(level, pos, hearth);
+        HearthAutoBuild.tick(level, pos, hearth);
     }
 
     static void onPlaced(ServerLevel level, BlockPos pos, BlockState placed, @Nullable Entity placer) {
@@ -109,12 +110,31 @@ public final class HearthStages {
 
     /** {@code STATE}: a fresh state for the panel, for a player in range of that Hearth (or an op). */
     static void onRequest(ServerPlayer player, HearthRequestPayload request) {
-        if (request.what() != HearthRequestPayload.STATE) {
+        int what = request.what();
+        if (what != HearthRequestPayload.STATE && what != HearthRequestPayload.BUILD_START
+                && what != HearthRequestPayload.BUILD_STOP && what != HearthRequestPayload.BUILD_PLAN
+                && what != HearthRequestPayload.BUILD_CHOOSE) {
             return;
         }
         BlockPos at = BlockPos.of(request.pos());
         boolean allowed = at.equals(HearthRange.homeOf(player)) || player.hasPermissions(2);
         if (!allowed) {
+            return;
+        }
+        if (what == HearthRequestPayload.BUILD_START) {
+            HearthAutoBuild.start(player, at, request.arg());
+            return;
+        }
+        if (what == HearthRequestPayload.BUILD_STOP) {
+            HearthAutoBuild.stop(player, at);
+            return;
+        }
+        if (what == HearthRequestPayload.BUILD_PLAN) {
+            HearthAutoBuild.plan(player, at, request.arg());
+            return;
+        }
+        if (what == HearthRequestPayload.BUILD_CHOOSE) {
+            HearthAutoBuild.choose(player, at, (char) request.arg(), request.text() == null ? "" : request.text());
             return;
         }
         HearthBlockEntity hearth = HearthRange.entity(player.serverLevel(), at);

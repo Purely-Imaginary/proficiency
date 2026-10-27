@@ -177,9 +177,12 @@ TREES["mining"] = [
     root("pickwork", "Pickwork"),
     N("efficiency", "Efficiency", 1, 0, 5, 1, {"BON": 0.05}, None, ["pickwork"], "Faster mining and more second drops."),
     N("prospector", "Prospector", 1, 2, 5, 1, {"PC": 0.10}, None, ["pickwork"], "Motherlode comes more often."),
+    N("seam_sense", "Seam Sense", 1, 3, 3, 1, {}, "lode_charge", ["pickwork"], "Stone charges your next ore's Motherlode instead of rolling one: 0.4%, 0.7% or 1% per stone by rank. The ore spends it; a full charge makes Motherlode certain."),
     N("geologist", "Geologist", 1, 4, 3, 1, {}, "ore_sense", ["pickwork"], "Mining ore: 5% chance per rank that nearby ore sparkles through the rock."),
     N("vein_miner", "Vein Miner", 2, 0, 3, 1, {}, "vein_miner", ["efficiency"], "Breaking ore also breaks up to 2 connected blocks of the same ore per rank."),
+    N("tempering", "Tempering", 2, 1, 1, 1, {}, "lode_mend", ["prospector"], "Each Motherlode mends up to 4 durability of your pickaxe, never more than 80% of what it lost since the last one. A pickaxe lasts at most five times as long.", per_rank=2),
     N("gem_cutter", "Gem Cutter", 2, 2, 3, 1, {"PP": 0.10}, None, ["prospector"], "Motherlode gives more."),
+    N("lodestone", "Lodestone", 2, 3, 3, 1, {}, "lode_capacity", ["seam_sense"], "Seam Sense banks 1 more full Motherlode charge per rank, up to 4. Each ore spends one."),
     N("dark_sight", "Dark Sight", 2, 4, 1, 2, {}, "dark_sight", ["geologist"], "Below Y 30 with a pickaxe in hand, you see in the dark."),
     N("rich_veins", "Rich Veins", 3, 1, 3, 1, {"PP": 0.15}, None, ["vein_miner", "gem_cutter"], "Motherlode gives much more.", 2),
     N("hard_hat", "Hard Hat", 3, 4, 2, 1, {"DW": 0.25}, "hard_hat", ["dark_sight"], "Falling blocks and stalactites deal 50% less per rank. Dying keeps more of this skill's progress.", 3),
@@ -193,6 +196,7 @@ TREES["woodcutting"] = [
     N("timber_call", "Timber!", 1, 2, 5, 1, {"PC": 0.10}, None, ["lumberjack"], "Timber comes more often."),
     N("sapling_keeper", "Sapling Keeper", 1, 4, 3, 1, {}, "replant_sapling", ["lumberjack"], "Chopping the bottom log of a tree: 33% chance per rank to plant its sapling."),
     N("canopy", "Canopy", 2, 0, 1, 2, {}, "timber_greedy", ["sharp_axe"], "Timber takes the leaves too, and fells much bigger trees."),
+    N("falling_leaf", "Falling Leaf", 2, 1, 1, 2, {}, "timber_slow_fall", ["timber_call"], "Timber gives you Slow Falling for 2 seconds, so a tree you stood on lets you down gently."),
     N("heartwood", "Heartwood", 2, 2, 3, 1, {"PP": 0.15}, None, ["timber_call"], "Timber fells bigger trees and gives more."),
     N("forager", "Forager", 2, 4, 3, 1, {}, "forager", ["sapling_keeper"], "Breaking leaves: 10% chance per rank for an apple."),
     N("woodland_stride", "Woodland Stride", 3, 1, 3, 1, {}, "woodland_stride", ["canopy", "heartwood"], "Timber gives you Speed for 3 seconds per rank.", 2),
@@ -210,6 +214,7 @@ TREES["excavation"] = [
     N("sifter", "Sifter", 2, 4, 3, 1, {}, "sifter", ["landslide_lore"], "Gravel: 15% chance per rank to also drop flint."),
     N("earthmover", "Earthmover", 3, 1, 3, 1, {"PP": 0.15}, None, ["archaeologist", "wide_shovel"], "Landslide gives more.", 2),
     N("mole", "Mole", 3, 3, 3, 1, {}, "mole", ["sifter"], "Each block you dig: 3% chance per rank to fill 1 hunger.", 3),
+    N("careful_hands", "Careful Hands", 3, 2, 3, 1, {}, "careful_hands", ["archaeologist", "sifter"], "Brushing suspicious sand and gravel: each stroke has a 20% chance per rank to count twice, and finishing one has an 8% chance per rank to roll its loot a second time."),
     N("fossil_hunter", "Fossil Hunter", 4, 2, 1, 3, {}, "fossil", ["earthmover", "mole"], "A Landslide rolls for a find once for every three blocks it clears.", 4),
     cap("shaper_of_earth", "Shaper of Earth", "gravity_well", "Digging sand or gravel also digs the column that would fall on you.", ["fossil_hunter"]),
 ]
@@ -221,7 +226,7 @@ TREES["farming"] = [
     N("fertile_soil", "Fertile Soil", 1, 4, 3, 1, {}, "fertile", ["tilling"], "Every 5 seconds, crops within 3 blocks of you: 5% chance per rank to grow a stage."),
     N("seed_saver", "Seed Saver", 2, 0, 3, 1, {}, "seed_saver", ["bountiful"], "Harvesting a crop: 15% chance per rank for one extra of its seed."),
     N("green_thumb", "Green Thumb", 2, 2, 1, 2, {}, "always_replant", ["bountiful", "harvest_moon"], "Every crop you harvest replants itself."),
-    N("husbandry", "Husbandry", 2, 4, 3, 1, {}, "twins", ["fertile_soil"], "Breeding animals trains Farming, with a 10% chance per rank of twins."),
+    N("husbandry", "Herdsman", 2, 4, 3, 1, {}, "twins", ["fertile_soil"], "Breeding animals has a 10% chance per rank of twins. The Husbandry skill rolls its own Twins first; this only counts when that did not land."),
     N("scythe", "Scythe Sweep", 3, 1, 2, 1, {}, "scythe", ["seed_saver", "green_thumb"], "Harvesting with a hoe also harvests ripe crops within 1 block per rank.", 2),
     N("harvest_festival", "Harvest Festival", 3, 4, 3, 1, {"PP": 0.15}, None, ["husbandry"], "Bountiful Harvest gives more.", 3),
     N("druid", "Druid", 4, 2, 1, 3, {}, "druid", ["scythe", "harvest_festival"], "Bone meal trains Farming and is not used up 25% of the time.", 4),
@@ -563,4 +568,64 @@ TREES["homebuilder"] = [
     N("open_house", "Open House", 3, 4, 3, 1, {"AD": 0.15}, "open_house", ["ember_heart"], "House Proud lasts longer, and friends up to 8 blocks per rank outside the Hearth's range share it too.", 3),
     N("night_watch", "Night Watch", 4, 1, 1, 3, {}, "night_watch", ["warm_welcome", "storyteller"], "Siege mobs in range glow for you, and you hear the siege horn an in-game hour early.", 4),
     cap("homeward", "Homeward", "homeward", "Once per in-game day, a 10 second channel (broken by damage or moving) takes you home to the Hearth you fed most. After its bell calls you home, the channel takes 5 seconds for a minute.", ["night_watch", "open_house"]),
+]
+
+# Husbandry (batch lane husbandry, 2026-10-26): looking after animals. Breeding, taming, shearing,
+# milking, brushing, honey and feeding a baby pay it; Farming keeps crops (its Herdsman node is only
+# the twin chance now). Nothing here softens a player's death: the pet-side mechanics are about the
+# pet. Numbers are in core skill/HusbandryMath.java.
+TREES["husbandry"] = [
+    root("stockman", "Stockman"),
+    N("good_stock", "Good Stock", 1, 0, 5, 1, {"BON": 0.05}, None, ["stockman"], "Babies you breed grow up faster and your pets are hardier."),
+    N("gentle_hands", "Gentle Hands", 1, 2, 3, 1, {}, "gentle_hands", ["stockman"], "Mounting an untamed horse, donkey, mule or llama adds 6 temper per rank (of 100), so it settles after fewer rides."),
+    N("twin_luck", "Twin Luck", 1, 4, 5, 1, {"PC": 0.10}, None, ["stockman"], "Twins comes more often."),
+    N("wool_gatherer", "Wool Gatherer", 2, 0, 3, 1, {}, "shear_more", ["good_stock"], "Shearing a sheep drops 1 more wool per rank."),
+    N("wolf_learns", "Apprentice Wolf", 2, 2, 3, 1, {}, "wolf_learns", ["gentle_hands"], "Your tamed wolves learn from you: each rank adds a third of your best weapon skill's damage bonus to their bites."),
+    N("big_litter", "Big Litter", 2, 4, 3, 1, {}, "big_litter", ["twin_luck"], "When Twins lands there is a 10% chance per rank of a third baby."),
+    N("fresh_pail", "Fresh Pail", 3, 0, 3, 1, {}, "fresh_pail", ["wool_gatherer"], "Milking a cow or goat: 20% chance per rank that a second empty bucket in your inventory fills too.", 2),
+    N("shared_strength", "Shared Strength", 3, 2, 3, 1, {}, "shared_strength", ["wolf_learns"], "Your tamed pets hit 10% harder per rank on a mob you hit in the last 5 seconds."),
+    N("long_summer", "Long Summer", 3, 4, 3, 1, {"AD": 0.15}, None, ["big_litter"], "Pasture Blessing lasts longer.", 3),
+    N("faithful_friend", "Faithful Friend", 4, 1, 1, 3, {}, "faithful_friend", ["fresh_pail", "shared_strength"], "A pet of yours that would die inside a lit Hearth's range is saved instead, at a quarter of its health. Once per 10 minutes. It never does anything for you.", 4),
+    cap("herd_master", "Herd Master", "herd_master", "Babies you breed are born with half of their growing already done, and Pasture Blessing gives your pets Speed too.", ["faithful_friend", "long_summer"]),
+]
+
+# Riding (batch lane riding, 2026-10-26): metres ridden on a mount, a boat, a minecart or elytra.
+# Running, Jumping and Swimming pay nothing while you ride; this tree is what you do from the saddle:
+# fight, shoot, call your horse, reach further, fly on fewer rockets, land softly, trample. Nothing
+# here softens a death: Soft Landing only cancels the fall after you leave a mount. Numbers are in
+# core skill/RidingMath.java.
+TREES["riding"] = [
+    root("horsemanship", "Horsemanship"),
+    N("good_seat", "Good Seat", 1, 0, 5, 1, {"BON": 0.05}, None, ["horsemanship"], "Mounts you ride are faster and jump higher, and your elytra wears slower."),
+    N("couched_lance", "Couched Lance", 1, 2, 3, 1, {}, "mounted_lance", ["horsemanship"], "While mounted your melee hits deal 6% more damage per rank, and 6% more again while your mount is at a full gallop (7 blocks a second)."),
+    N("fair_wind", "Fair Wind", 1, 4, 5, 1, {"PC": 0.10}, None, ["horsemanship"], "Tailwind comes more often."),
+    N("barding", "Barding", 2, 0, 3, 1, {}, "barding", ["good_seat"], "A mount you ride takes 8% less damage per rank."),
+    N("saddle_archer", "Saddle Archer", 2, 2, 3, 1, {}, "mounted_shot", ["couched_lance"], "Arrows and bolts you loose from a mount hit 8% harder per rank."),
+    N("whistle", "Whistle", 2, 4, 3, 1, {}, "call_mount", ["fair_wind"], "Blowing a goat horn calls your nearest tamed horse, donkey or mule that nobody is riding or leading, from 64 blocks at rank 1, 96 at rank 2 and 128 at rank 3. Ready again after 100 seconds, 80 at rank 2 and 60 at rank 3."),
+    N("high_seat", "High Seat", 3, 0, 3, 1, {}, "high_seat", ["barding"], "While mounted your block and attack reach grows by half a block per rank.", 2),
+    N("rocket_saver", "Rocket Saver", 3, 2, 3, 1, {}, "rocket_saver", ["saddle_archer"], "A firework rocket you use in flight is not used up, a 15% chance per rank."),
+    N("long_road", "Long Road", 3, 4, 3, 1, {"AD": 0.15}, None, ["whistle"], "Full Gallop lasts longer.", 3),
+    N("soft_landing", "Soft Landing", 4, 1, 1, 3, {}, "soft_landing", ["high_seat", "rocket_saver"], "After you leave a mount, a boat or a minecart you take no fall damage for 4 seconds. Once every 20 seconds.", 4),
+    cap("stampede", "Stampede", "trample", "A mount you ride at a full gallop tramples the hostile mobs it runs into: 3 damage, 1 more per 20 Riding levels, once a second per mob. Nobody earns XP for what it kills.", ["soft_landing", "long_road"]),
+]
+
+# Commerce (batch lane commerce, 2026-10-26): trades with villagers, wandering traders and modded
+# traders, and piglin bartering. Fair Dealing and Silver Tongue are the plain stat nodes (a bigger
+# discount, Good Deal more often); the rest is what a regular at the market gets: stock that comes
+# back sooner, a use that is not spent, a second roll of the piglin's loot, a bigger welcome from
+# the villagers you cured, a gift thrown in. Nothing here softens a death. Numbers are in core
+# skill/CommerceMath.java.
+TREES["commerce"] = [
+    root("market_stall", "Market Stall"),
+    N("fair_dealing", "Fair Dealing", 1, 0, 5, 1, {"BON": 0.05}, None, ["market_stall"], "Traders ask less of you, and Hero's Welcome and Haggle build on it."),
+    N("regulars", "Regulars", 1, 2, 3, 1, {}, "regulars", ["market_stall"], "A villager you traded with restocks again 3 minutes after your last trade at rank 1, 2 minutes at rank 2 and 1 minute at rank 3, at most twice a day each. Never while someone is trading with it."),
+    N("silver_tongue", "Silver Tongue", 1, 4, 5, 1, {"PC": 0.10}, None, ["market_stall"], "Good Deal comes more often."),
+    N("last_piece", "Last Piece", 2, 0, 3, 1, {}, "free_use", ["fair_dealing"], "A trade has a 10% chance per rank not to use up one of the offer's uses."),
+    N("gold_rush", "Gold Rush", 2, 2, 3, 1, {}, "gold_rush", ["regulars"], "A piglin you barter with has a 10% chance per rank to roll its loot a second time."),
+    N("sweetener", "Sweetener", 2, 4, 3, 1, {}, "sweetener", ["silver_tongue"], "A trade has an 8% chance per rank that the trader throws in something extra: a quarter more of a bulk buy, or a small gift with a single item."),
+    N("old_debts", "Old Debts", 3, 0, 3, 1, {}, "cure_bonus", ["last_piece"], "A villager you cured of zombification takes another 4% per rank off its prices, on top of what the cure already did.", 2),
+    N("better_deals", "Better Deals", 3, 2, 3, 1, {"PP": 0.10}, None, ["gold_rush"], "A Good Deal gives back more of the price."),
+    N("long_negotiation", "Long Negotiation", 3, 4, 3, 1, {"AD": 0.15}, None, ["sweetener"], "Haggle lasts longer.", 3),
+    N("heros_welcome", "Hero's Welcome", 4, 1, 1, 3, {}, "heros_welcome", ["old_debts", "better_deals"], "While Hero of the Village is on you, the discount from this skill's passive is doubled.", 4),
+    cap("guild_master", "Guild Master", "guild_master", "Haggle takes 10 points more off every price.", ["heros_welcome", "long_negotiation"]),
 ]

@@ -61,7 +61,7 @@ public final class MasteryGameTests {
         SkillService.grant(player, Skill.SWORDS, 1000.0, "block.minecraft.stone");
         java.util.List<String> lines = dev.amman.proficiency.telemetry.TelemetryHub.data().drain(1L, "");
         boolean counted = lines.stream().anyMatch(l -> l.contains("\"type\":\"xp\"") && l.contains("\"skill\":\"swords\"")
-                && !l.contains("\"xp\":0}"));
+                && !l.contains("\"xp\":0}") && !l.contains("\"xp\":0,"));
         helper.assertTrue(!counted, "a grant at five stars was counted as earned XP: " + lines);
         helper.succeed();
     }

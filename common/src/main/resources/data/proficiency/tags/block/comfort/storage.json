@@ -1,8 +1,10 @@
 {
-  "_comment": "Comfort kind: storage. Packs add cabinets, drawers and tables.",
+  "_comment": "Comfort kind: storage. Modded chests and barrels count through c:chests and c:barrels (optional); packs add cabinets, drawers and tables.",
   "values": [
     "minecraft:barrel",
     "minecraft:chest",
-    "minecraft:decorated_pot"
+    "minecraft:decorated_pot",
+    { "id": "#c:chests", "required": false },
+    { "id": "#c:barrels", "required": false }
   ]
 }

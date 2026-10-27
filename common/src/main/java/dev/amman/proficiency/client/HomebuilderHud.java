@@ -143,7 +143,7 @@ public final class HomebuilderHud {
     }
 
     /** Draws a slot's icon, faded when it is off or used. */
-    static void drawSlotIcon(GuiGraphics graphics, int slot, int x, int y, int size, boolean dim) {
+    public static void drawSlotIcon(GuiGraphics graphics, int slot, int x, int y, int size, boolean dim) {
         ResourceLocation texture = slot == SLOT_MAGNET ? MAGNET_ICON : HOMEWARD_ICON;
         boolean blendWasOn = GL11.glIsEnabled(GL11.GL_BLEND);
         if (!blendWasOn) {

@@ -23,7 +23,7 @@ public final class TacticianMath {
     public static final double DEFAULT_SUPPORT_XP_PER_DAMAGE = 0.15;
     /** Rescue: XP for a ranged kill of a 20-health mob that hurt a friend in the last 5 s. */
     public static final double DEFAULT_RESCUE_XP = 2.5;
-    /** Overwatch: XP per block between you and the mob, on a hit with a friend in between. */
+    /** Overwatch: the per-block rate the log curve is scaled to (6 blocks pay 6 of it, 30 pay 30). */
     public static final double DEFAULT_OVERWATCH_XP_PER_BLOCK = 0.06;
 
     /** Support: one hit counts at most this much damage. */
@@ -149,12 +149,19 @@ public final class TacticianMath {
         return base > 0 && worth > 0 ? base * worth : 0.0;
     }
 
-    /** Overwatch XP: per block from 6 blocks on, counted up to 30. Closer than 6 pays nothing. */
+    /**
+     * Overwatch XP: logarithmic in the distance from 6 blocks on, counted up to 30. Closer than 6
+     * pays nothing. The ends pay what a flat per-block rate would (6 and 30 blocks), and the first
+     * blocks past 6 are worth the most: 15 blocks pay about 20 blocks' worth.
+     */
     public static double overwatchXp(double distance, double perBlock) {
         if (!(distance >= OVERWATCH_MIN_BLOCKS) || !(perBlock > 0)) {
             return 0.0;
         }
-        return Math.min(distance, OVERWATCH_MAX_BLOCKS) * perBlock;
+        double span = OVERWATCH_MAX_BLOCKS / OVERWATCH_MIN_BLOCKS;
+        double counted = Math.min(distance, OVERWATCH_MAX_BLOCKS);
+        double share = Math.log(counted / OVERWATCH_MIN_BLOCKS) / Math.log(span);
+        return OVERWATCH_MIN_BLOCKS * perBlock * (1.0 + (span - 1.0) * share);
     }
 
     /** A mob hurt a friend, or was pulled off one, at {@code at}: it still counts as engaged. */

@@ -34,7 +34,12 @@ public final class ProficiencyConfig {
     public static final ModConfigSpec.BooleanValue PLACED_BLOCKS_PAY_XP;
     public static final ModConfigSpec.DoubleValue SPAWNER_MOB_XP;
     public static final ModConfigSpec.DoubleValue AOE_XP_SHARE;
+    public static final ModConfigSpec.DoubleValue RANGED_XP_PER_DOUBLING;
     public static final ModConfigSpec.DoubleValue ARTIFICIAL_MOB_XP;
+    public static final ModConfigSpec.DoubleValue TRIAL_MOB_FACTOR;
+    public static final ModConfigSpec.DoubleValue TRIAL_OMINOUS_MOB_FACTOR;
+    public static final ModConfigSpec.DoubleValue TRIAL_WAVE_XP;
+    public static final ModConfigSpec.DoubleValue TRIAL_VAULT_XP;
     public static final ModConfigSpec.DoubleValue KILL_BONUS_BASE;
     public static final ModConfigSpec.DoubleValue KILL_BONUS_HEALTH_DIVISOR;
     public static final ModConfigSpec.DoubleValue KILL_BONUS_CAP;
@@ -46,6 +51,8 @@ public final class ProficiencyConfig {
     public static final ModConfigSpec.ConfigValue<java.util.List<? extends String>> XP_FEED_PLAYERS;
     public static final ModConfigSpec.BooleanValue TELEMETRY_ENABLED;
     public static final ModConfigSpec.IntValue TELEMETRY_RETENTION_DAYS;
+    public static final ModConfigSpec.BooleanValue EXPORT_ENABLED;
+    public static final ModConfigSpec.IntValue EXPORT_INTERVAL_SECONDS;
 
     public static final ModConfigSpec.DoubleValue COMPANY_RADIUS;
     public static final ModConfigSpec.IntValue MENTOR_GAP;
@@ -79,6 +86,17 @@ public final class ProficiencyConfig {
     public static final ModConfigSpec.DoubleValue TACTICIAN_SUPPORT_XP;
     public static final ModConfigSpec.DoubleValue TACTICIAN_RESCUE_XP;
     public static final ModConfigSpec.DoubleValue TACTICIAN_OVERWATCH_XP;
+    public static final ModConfigSpec.DoubleValue HUSBANDRY_BREED_XP;
+    public static final ModConfigSpec.DoubleValue HUSBANDRY_TAME_XP;
+    public static final ModConfigSpec.DoubleValue HUSBANDRY_SHEAR_XP;
+    public static final ModConfigSpec.DoubleValue HUSBANDRY_MILK_XP;
+    public static final ModConfigSpec.DoubleValue HUSBANDRY_BRUSH_XP;
+    public static final ModConfigSpec.DoubleValue HUSBANDRY_FEED_XP;
+    public static final ModConfigSpec.DoubleValue HUSBANDRY_HONEY_XP;
+    public static final ModConfigSpec.ConfigValue<java.util.List<? extends String>> RIDING_RATES;
+    public static final ModConfigSpec.DoubleValue COMMERCE_TRADE_FACTOR;
+    public static final ModConfigSpec.DoubleValue COMMERCE_BARTER_XP;
+    public static final ModConfigSpec.BooleanValue COMMERCE_DISCOUNT;
 
     public static final ModConfigSpec.IntValue STREAK_STEP_MINUTES;
     public static final ModConfigSpec.IntValue STREAK_MAX_STACKS;
@@ -96,6 +114,9 @@ public final class ProficiencyConfig {
     public static final ModConfigSpec.DoubleValue HEARTH_RANGE_MAX;
     public static final ModConfigSpec.DoubleValue HEARTH_REACH_FULL;
     public static final ModConfigSpec.IntValue HEARTH_MIN_SPACING;
+    public static final ModConfigSpec.IntValue HEARTH_BUILD_SECONDS;
+    public static final ModConfigSpec.BooleanValue HEARTH_BUILD_KEEPS_CHUNK;
+    public static final ModConfigSpec.IntValue HEARTH_BUILD_CHUNK_WAIT;
     public static final ModConfigSpec.BooleanValue HEARTH_SIEGES;
 
     // Homebuilder (docs/HOMEBUILDER-SPEC.md): the share and the milestones, all tune numbers.
@@ -232,6 +253,13 @@ public final class ProficiencyConfig {
                         "them in full.")
                 .defineInRange("aoeXpShare", dev.amman.proficiency.skill.AoeBreaks.DEFAULT_SHARE, 0.0, 1.0);
 
+        RANGED_XP_PER_DOUBLING = b
+                .comment("Archery and Crossbows: extra hit XP for a long shot, logarithmic in the distance.",
+                        "Every doubling of the distance past 8 blocks adds this share of the hit's XP,",
+                        "counted up to 128 blocks. At 0.5: 16 blocks pay 1.5x, 32 blocks 2x, 64 blocks",
+                        "2.5x, 128 blocks 3x. Closer than 8 pays the plain hit. 0 turns it off.")
+                .defineInRange("rangedXpPerDoubling", dev.amman.proficiency.skill.RangeXp.DEFAULT_PER_DOUBLING, 0.0, 10.0);
+
         SPAWNER_MOB_XP = b
                 .comment("Share of the usual combat XP a mob from a monster spawner pays (1.0 = all).")
                 .defineInRange("spawnerMobXp", 0.25, 0.0, 1.0);
@@ -240,6 +268,28 @@ public final class ProficiencyConfig {
                 .comment("Share of the usual combat XP a mob from a spawn egg, dispenser, command or",
                         "mob bucket pays. 0 pays nothing.")
                 .defineInRange("artificialMobXp", 0.0, 0.0, 1.0);
+
+        TRIAL_MOB_FACTOR = b
+                .comment("Trial Chambers (1.21): the factor Courage and Charger XP is multiplied by for a mob a",
+                        "trial spawner made (hits, kills, first blood, charge hits, Spearhead kills), on top of",
+                        "the spawner share and the odds and first-blood rules of those skills. Shown as",
+                        "\"trial mob\" in the XP feed. 1 turns it off.")
+                .defineInRange("trialMobFactor", dev.amman.proficiency.skill.TrialRules.DEFAULT_MOB_FACTOR, 1.0, 10.0);
+
+        TRIAL_OMINOUS_MOB_FACTOR = b
+                .comment("The same factor for a mob of an ominous trial.")
+                .defineInRange("trialOminousMobFactor", dev.amman.proficiency.skill.TrialRules.DEFAULT_OMINOUS_MOB_FACTOR, 1.0, 10.0);
+
+        TRIAL_WAVE_XP = b
+                .comment("Trial Chambers: XP a cleared trial spawner pays each tracked player who is there and",
+                        "fought, to the combat skill they used most in it. Paid in full from 6 kills, a share",
+                        "below that; an ominous trial pays twice. 0 turns it off.")
+                .defineInRange("trialWaveXp", dev.amman.proficiency.skill.TrialRules.DEFAULT_WAVE_XP, 0.0, 1000.0);
+
+        TRIAL_VAULT_XP = b
+                .comment("Trial Chambers: Wayfaring XP for opening a vault (normal or ominous) the first time,",
+                        "once per vault per player; an ominous vault pays twice. 0 turns it off.")
+                .defineInRange("trialVaultXp", dev.amman.proficiency.skill.TrialRules.DEFAULT_VAULT_XP, 0.0, 1000.0);
 
         KILL_BONUS_BASE = b
                 .comment("Kill bonus: XP a kill pays to the skill of the killing blow, before",
@@ -297,7 +347,7 @@ public final class ProficiencyConfig {
         COMPANY_RADIUS = b.defineInRange("radius", 24.0, 1.0, 256.0);
         MENTOR_GAP = b
                 .comment("How many levels ahead someone must be to count as your mentor.")
-                .defineInRange("mentorLevelGap", 20, 1, 100);
+                .defineInRange("mentorLevelGap", 5, 1, 100);
         MENTOR_BONUS = b
                 .comment("The XP bonus for working near a mentor. It was 0.50 before rested XP and",
                         "teaching; it is 0.25 now because a student also gets rested XP from a teacher.",
@@ -414,8 +464,69 @@ public final class ProficiencyConfig {
                 .comment("XP for a ranged kill of a mob that hurt another player in the last 5 s, for a 20-health mob.")
                 .defineInRange("rescueXp", dev.amman.proficiency.skill.TacticianMath.DEFAULT_RESCUE_XP, 0.0, 1000.0);
         TACTICIAN_OVERWATCH_XP = b
-                .comment("XP per block of distance on a ranged hit with a friend between you and the mob (6 to 30 blocks, 3 per mob).")
+                .comment("Scale of the Overwatch XP for a ranged hit with a friend between you and the mob, 3 per mob.",
+                        "Logarithmic in the distance from 6 to 30 blocks: 6 blocks pay 6x this, 30 blocks 30x,",
+                        "15 blocks about 20x.")
                 .defineInRange("overwatchXpPerBlock", dev.amman.proficiency.skill.TacticianMath.DEFAULT_OVERWATCH_XP_PER_BLOCK, 0.0, 100.0);
+        b.pop();
+
+        b.comment("Husbandry: looking after animals. Survival only, through a real player. A crowded pen",
+                        "(more than 8 animals within 8 blocks) pays less, and one spot (12 blocks) pays at most",
+                        "12 jobs in 5 minutes. Every value is the base XP before the species' worth (x1.5 for",
+                        "the rarer ones), the pen's density and your multipliers.")
+                .push("husbandry");
+        HUSBANDRY_BREED_XP = b
+                .comment("XP for a breeding you caused by feeding two animals (once per pair per 5 minutes).")
+                .defineInRange("breedXp", dev.amman.proficiency.skill.HusbandryMath.Job.BREED.defaultXp(), 0.0, 1000.0);
+        HUSBANDRY_TAME_XP = b
+                .comment("XP for taming a wolf, cat, parrot or horse (8 per 30 minutes; each species also pays the first-time bonus once).")
+                .defineInRange("tameXp", dev.amman.proficiency.skill.HusbandryMath.Job.TAME.defaultXp(), 0.0, 1000.0);
+        HUSBANDRY_SHEAR_XP = b
+                .comment("XP for shearing a sheep or mooshroom that had regrown its coat.")
+                .defineInRange("shearXp", dev.amman.proficiency.skill.HusbandryMath.Job.SHEAR.defaultXp(), 0.0, 1000.0);
+        HUSBANDRY_MILK_XP = b
+                .comment("XP for milking a cow or goat (once per animal per 2 minutes).")
+                .defineInRange("milkXp", dev.amman.proficiency.skill.HusbandryMath.Job.MILK.defaultXp(), 0.0, 1000.0);
+        HUSBANDRY_BRUSH_XP = b
+                .comment("XP for brushing a scute off an armadillo (once per animal per 5 minutes).")
+                .defineInRange("brushXp", dev.amman.proficiency.skill.HusbandryMath.Job.BRUSH.defaultXp(), 0.0, 1000.0);
+        HUSBANDRY_FEED_XP = b
+                .comment("XP for feeding a baby animal so it grows up.")
+                .defineInRange("feedXp", dev.amman.proficiency.skill.HusbandryMath.Job.FEED.defaultXp(), 0.0, 1000.0);
+        HUSBANDRY_HONEY_XP = b
+                .comment("XP for taking honey or honeycomb from a hive that was full.")
+                .defineInRange("honeyXp", dev.amman.proficiency.skill.HusbandryMath.Job.HONEY.defaultXp(), 0.0, 1000.0);
+        b.pop();
+
+        b.comment("Riding: metres ridden on a mount, in a boat, in a minecart or under elytra, survival only.",
+                        "Each line is 'entity id=XP per metre'. '#boat' is every boat and raft, '#minecart' every",
+                        "minecart, 'minecraft:elytra' is gliding (paid up to twice this for skimming the ground fast)",
+                        "and '*' is any other mount, a modded one included. A rate of 0 switches a vehicle off.",
+                        "A boat or a mount you steer pays only while you steer it (a leash-dragged mount and a boat",
+                        "adrift pay nothing); a ride that does not get anywhere (loops, shuttles) and ground you rode",
+                        "through in the last 10 minutes pay nothing; a teleport or portal step of 10 blocks is skipped.")
+                .push("riding");
+        RIDING_RATES = b
+                .comment("Base XP per metre by vehicle type.")
+                .defineListAllowEmpty("rates", dev.amman.proficiency.skill.RidingMath.defaultRateLines(), () -> "minecraft:horse=0.03",
+                        entry -> entry instanceof String);
+        b.pop();
+
+        b.comment("Commerce: trades with villagers, wandering traders and any modded trader that uses the vanilla",
+                        "merchant screen, and bartering gold with a piglin. Survival only, through a real player.",
+                        "The same offer pays less each time within a day, more than 20 trades in 5 minutes fade, and a",
+                        "piglin pays only when a player gave it the ingot (a dispenser or a hopper farm pays nothing).")
+                .push("commerce");
+        COMMERCE_TRADE_FACTOR = b
+                .comment("A multiplier on the XP of every trade (the formula is 2 + 1.6 x sqrt(emeralds), more for a higher trader level).")
+                .defineInRange("tradeXpFactor", 1.0, 0.0, 100.0);
+        COMMERCE_BARTER_XP = b
+                .comment("XP per gold ingot a piglin takes from you (the first 12 in 10 minutes pay in full).")
+                .defineInRange("barterXp", dev.amman.proficiency.skill.CommerceMath.BARTER_XP, 0.0, 1000.0);
+        COMMERCE_DISCOUNT = b
+                .comment("Whether the skill's discount (and Haggle) is written into the traders' offers as a special price.",
+                        "Turn it off if another mod rewrites trade prices; the XP and the rest of the tree stay.")
+                .define("discount", true);
         b.pop();
 
         b.comment("What a death costs, and what staying alive pays. A death wipes every skill's",
@@ -458,6 +569,15 @@ public final class ProficiencyConfig {
                 .defineInRange("retentionDays", 60, 0, 36500);
         b.pop();
 
+        b.comment("Dashboard export: every intervalSeconds and when a player leaves, the server writes",
+                        "<world>/proficiency/export/players.json (levels, bar fractions, stars, synergies,",
+                        "Expertise, top skills, deaths this week and every Hearth) through a temporary file and a",
+                        "rename, for a home dashboard to read. It only reads game state; no packets.")
+                .push("export");
+        EXPORT_ENABLED = b.define("enabled", true);
+        EXPORT_INTERVAL_SECONDS = b.defineInRange("intervalSeconds", 300, 30, 86400);
+        b.pop();
+
         b.comment("Active abilities: twenty seconds where the signature proc stops rolling.")
                 .push("abilities");
         ABILITY_UNLOCK_LEVEL = b.defineInRange("unlockLevel", 50, 1, 100);
@@ -493,6 +613,17 @@ public final class ProficiencyConfig {
                 .comment("No other Hearth may be lit closer than this, horizontally, in the same dimension.",
                         "Ranges grown by Reach may overlap; a block then belongs to the nearest Hearth.")
                 .defineInRange("minSpacing", 64, 0, 4096);
+        HEARTH_BUILD_SECONDS = b
+                .comment("Self-build: seconds between two blocks the Hearth places by itself. It pays no XP.")
+                .defineInRange("buildSecondsPerBlock", 60, 1, 3600);
+        HEARTH_BUILD_KEEPS_CHUNK = b
+                .comment("Self-build: while a build runs, the Hearth's chunk (that one chunk) stays loaded, so the build goes on",
+                        "while nobody is near. Released when the build ends, is stopped, the Hearth is broken, or waits too long.")
+                .define("buildKeepsChunkLoaded", true);
+        HEARTH_BUILD_CHUNK_WAIT = b
+                .comment("Self-build: minutes a build may wait for a missing material (or a blocked cell) before it lets the chunk go.",
+                        "It takes the chunk again as soon as it places a block. 0 = let go at the first wait.")
+                .defineInRange("buildChunkWaitLimitMinutes", 30, 0, 10080);
         HEARTH_SIEGES = b
                 .comment("Sieges at Hearths. false: no rolls and the Siege Horn does nothing.")
                 .define("sieges", true);
@@ -707,6 +838,11 @@ public final class ProficiencyConfig {
         return safe(FIRST_TIME_XP, 15.0);
     }
 
+    /** The share of a bow or crossbow hit's XP each doubling of its distance past 8 blocks adds. */
+    public static double rangedXpPerDoubling() {
+        return safe(RANGED_XP_PER_DOUBLING, dev.amman.proficiency.skill.RangeXp.DEFAULT_PER_DOUBLING);
+    }
+
     /** The share of its normal XP an area tool's extra block pays. */
     public static double aoeXpShare() {
         return safe(AOE_XP_SHARE, dev.amman.proficiency.skill.AoeBreaks.DEFAULT_SHARE);
@@ -714,6 +850,22 @@ public final class ProficiencyConfig {
 
     public static boolean placedBlocksPayXp() {
         return SPEC.isLoaded() && PLACED_BLOCKS_PAY_XP.get();
+    }
+
+    public static double trialMobFactor() {
+        return safe(TRIAL_MOB_FACTOR, dev.amman.proficiency.skill.TrialRules.DEFAULT_MOB_FACTOR);
+    }
+
+    public static double trialOminousMobFactor() {
+        return safe(TRIAL_OMINOUS_MOB_FACTOR, dev.amman.proficiency.skill.TrialRules.DEFAULT_OMINOUS_MOB_FACTOR);
+    }
+
+    public static double trialWaveXp() {
+        return safe(TRIAL_WAVE_XP, dev.amman.proficiency.skill.TrialRules.DEFAULT_WAVE_XP);
+    }
+
+    public static double trialVaultXp() {
+        return safe(TRIAL_VAULT_XP, dev.amman.proficiency.skill.TrialRules.DEFAULT_VAULT_XP);
     }
 
     public static double spawnerMobXp() {
@@ -768,6 +920,14 @@ public final class ProficiencyConfig {
         return !SPEC.isLoaded() || TELEMETRY_ENABLED.get();
     }
 
+    public static boolean exportEnabled() {
+        return !SPEC.isLoaded() || EXPORT_ENABLED.get();
+    }
+
+    public static int exportIntervalSeconds() {
+        return SPEC.isLoaded() ? EXPORT_INTERVAL_SECONDS.get() : 300;
+    }
+
     public static int telemetryRetentionDays() {
         return SPEC.isLoaded() ? TELEMETRY_RETENTION_DAYS.get() : 60;
     }
@@ -793,7 +953,7 @@ public final class ProficiencyConfig {
     }
 
     public static int mentorGap() {
-        return SPEC.isLoaded() ? MENTOR_GAP.get() : 20;
+        return SPEC.isLoaded() ? MENTOR_GAP.get() : 5;
     }
 
     public static double mentorBonus() {
@@ -893,6 +1053,49 @@ public final class ProficiencyConfig {
         return safe(TACTICIAN_OVERWATCH_XP, dev.amman.proficiency.skill.TacticianMath.DEFAULT_OVERWATCH_XP_PER_BLOCK);
     }
 
+    /** The configured base XP of one Husbandry job. */
+    public static double husbandryXp(dev.amman.proficiency.skill.HusbandryMath.Job job) {
+        return switch (job) {
+            case BREED -> safe(HUSBANDRY_BREED_XP, job.defaultXp());
+            case TAME -> safe(HUSBANDRY_TAME_XP, job.defaultXp());
+            case SHEAR -> safe(HUSBANDRY_SHEAR_XP, job.defaultXp());
+            case MILK -> safe(HUSBANDRY_MILK_XP, job.defaultXp());
+            case BRUSH -> safe(HUSBANDRY_BRUSH_XP, job.defaultXp());
+            case FEED -> safe(HUSBANDRY_FEED_XP, job.defaultXp());
+            case HONEY -> safe(HUSBANDRY_HONEY_XP, job.defaultXp());
+        };
+    }
+
+    private static volatile java.util.List<? extends String> ridingRatesSource;
+    private static volatile java.util.Map<String, Double> ridingRatesParsed;
+
+    /** The XP per metre table: the defaults with the config's lines laid over them (parsed once per change). */
+    public static java.util.Map<String, Double> ridingRates() {
+        if (!SPEC.isLoaded()) {
+            return dev.amman.proficiency.skill.RidingMath.DEFAULT_RATES;
+        }
+        java.util.List<? extends String> lines = RIDING_RATES.get();
+        java.util.Map<String, Double> parsed = ridingRatesParsed;
+        if (parsed == null || !lines.equals(ridingRatesSource)) {
+            parsed = dev.amman.proficiency.skill.RidingMath.parseRates(lines);
+            ridingRatesParsed = parsed;
+            ridingRatesSource = java.util.List.copyOf(lines);
+        }
+        return parsed;
+    }
+
+    public static double commerceTradeFactor() {
+        return safe(COMMERCE_TRADE_FACTOR, 1.0);
+    }
+
+    public static double commerceBarterXp() {
+        return safe(COMMERCE_BARTER_XP, dev.amman.proficiency.skill.CommerceMath.BARTER_XP);
+    }
+
+    public static boolean commerceDiscount() {
+        return !SPEC.isLoaded() || COMMERCE_DISCOUNT.get();
+    }
+
     public static int tempoWindow() {
         return SPEC.isLoaded() ? TEMPO_WINDOW.get() : 60;
     }
@@ -932,6 +1135,18 @@ public final class ProficiencyConfig {
 
     public static int hearthMinSpacing() {
         return SPEC.isLoaded() ? HEARTH_MIN_SPACING.get() : 64;
+    }
+
+    public static int hearthBuildSeconds() {
+        return SPEC.isLoaded() ? HEARTH_BUILD_SECONDS.get() : 60;
+    }
+
+    public static boolean hearthBuildKeepsChunk() {
+        return !SPEC.isLoaded() || HEARTH_BUILD_KEEPS_CHUNK.get();
+    }
+
+    public static int hearthBuildChunkWaitMinutes() {
+        return SPEC.isLoaded() ? HEARTH_BUILD_CHUNK_WAIT.get() : 30;
     }
 
     public static boolean hearthSieges() {

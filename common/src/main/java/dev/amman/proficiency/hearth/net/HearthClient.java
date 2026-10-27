@@ -20,6 +20,9 @@ public interface HearthClient {
     default void onLedger(HearthLedgerPayload payload) {
     }
 
+    default void onBuildPlan(HearthBuildPlanPayload payload) {
+    }
+
     default void onSiegePanel(SiegePanelPayload payload) {
     }
 

@@ -58,6 +58,10 @@ public final class HearthNet {
         send(player, payload);
     }
 
+    public static void sendBuildPlan(ServerPlayer player, HearthBuildPlanPayload payload) {
+        send(player, payload);
+    }
+
     public static void sendSiegePanel(ServerPlayer player, SiegePanelPayload payload) {
         send(player, payload);
     }
@@ -126,7 +130,8 @@ public final class HearthNet {
                 ceiling < HearthData.TIERS ? data.character().forStage(ceiling + 1) : 0,
                 PoolRow.of(state, data), state.defenceStreak(), state.sieged(), state.siegePhase().ordinal(),
                 hours, (float) range.radius(), range.below(), range.above(),
-                HearthStatePayload.Extra.of(state, data, dev.amman.proficiency.config.ProficiencyConfig.hearthMinSpacing()));
+                HearthStatePayload.Extra.of(state, data, dev.amman.proficiency.config.ProficiencyConfig.hearthMinSpacing()),
+                dev.amman.proficiency.hearth.stages.HearthAutoBuild.status(hearth));
     }
 
     /**

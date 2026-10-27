@@ -263,6 +263,30 @@ public final class Talents {
                 List.of(Requirement.of("minecraft:bookshelf", 6), Requirement.of("minecraft:bell", 1)),
                 List.of(Requirement.of("minecraft:lodestone", 1), Requirement.of("proficiency:masterwork_ingot", 1)));
 
+        // Husbandry is paid in what you take to the pen: a lead and feed, shears and honeycomb, a
+        // name tag, golden carrots for the horses, and the hunter's charm only a beastslayer drops.
+        tree(Skill.HUSBANDRY,
+                List.of(Requirement.of("minecraft:lead", 2), Requirement.of("minecraft:wheat", 32)),
+                List.of(Requirement.of("minecraft:shears", 1), Requirement.of("minecraft:honeycomb", 8)),
+                List.of(Requirement.of("minecraft:golden_carrot", 8), Requirement.of("minecraft:hay_block", 2)),
+                List.of(Requirement.of("minecraft:name_tag", 2), Requirement.of("proficiency:hunters_charm", 2)));
+
+        // Riding is paid in tack and the road: a saddle and carrots, leather and leads, golden
+        // carrots and rockets, and what the End and the night sky drop for the last rows.
+        tree(Skill.RIDING,
+                List.of(Requirement.of("minecraft:saddle", 1), Requirement.of("minecraft:carrot", 16)),
+                List.of(Requirement.of("minecraft:leather", 16), Requirement.of("minecraft:lead", 2)),
+                List.of(Requirement.of("minecraft:golden_carrot", 8), Requirement.of("minecraft:firework_rocket", 16)),
+                List.of(Requirement.of("minecraft:ender_pearl", 8), Requirement.of("minecraft:phantom_membrane", 8)));
+
+        // Commerce is paid in coin and what a trader likes to see: emeralds and paper, gold, the
+        // bright stones, and a pearl for the last rows.
+        tree(Skill.COMMERCE,
+                List.of(Requirement.of("minecraft:emerald", 16), Requirement.of("minecraft:paper", 16)),
+                List.of(Requirement.of("minecraft:gold_ingot", 16), Requirement.of("minecraft:name_tag", 1)),
+                List.of(Requirement.of("minecraft:emerald_block", 4), Requirement.of("minecraft:lapis_lazuli", 16)),
+                List.of(Requirement.of("minecraft:diamond", 8), Requirement.of("minecraft:ender_pearl", 8)));
+
     }
 
     private static void tree(Skill skill,

@@ -91,6 +91,10 @@ public final class XpSourcesGameTests {
         return hardness < 0 ? 0 : Math.min(5.0, 0.5 + hardness * 0.30);
     }
 
+    private static double legacyMiningBlockXp(float hardness) {
+        return hardness < 0 ? 0 : Math.min(5.0, 0.5 + hardness * 0.05);
+    }
+
     private static boolean legacyPlanting(BlockState state) {
         if (state.is(BlockTags.FLOWERS)) {
             return false;
@@ -171,7 +175,7 @@ public final class XpSourcesGameTests {
                     || legacyHarvest(hand, state) != null) {
                 Skill any = legacyHarvest(pick, state) != null ? legacyHarvest(pick, state)
                         : legacyHarvest(shovel, state) != null ? legacyHarvest(shovel, state) : legacyHarvest(hand, state);
-                double old = any == Skill.FARMING ? 1.0 : legacyBlockXp(hardness);
+                double old = any == Skill.FARMING ? 1.0 : any == Skill.MINING ? legacyMiningBlockXp(hardness) : legacyBlockXp(hardness);
                 double now = SkillTools.breakXp(state, hardness);
                 if (old != now) {
                     wrong.add("break xp " + id + ": was " + old + ", now " + now);
@@ -325,7 +329,7 @@ public final class XpSourcesGameTests {
 
     /** Breaks a stone block with a fresh player and returns what the Mining log line paid. */
     private static float stonePaid(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.DIAMOND_PICKAXE));
         helper.setBlock(new BlockPos(1, 1, 1), Blocks.STONE);
         Breaks.separately(player, helper.absolutePos(new BlockPos(1, 1, 1)));
@@ -342,8 +346,8 @@ public final class XpSourcesGameTests {
             XpSources.install(withPack("{\"break\":[{\"match\":\"minecraft:stone\",\"skill\":\"mining\",\"xp\":8}]}"));
             float changed = stonePaid(helper);
             helper.assertTrue(base > 0f, "stone paid nothing by default");
-            helper.assertTrue(Math.abs(changed / base - 8f / 0.95f) < 0.1f,
-                    "stone paid " + changed + " against " + base + " before, wanted a ratio of " + 8f / 0.95f);
+            helper.assertTrue(Math.abs(changed / base - 8f / 0.575f) < 0.1f,
+                    "stone paid " + changed + " against " + base + " before, wanted a ratio of " + 8f / 0.575f);
         } finally {
             XpSources.install(before);
         }
@@ -357,7 +361,7 @@ public final class XpSourcesGameTests {
             // Not a mineable-with-axe block: with no rule it pays nothing at all.
             XpSources.install(withPack("{\"break\":[{\"match\":\"minecraft:bookshelf\",\"skill\":\"woodcutting\","
                     + "\"xp\":{\"base\":1,\"per_hardness\":1,\"max\":4}}]}"));
-            ServerPlayer player = helper.makeMockServerPlayerInLevel();
+            ServerPlayer player = MockPlayers.make(helper);
             player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.DIAMOND_AXE));
             helper.setBlock(new BlockPos(1, 1, 1), Blocks.BOOKSHELF);
             Breaks.separately(player, helper.absolutePos(new BlockPos(1, 1, 1)));
@@ -374,7 +378,7 @@ public final class XpSourcesGameTests {
         XpTable before = XpSources.table();
         try {
             XpSources.install(withPack("{\"break\":[{\"match\":\"minecraft:stone\",\"skill\":\"none\"}]}"));
-            ServerPlayer player = helper.makeMockServerPlayerInLevel();
+            ServerPlayer player = MockPlayers.make(helper);
             player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.DIAMOND_PICKAXE));
             helper.setBlock(new BlockPos(1, 1, 1), Blocks.STONE);
             Breaks.separately(player, helper.absolutePos(new BlockPos(1, 1, 1)));
@@ -394,6 +398,154 @@ public final class XpSourcesGameTests {
         int mob = server.getCommands().getDispatcher().execute("proficiency xpsources minecraft:plains",
                 server.createCommandSourceStack().withPermission(4));
         helper.assertTrue(mob >= 2, "a biome printed " + mob + " lines");
+        helper.succeed();
+    }
+
+    // ---- Archaeology: brushing suspicious sand and gravel (Excavation) ----------------------
+
+    private static long brushClock = 1000L;
+
+    /** Brushes the block at {@code rel} until it finishes; returns the strokes it took (0 if it never finished). */
+    private static int brushOut(GameTestHelper helper, BlockPos rel, ServerPlayer player) {
+        var be = (net.minecraft.world.level.block.entity.BrushableBlockEntity) helper.getBlockEntity(rel);
+        for (int stroke = 1; stroke <= 12; stroke++) {
+            brushClock += 20;
+            if (be.brush(brushClock, player, net.minecraft.core.Direction.UP)) {
+                return stroke;
+            }
+        }
+        return 0;
+    }
+
+    private static void suspicious(GameTestHelper helper, BlockPos rel, Block block) {
+        helper.setBlock(rel, block);
+        ((net.minecraft.world.level.block.entity.BrushableBlockEntity) helper.getBlockEntity(rel))
+                .setLootTable(net.minecraft.world.level.storage.loot.BuiltInLootTables.DESERT_WELL_ARCHAEOLOGY, 0L);
+    }
+
+    private static int brushGains(ServerPlayer player) {
+        int n = 0;
+        var log = SkillService.xpLog(player);
+        if (log != null) {
+            for (var entry : log.entries()) {
+                if (entry.skill() == Skill.EXCAVATION.ordinal() && entry.source().startsWith("block.minecraft.suspicious_")) {
+                    n += entry.count();
+                }
+            }
+        }
+        return n;
+    }
+
+    private static ServerPlayer brusher(GameTestHelper helper) {
+        ServerPlayer player = MockPlayers.make(helper);
+        player.setGameMode(net.minecraft.world.level.GameType.SURVIVAL);
+        return player;
+    }
+
+    private static int itemsAround(GameTestHelper helper, BlockPos rel) {
+        int n = 0;
+        for (var drop : helper.getLevel().getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class,
+                new net.minecraft.world.phys.AABB(helper.absolutePos(rel)).inflate(3.0))) {
+            n++; // one entity per find: a find's stack size is random
+        }
+        return n;
+    }
+
+    /** A finished brush on a natural suspicious block pays Excavation XP, once, and the block becomes plain sand. */
+    @GameTest(template = "proficiency:empty", timeoutTicks = 60)
+    public static void finishedBrushPaysExcavation(GameTestHelper helper) {
+        ServerPlayer player = brusher(helper);
+        BlockPos rel = new BlockPos(2, 2, 2);
+        suspicious(helper, rel, Blocks.SUSPICIOUS_SAND);
+        helper.assertTrue(brushOut(helper, rel, player) == 10, "no talent: the tenth stroke finishes it");
+        helper.assertBlockPresent(Blocks.SAND, rel);
+        helper.assertTrue(brushGains(player) > 0, "the finished brush should be in the XP log");
+        var skills = dev.amman.proficiency.ProficiencyAttachments.of(player);
+        helper.assertTrue(skills.hasVisited("first:excavation:block.minecraft.suspicious_sand"),
+                "the first suspicious sand is a first-time kind");
+        // Gravel is its own kind, and a find is a kind of its own.
+        suspicious(helper, rel, Blocks.SUSPICIOUS_GRAVEL);
+        brushOut(helper, rel, player);
+        helper.assertTrue(skills.hasVisited("first:excavation:block.minecraft.suspicious_gravel"), "gravel is a new kind");
+        helper.succeed();
+    }
+
+    /** A suspicious block a player placed pays nothing: no XP, no first-time bonus, and its mark is spent. */
+    @GameTest(template = "proficiency:empty", timeoutTicks = 60)
+    public static void placedSuspiciousBlockPaysNothing(GameTestHelper helper) {
+        ServerPlayer player = brusher(helper);
+        BlockPos rel = new BlockPos(2, 2, 2);
+        suspicious(helper, rel, Blocks.SUSPICIOUS_SAND);
+        dev.amman.proficiency.skill.PlacedBlocks.markPlacement(helper.getLevel(), helper.absolutePos(rel),
+                helper.getBlockState(rel));
+        helper.assertTrue(brushOut(helper, rel, player) == 10, "it still brushes");
+        helper.assertBlockPresent(Blocks.SAND, rel);
+        helper.assertTrue(brushGains(player) == 0, "a placed block must pay nothing");
+        helper.assertFalse(dev.amman.proficiency.ProficiencyAttachments.of(player)
+                .hasVisited("first:excavation:block.minecraft.suspicious_sand"), "and no first-time bonus");
+        helper.assertFalse(dev.amman.proficiency.skill.PlacedBlocks.rawMarked(helper.getLevel(), helper.absolutePos(rel)),
+                "the mark goes with the block");
+        // The next, natural block at the same spot pays again.
+        suspicious(helper, rel, Blocks.SUSPICIOUS_SAND);
+        brushOut(helper, rel, player);
+        helper.assertTrue(brushGains(player) > 0, "a natural block at the same place pays");
+        helper.succeed();
+    }
+
+    /** A machine's fake player gets nothing from a brush. */
+    @GameTest(template = "proficiency:empty", timeoutTicks = 60)
+    public static void fakePlayerBrushPaysNothing(GameTestHelper helper) {
+        ServerPlayer fake = new ServerPlayer(helper.getLevel().getServer(), helper.getLevel(),
+                new com.mojang.authlib.GameProfile(java.util.UUID.randomUUID(), "[Proficiency-Test]"),
+                net.minecraft.server.level.ClientInformation.createDefault()) {
+            @Override
+            public boolean isSpectator() {
+                return false;
+            }
+        };
+        BlockPos rel = new BlockPos(2, 2, 2);
+        suspicious(helper, rel, Blocks.SUSPICIOUS_SAND);
+        brushOut(helper, rel, fake);
+        helper.assertBlockPresent(Blocks.SAND, rel);
+        helper.assertTrue(itemsAround(helper, rel) >= 1, "the brush itself still works and drops its find");
+        helper.assertTrue(brushGains(fake) == 0, "a fake player is paid nothing");
+        helper.assertFalse(dev.amman.proficiency.ProficiencyAttachments.of(fake)
+                .hasVisited("first:excavation:block.minecraft.suspicious_sand"), "and gets no first-time bonus");
+        helper.succeed();
+    }
+
+    /** Careful Hands: without it every block takes ten strokes; with it some take fewer and some give a second find. */
+    @GameTest(template = "proficiency:empty", timeoutTicks = 200)
+    public static void carefulHandsBrushesFasterAndRollsTwice(GameTestHelper helper) {
+        BlockPos rel = new BlockPos(2, 2, 2);
+        ServerPlayer plain = brusher(helper);
+        // Without the talent: always ten strokes, always exactly one find.
+        for (int i = 0; i < 20; i++) {
+            suspicious(helper, rel, Blocks.SUSPICIOUS_SAND);
+            int before = itemsAround(helper, rel);
+            helper.assertTrue(brushOut(helper, rel, plain) == 10, "no talent: always ten strokes");
+            helper.assertTrue(itemsAround(helper, rel) - before == 1, "no talent: exactly one find per block");
+        }
+
+        ServerPlayer careful = brusher(helper);
+        dev.amman.proficiency.ProficiencyAttachments.of(careful).setRank(
+                dev.amman.proficiency.perk.Talents.get(Skill.EXCAVATION, "careful_hands"), 3);
+        // Rank 3 is 60% per stroke and 24% per block, so both show within a few dozen blocks;
+        // loop until each has been seen (cap 400 blocks) rather than hoping for a fixed count.
+        boolean early = false;
+        boolean twice = false;
+        for (int i = 0; i < 400 && !(early && twice); i++) {
+            suspicious(helper, rel, Blocks.SUSPICIOUS_SAND);
+            int before = itemsAround(helper, rel);
+            int strokes = brushOut(helper, rel, careful);
+            helper.assertTrue(strokes >= 1 && strokes <= 10, "a block always finishes: " + strokes);
+            int found = itemsAround(helper, rel) - before;
+            helper.assertTrue(found == 1 || found == 2, "one find, or two with the second roll: " + found);
+            early |= strokes < 10;
+            twice |= found == 2;
+        }
+        helper.assertTrue(early, "rank 3 should finish some block in under ten strokes");
+        helper.assertTrue(twice, "rank 3 should roll some block twice");
         helper.succeed();
     }
 }

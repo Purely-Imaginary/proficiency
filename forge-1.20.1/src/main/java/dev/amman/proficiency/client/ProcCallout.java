@@ -56,7 +56,7 @@ public final class ProcCallout {
         }
         Font font = minecraft.font;
         float scale = CalloutFade.scale(elapsed);
-        int color = CalloutFade.withAlpha(SkillPalette.accent(skill.category()), CalloutFade.alpha(elapsed));
+        int color = CalloutFade.withAlpha(SkillPalette.procAccent(skill), CalloutFade.alpha(elapsed));
         float cx = graphics.guiWidth() / 2f;
         float bottom = graphics.guiHeight() / 2f - ABOVE_CROSSHAIR - CalloutFade.rise(elapsed);
         int width = font.width(text);

@@ -142,7 +142,10 @@ public final class XpCommand {
             BlockState state = BuiltInRegistries.BLOCK.get(id).defaultBlockState();
             double hardness = state.getDestroySpeed(EmptyBlockGetter.INSTANCE, BlockPos.ZERO);
             XpSubject subject = XpSubjects.block(state, hardness);
-            for (XpDomain domain : new XpDomain[] {XpDomain.BREAK, XpDomain.PLACE, XpDomain.FIRST_TIME}) {
+            for (XpDomain domain : new XpDomain[] {XpDomain.BREAK, XpDomain.BRUSH, XpDomain.PLACE, XpDomain.FIRST_TIME}) {
+                if (domain == XpDomain.BRUSH && table.explain(domain, subject).isEmpty()) {
+                    continue; // only brushable blocks have a brush rule; do not print it for stone
+                }
                 lines.addAll(XpExplain.lines(table, domain, subject));
             }
         }

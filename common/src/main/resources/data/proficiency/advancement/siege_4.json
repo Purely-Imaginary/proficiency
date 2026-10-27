@@ -1,0 +1,28 @@
+{
+  "parent": "proficiency:siege_3",
+  "display": {
+    "icon": {
+      "id": "proficiency:siege_horn_4"
+    },
+    "title": {
+      "translate": "advancement.proficiency.siege_4.title"
+    },
+    "description": {
+      "translate": "advancement.proficiency.siege_4.desc"
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "event": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "event"
+    ]
+  ]
+}

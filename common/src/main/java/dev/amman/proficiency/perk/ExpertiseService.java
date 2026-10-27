@@ -51,6 +51,7 @@ public final class ExpertiseService {
             return new TalentService.Attempt(check, explain(skills, node, check).copy().withStyle(ChatFormatting.RED));
         }
         skills.addExpertiseRank(node);
+        dev.amman.proficiency.skill.ProficiencyAdvancements.check(player);
         if (skills.isExpertiseFull(node) && node.kind() == Talent.Kind.CAPSTONE) {
             player.playNotifySound(SoundEvents.PLAYER_LEVELUP, SoundSource.PLAYERS, 0.6f, 1.1f);
         }

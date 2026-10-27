@@ -49,7 +49,7 @@ class HearthWireTest {
 
     @Test
     void theProtocolIsEight() {
-        assertEquals(9, ProficiencyNetwork.PROTOCOL);
+        assertEquals(13, ProficiencyNetwork.PROTOCOL);
     }
 
     @Test
@@ -66,6 +66,10 @@ class HearthWireTest {
         HearthStatePayload s = new HearthStatePayload(HearthStatePayload.PANEL, 123L, "minecraft:overworld", 4, 4,
                 false, 2, List.of("bed", "light"), 20, 24, rows, 1, true, 0, 3.5f, 24f, 8, 16);
         assertEquals(s, roundTrip(HearthStatePayload.STREAM_CODEC, s));
+        HearthStatePayload building = new HearthStatePayload(HearthStatePayload.UPDATE, 123L, "minecraft:overworld", 4, 4,
+                false, 2, List.of(), 20, 24, rows, 1, true, 0, 3.5f, 24f, 8, 16, HearthStatePayload.Extra.NONE,
+                new HearthStatePayload.Build(true, 5, 37, 212, 42, 1, List.of("stone:12", "iron_bars:4")));
+        assertEquals(building, roundTrip(HearthStatePayload.STREAM_CODEC, building));
 
         HearthTrackerPayload t = new HearthTrackerPayload(99L, rows);
         assertEquals(t, roundTrip(HearthTrackerPayload.STREAM_CODEC, t));

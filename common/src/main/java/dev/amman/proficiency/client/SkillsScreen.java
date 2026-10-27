@@ -56,12 +56,28 @@ public final class SkillsScreen extends Screen {
 
     private final Map<SkillCategory, List<Skill>> grouped = new EnumMap<>(SkillCategory.class);
     private final List<Row> rows = new ArrayList<>();
+    /** One header per category, as laid out (body coordinates, before the scroll). */
+    private final List<Header> headers = new ArrayList<>();
+    /** Groups the player folded. Kept for the session, so the panel opens the way it was left. */
+    private static final java.util.Set<SkillCategory> FOLDED = java.util.EnumSet.noneOf(SkillCategory.class);
+    /** Identity of the world the fold state belongs to; a new world or server starts with every group open. */
+    private static int foldWorld;
+
+    private static int worldMark() {
+        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+        return mc == null || mc.level == null ? 0 : System.identityHashCode(mc.level);
+    }
 
     /** Opens the Discovery journal. Drawn by hand after the panel, see render. */
     private net.minecraft.client.gui.components.Button journalButton;
     /** Opens the Expertise tree, top left. Drawn by hand like the Journal button. */
     private net.minecraft.client.gui.components.Button expertiseButton;
     private int expertiseWidth = 60;
+    private net.minecraft.client.gui.components.Button titlesButton;
+    private int titlesWidth = 50;
+    /** Back to the Skillstone: the way home after the slab's classic-view rune (a footer strip under the streak). */
+    private net.minecraft.client.gui.components.Button stoneButton;
+    private static final int FOOT = 20;
 
     private int panelX;
     private int panelY;
@@ -92,10 +108,21 @@ public final class SkillsScreen extends Screen {
         }
     }
 
+    private record Header(SkillCategory category, int x, int y, int width) {
+        boolean contains(double mouseX, double mouseY) {
+            return mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + HEADER_HEIGHT;
+        }
+    }
+
     public SkillsScreen() {
         super(Component.translatable("proficiency.screen.title"));
         for (Skill skill : Skill.VALUES) {
             grouped.computeIfAbsent(skill.category(), c -> new ArrayList<>()).add(skill);
+        }
+        int mark = worldMark();
+        if (mark != foldWorld) {
+            FOLDED.clear();
+            foldWorld = mark;
         }
     }
 
@@ -140,7 +167,7 @@ public final class SkillsScreen extends Screen {
         // At a large GUI scale the whole list no longer fits the window. The streak block stays
         // pinned under the list and the skill columns scroll (mouse wheel) inside what is left.
         // The viewport is a whole number of rows, so no row is ever half under the footer.
-        int fixed = PADDING + HEADER_HEIGHT + streakHeight + PADDING;
+        int fixed = PADDING + HEADER_HEIGHT + streakHeight + PADDING + FOOT;
         int room = this.height - 8 - fixed;
         viewportHeight = Math.max(ROW_HEIGHT * 3, Math.min(bodyHeight, room / ROW_HEIGHT * ROW_HEIGHT));
         scroll = Math.max(0, Math.min(scroll, bodyHeight - viewportHeight));
@@ -155,10 +182,25 @@ public final class SkillsScreen extends Screen {
                         Component.translatable("proficiency.journal.button"),
                         button -> this.minecraft.setScreen(new DiscoveryJournalScreen(this)))
                 .bounds(panelX + panelWidth - PADDING - buttonWidth, panelY + PADDING - 3, buttonWidth, 14).build());
+        Component titlesLabel = Component.translatable("proficiency.codex.button");
+        titlesWidth = Math.max(50, this.font.width(titlesLabel) + 12);
+        // Never run into the Expertise button on the left at a narrow panel.
+        titlesWidth = Math.max(24, Math.min(titlesWidth,
+                panelWidth - 2 * PADDING - expertiseWidth - buttonWidth - 8));
+        titlesButton = addWidget(net.minecraft.client.gui.components.Button.builder(titlesLabel,
+                        button -> this.minecraft.setScreen(new CodexTitlesScreen(this)))
+                .bounds(panelX + panelWidth - PADDING - buttonWidth - 4 - titlesWidth, panelY + PADDING - 3,
+                        titlesWidth, 14).build());
         expertiseButton = addWidget(net.minecraft.client.gui.components.Button.builder(expertiseLabel,
                         button -> this.minecraft.setScreen(new ExpertiseScreen(this)))
                 .bounds(panelX + PADDING, panelY + PADDING - 3, expertiseWidth, 14).build());
+        Component stoneLabel = Component.translatable("proficiency.classic.stoneView");
+        int stoneWidth = Math.min(panelWidth - 2 * PADDING, Math.max(60, this.font.width(stoneLabel) + 12));
+        stoneButton = addWidget(net.minecraft.client.gui.components.Button.builder(stoneLabel,
+                        button -> dev.amman.proficiency.client.stone.SkillstoneScreen.toModern())
+                .bounds(panelX + PADDING, panelY + panelHeight - PADDING - 14, stoneWidth, 14).build());
         rows.clear();
+        headers.clear();
         if (columns == 2) {
             layoutColumn(LEFT, panelX + PADDING, columnWidth, 0);
             layoutColumn(RIGHT, panelX + PADDING + columnWidth + COLUMN_GAP, columnWidth, 0);
@@ -168,6 +210,11 @@ public final class SkillsScreen extends Screen {
         }
         leftColumnIcons = columnFitsIcons(panelX + PADDING, true);
         rightColumnIcons = columns == 1 ? leftColumnIcons : columnFitsIcons(panelX + PADDING, false);
+    }
+
+    /** Centre of the Skillstone button (layout demo). */
+    int[] stonePoint() {
+        return new int[] {stoneButton.getX() + stoneButton.getWidth() / 2, stoneButton.getY() + 7};
     }
 
     /** Decides, with the widest numbers the block can show, which text pairs need two lines. */
@@ -219,22 +266,30 @@ public final class SkillsScreen extends Screen {
 
     /** Screen position of the streak block's caption (the layout demo points at it at a Hearth). */
     int[] streakPoint() {
-        return new int[] {panelX + PADDING + 4, panelY + panelHeight - PADDING - 4};
+        return new int[] {panelX + PADDING + 4, panelY + panelHeight - FOOT - PADDING - 4};
     }
 
     private int countRows(List<SkillCategory> categories) {
         int height = 0;
         for (SkillCategory category : categories) {
-            height += HEADER_HEIGHT + grouped.get(category).size() * ROW_HEIGHT;
+            height += HEADER_HEIGHT + shownRows(category) * ROW_HEIGHT;
         }
         return height;
+    }
+
+    private int shownRows(SkillCategory category) {
+        return FOLDED.contains(category) ? 0 : grouped.get(category).size();
     }
 
     /** Places the rows of these categories from {@code skipped} pixels down; returns the height used. */
     private int layoutColumn(List<SkillCategory> categories, int x, int width, int skipped) {
         int y = panelY + PADDING + HEADER_HEIGHT + skipped;
         for (SkillCategory category : categories) {
+            headers.add(new Header(category, x, y, width));
             y += HEADER_HEIGHT;
+            if (FOLDED.contains(category)) {
+                continue;
+            }
             for (Skill skill : grouped.get(category)) {
                 rows.add(new Row(skill, x, y, width));
                 y += ROW_HEIGHT;
@@ -256,7 +311,7 @@ public final class SkillsScreen extends Screen {
         int titleWidth = this.font.width(this.title);
         int titleLeft = panelX + (panelWidth - titleWidth) / 2;
         int titleMin = panelX + PADDING + expertiseWidth + 6;
-        int titleLimit = panelX + panelWidth - PADDING - buttonWidth - 6;
+        int titleLimit = panelX + panelWidth - PADDING - buttonWidth - 4 - titlesWidth - 6;
         if (titleLeft + titleWidth > titleLimit) {
             titleLeft = titleLimit - titleWidth;
         }
@@ -275,13 +330,7 @@ public final class SkillsScreen extends Screen {
         graphics.enableScissor(panelX, bodyTop, panelX + panelWidth, bodyTop + viewportHeight);
         graphics.pose().pushPose();
         graphics.pose().translate(0, -scroll, 0);
-        if (columns == 2) {
-            drawHeaders(graphics, LEFT, panelX + PADDING, 0);
-            drawHeaders(graphics, RIGHT, panelX + PADDING + columnWidth + COLUMN_GAP, 0);
-        } else {
-            drawHeaders(graphics, LEFT, panelX + PADDING, 0);
-            drawHeaders(graphics, RIGHT, panelX + PADDING, countRows(LEFT));
-        }
+        drawHeaders(graphics, skills, mouseX, inBody ? mouseY + scroll : -1);
 
         Row hovered = null;
         // A monotonic clock, so a stepped system clock cannot make a glow last or flip.
@@ -312,10 +361,36 @@ public final class SkillsScreen extends Screen {
         }
         drawStreak(graphics, skills);
         journalButton.render(graphics, mouseX, mouseY, partialTick);
+        titlesButton.render(graphics, mouseX, mouseY, partialTick);
         expertiseButton.render(graphics, mouseX, mouseY, partialTick);
-        if (hovered != null && skills != null) {
+        graphics.fill(panelX + PADDING, panelY + panelHeight - FOOT - PADDING + 2 + 0, panelX + panelWidth - PADDING,
+                panelY + panelHeight - FOOT - PADDING + 3, SkillPalette.PANEL_BORDER);
+        stoneButton.render(graphics, mouseX, mouseY, partialTick);
+        boolean stoneHover = stoneButton.isMouseOver(mouseX, mouseY);
+        Header hoveredHeader = null;
+        if (inBody) {
+            for (Header header : headers) {
+                if (header.contains(mouseX, mouseY + scroll)) {
+                    hoveredHeader = header;
+                }
+            }
+        }
+        if (stoneHover) {
+            TextFit.tooltip(graphics, this.font, List.of(Component.translatable("proficiency.classic.stoneView.tip")),
+                    mouseX, mouseY, Math.min(300, this.width - 16));
+        } else if (hovered != null && skills != null) {
             TextFit.tooltip(graphics, this.font, tooltip(hovered.skill(), skills), mouseX, mouseY,
                     Math.min(300, this.width - 16));
+        } else if (hoveredHeader != null) {
+            SkillCategory hoveredGroup = hoveredHeader.category();
+            boolean folded = FOLDED.contains(hoveredGroup);
+            TextFit.tooltip(graphics, this.font, List.of(
+                    Component.translatable(hoveredGroup.translationKey())
+                            .withStyle(style -> style.withColor(SkillPalette.accent(hoveredGroup))),
+                    Component.translatable(folded ? "proficiency.panel.group.open" : "proficiency.panel.group.fold")
+                            .withStyle(ChatFormatting.GRAY),
+                    Component.translatable("proficiency.panel.group.only").withStyle(ChatFormatting.GRAY)),
+                    mouseX, mouseY, Math.min(300, this.width - 16));
         } else {
             List<Component> full = hovers.at(mouseX, mouseY);
             if (full == null && streakHeldShown && mouseX >= streakHeld[0] && mouseX < streakHeld[0] + streakHeld[2]
@@ -328,13 +403,54 @@ public final class SkillsScreen extends Screen {
         }
     }
 
-    private void drawHeaders(GuiGraphics graphics, List<SkillCategory> categories, int x, int skipped) {
-        int y = panelY + PADDING + HEADER_HEIGHT + skipped;
-        for (SkillCategory category : categories) {
-            Component name = Component.translatable(category.translationKey());
-            TextFit.draw(graphics, this.font, "panel.category", name.getString(), x, y + 3, columnWidth,
-                    SkillPalette.accent(category), false);
-            y += HEADER_HEIGHT + grouped.get(category).size() * ROW_HEIGHT;
+    /** The group headers: a small arrow, the name, and (folded) how many skills and the best level. */
+    private void drawHeaders(GuiGraphics graphics, PlayerSkills skills, double mouseX, double mouseY) {
+        for (Header header : headers) {
+            SkillCategory category = header.category();
+            boolean folded = FOLDED.contains(category);
+            int accent = SkillPalette.accent(category);
+            boolean hover = header.contains(mouseX, mouseY);
+            drawArrow(graphics, header.x(), header.y() + 4, folded, hover ? SkillPalette.TEXT : accent);
+            int textX = header.x() + 8;
+            int room = header.width() - 8;
+            String name = Component.translatable(category.translationKey()).getString();
+            String summary = "";
+            if (folded) {
+                int best = 0;
+                if (skills != null) {
+                    for (Skill skill : grouped.get(category)) {
+                        best = Math.max(best, skills.level(skill));
+                    }
+                }
+                summary = Component.translatable("proficiency.panel.folded", grouped.get(category).size(), best)
+                        .getString();
+            }
+            int summaryW = summary.isEmpty() ? 0 : this.font.width(summary) + 6;
+            // The summary gives way first: the name is what names the group.
+            if (summaryW > 0 && this.font.width(name) + summaryW > room) {
+                summary = "";
+                summaryW = 0;
+            }
+            TextFit.draw(graphics, this.font, "panel.category", name, textX, header.y() + 3, room - summaryW,
+                    accent, false);
+            if (summaryW > 0) {
+                graphics.drawString(this.font, summary, header.x() + header.width() - this.font.width(summary),
+                        header.y() + 3, SkillPalette.TEXT_DIM, false);
+            }
+        }
+    }
+
+    /** A 5 x 3 pixel triangle: pointing down for an open group, right for a folded one. */
+    private static void drawArrow(GuiGraphics graphics, int x, int y, boolean folded, int colour) {
+        int argb = colour | 0xFF000000;
+        if (folded) {
+            graphics.fill(x, y - 2, x + 1, y + 3, argb);
+            graphics.fill(x + 1, y - 1, x + 2, y + 2, argb);
+            graphics.fill(x + 2, y, x + 3, y + 1, argb);
+        } else {
+            graphics.fill(x - 1, y - 1, x + 4, y, argb);
+            graphics.fill(x, y, x + 3, y + 1, argb);
+            graphics.fill(x + 1, y + 1, x + 2, y + 2, argb);
         }
     }
 
@@ -515,7 +631,7 @@ public final class SkillsScreen extends Screen {
 
         int left = panelX + PADDING;
         int width = panelWidth - PADDING * 2;
-        int top = panelY + panelHeight - PADDING - streakHeight + 2;
+        int top = panelY + panelHeight - FOOT - PADDING - streakHeight + 2;
         streakHeldShown = held;
         if (held) {
             streakHeld[0] = left;
@@ -620,6 +736,7 @@ public final class SkillsScreen extends Screen {
         lines.add(progressLine(skill, skills, level));
         lines.addAll(MasteryStars.tooltip(skills, skill));
         lines.addAll(RestedBar.tooltip(skills, skill));
+        lines.addAll(TempoBadge.tooltip(skill));
         lines.add(SkillNumbers.headline(skills, skill));
         int points = skills.pointsAvailable(skill);
         if (!detailed) {
@@ -653,14 +770,17 @@ public final class SkillsScreen extends Screen {
         }
 
         lines.add(Component.translatable("proficiency.tooltip.tree",
-                skills.pointsSpent(skill), Talents.fullTreeCost(skill)).withStyle(ChatFormatting.YELLOW));
+                skills.pointsSpent(skill), Talents.fullTreeCost(skill)).withStyle(ChatFormatting.GRAY));
+        lines.add(ClientCodex.line(skill).copy().withStyle(ChatFormatting.GRAY));
         long awake = Synergies.involving(skill).stream()
                 .filter(synergy -> Synergies.isActive(skills, synergy)).count();
         if (awake > 0) {
             lines.add(Component.translatable("proficiency.tooltip.synergies", awake)
                     .withStyle(ChatFormatting.LIGHT_PURPLE));
         }
-        lines.add(Component.translatable("proficiency.tooltip.points", points).withStyle(ChatFormatting.GRAY));
+        // Yellow is kept for the one line that asks the player to do something.
+        lines.add(Component.translatable("proficiency.tooltip.points", points)
+                .withStyle(points > 0 ? ChatFormatting.YELLOW : ChatFormatting.DARK_GRAY));
         return lines;
     }
 
@@ -691,6 +811,13 @@ public final class SkillsScreen extends Screen {
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (button == 0 && this.minecraft != null) {
             int bodyTop = panelY + PADDING + HEADER_HEIGHT;
+            for (Header header : headers) {
+                if (mouseY >= bodyTop && mouseY < bodyTop + viewportHeight
+                        && header.contains(mouseX, mouseY + scroll)) {
+                    toggle(header.category(), hasShiftDown());
+                    return true;
+                }
+            }
             for (Row row : rows) {
                 if (mouseY >= bodyTop && mouseY < bodyTop + viewportHeight
                         && row.contains(mouseX, mouseY + scroll)) {
@@ -700,6 +827,44 @@ public final class SkillsScreen extends Screen {
             }
         }
         return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    /** Folds or opens one group; Shift keeps only this one open (or opens them all again). */
+    private void toggle(SkillCategory category, boolean only) {
+        // The clicked header keeps its place on screen: the panel may re-centre or resize, so the
+        // scroll is moved to compensate instead of jumping back to the top.
+        int anchor = 0;
+        for (Header header : headers) {
+            if (header.category() == category) {
+                anchor = header.y() - scroll;
+            }
+        }
+        if (only) {
+            java.util.Set<SkillCategory> others = java.util.EnumSet.noneOf(SkillCategory.class);
+            others.addAll(LEFT);
+            others.addAll(RIGHT);
+            others.remove(category);
+            boolean alone = !FOLDED.contains(category) && FOLDED.containsAll(others);
+            FOLDED.clear();
+            if (!alone) {
+                FOLDED.addAll(others);
+            }
+        } else if (!FOLDED.remove(category)) {
+            FOLDED.add(category);
+        }
+        this.rebuildWidgets();
+        for (Header header : headers) {
+            if (header.category() == category) {
+                scroll = Math.max(0, Math.min(Math.max(0, bodyHeight - viewportHeight), header.y() - anchor));
+            }
+        }
+    }
+
+    /** The layout demo folds groups through this. */
+    static void foldForDemo(java.util.Collection<SkillCategory> categories) {
+        FOLDED.clear();
+        FOLDED.addAll(categories);
+        foldWorld = worldMark();
     }
 
     @Override

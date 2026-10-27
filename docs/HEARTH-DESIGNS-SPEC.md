@@ -53,6 +53,7 @@ feeds the guide's spinning 3D preview and the "first missing block" message.
 | `W` | log | `#minecraft:logs` (any log, wood, stripped, stem, hyphae) |
 | `P` | planks | `#minecraft:planks` |
 | `w` | wood shape | wooden stairs, slabs, fences, fence gates, trapdoors (any wood) |
+| `p` | lantern post | the same blocks as `w`, drawn as the lane's fence. A `w` cell under a standing lantern is always `p`: a lantern cannot stand on a bottom slab (it needs a full centre below), so the guide must never show one there. `gen.py` does the swap; `validate.py` and `HearthStructureTest` fail a lantern that neither stands on a full centre nor hangs |
 | `N` | banner | `#minecraft:banners` (any colour or pattern) |
 | `i` | iron block | `minecraft:iron_block` |
 | `c` | copper block | any copper block or cut copper, any oxidation, waxed or not |
@@ -80,7 +81,7 @@ feeds the guide's spinning 3D preview and the "first missing block" message.
 | `L` | leaves | any leaves (player placed, so persistent) |
 | `k` | lodestone | `minecraft:lodestone` (stage VI only, under the fire) |
 
-A cell moving from `S` to `s` (or `P` to `w`) in a later stage is allowed: same material, more shaping.
+A cell moving from `S` to `s` (or `P` to `w`, or `P` or `w` to `p`) in a later stage is allowed: same material, more shaping.
 
 ## Lanes (themes, to be drawn)
 

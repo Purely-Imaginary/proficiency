@@ -1,0 +1,28 @@
+{
+  "parent": "proficiency:hidden_tales",
+  "display": {
+    "icon": {
+      "item": "minecraft:writable_book"
+    },
+    "title": {
+      "translate": "advancement.proficiency.hidden_chronicle.title"
+    },
+    "description": {
+      "translate": "advancement.proficiency.hidden_chronicle.desc"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": true
+  },
+  "criteria": {
+    "event": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "event"
+    ]
+  ]
+}

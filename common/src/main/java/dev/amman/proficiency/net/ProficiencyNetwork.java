@@ -25,8 +25,14 @@ public final class ProficiencyNetwork {
      * Version 8: Expertise (the sync packet carries its ranks; the expertise payload).
      * Version 9: crit talents (Lunge, Rend, Flow) and the Leaping Blade synergy in the shared
      * talent table, and the crit XP factor; a 1.6.0 client would not know them.
+     * Version 10: the sync packet carries Seam Sense's Motherlode charge.
+     * Version 13: the sync packet ends with the picked Codex title (a string, "" for none).
+     * (The Forge 1.20.1 line is at 15: 13 gained the Jade plugin's look request and reply, 14 the tempo packet, 15 the Codex title. The
+     * 1.21.1 lines carry no number for either: Jade 15 has its own data channel, and the tempo packet is optional,
+     * sent only to a client that registered it ({@code canReceive}), so a 1.15 or 1.16 client still joins and
+     * simply shows no Tempo indicator.)
      */
-    public static final int PROTOCOL = 9;
+    public static final int PROTOCOL = 13;
 
     /** Client side, on the client thread: the server's numbers replace ours. */
     public static void onSync(SyncSkillsPayload payload, Player player) {
@@ -106,6 +112,16 @@ public final class ProficiencyNetwork {
         }
         PacketDistributor.sendToPlayer(
                 player, new SyncSkillsPayload(ProficiencyAttachments.of(player)));
+    }
+
+    /** The Tempo chain of the skill the last action fed; the caller decides when ({@code TempoSync}). */
+    public static void sendTempo(ServerPlayer player, Skill skill, int steps, int maxSteps, int permille,
+            int windowTicks) {
+        if (!canReceive(player, TempoPayload.TYPE)) {
+            return;
+        }
+        PacketDistributor.sendToPlayer(player,
+                new TempoPayload(skill.ordinal(), steps, maxSteps, permille, windowTicks));
     }
 
     public static void sendLevelUp(ServerPlayer player, Skill skill, int level) {

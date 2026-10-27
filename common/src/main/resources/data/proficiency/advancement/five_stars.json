@@ -1,0 +1,28 @@
+{
+  "parent": "proficiency:first_star",
+  "display": {
+    "icon": {
+      "id": "minecraft:beacon"
+    },
+    "title": {
+      "translate": "advancement.proficiency.five_stars.title"
+    },
+    "description": {
+      "translate": "advancement.proficiency.five_stars.desc"
+    },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "event": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "event"
+    ]
+  ]
+}

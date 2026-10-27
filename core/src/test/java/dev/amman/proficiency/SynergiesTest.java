@@ -196,6 +196,9 @@ class SynergiesTest {
             }
             String json = java.nio.file.Files.readString(file);
             for (Synergy synergy : Synergies.all()) {
+                if (!lang.equals("en_us") && EnglishOnly.is(synergy.nameKey())) {
+                    continue; // English only on purpose (docs/english-only)
+                }
                 assertTrue(json.contains("\"" + synergy.nameKey() + "\""), lang + " " + synergy.nameKey());
                 assertTrue(json.contains("\"" + synergy.descriptionKey() + "\""), lang + " " + synergy.descriptionKey());
             }

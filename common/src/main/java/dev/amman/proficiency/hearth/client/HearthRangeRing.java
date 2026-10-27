@@ -64,7 +64,7 @@ public final class HearthRangeRing {
     }
 
     /** The panel's button: keep the ring of the Hearth at {@code pos} up for 30 s. */
-    static void showFor(long pos, String dimension, long now) {
+    public static void showFor(long pos, String dimension, long now) {
         shownPos = pos;
         shownDim = dimension == null ? "" : dimension;
         shownUntil = now + RangeRing.SHOW_MS;

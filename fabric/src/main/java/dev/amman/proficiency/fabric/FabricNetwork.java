@@ -28,6 +28,8 @@ public final class FabricNetwork {
         // Fabric has no channel version: the sync packet carries the protocol number instead.
         PayloadTypeRegistry.playS2C().register(SyncSkillsPayload.TYPE, SyncSkillsPayload.VERSIONED_CODEC);
         PayloadTypeRegistry.playS2C().register(LevelUpPayload.TYPE, LevelUpPayload.STREAM_CODEC);
+        PayloadTypeRegistry.playS2C().register(dev.amman.proficiency.net.TempoPayload.TYPE,
+                dev.amman.proficiency.net.TempoPayload.STREAM_CODEC);
         PayloadTypeRegistry.playS2C().register(XpLogPayload.TYPE, XpLogPayload.STREAM_CODEC);
         PayloadTypeRegistry.playS2C().register(XpFeedPayload.TYPE, XpFeedPayload.STREAM_CODEC);
         PayloadTypeRegistry.playS2C().register(DiscoveryPayload.TYPE, DiscoveryPayload.STREAM_CODEC);

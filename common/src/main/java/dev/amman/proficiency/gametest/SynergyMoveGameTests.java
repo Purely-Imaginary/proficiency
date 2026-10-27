@@ -41,7 +41,7 @@ public final class SynergyMoveGameTests {
     // ---- Helpers --------------------------------------------------------------------------------
 
     private static ServerPlayer player(GameTestHelper helper, double x, double y, double z) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         player.setGameMode(GameType.SURVIVAL);
         player.setPos(helper.absoluteVec(new Vec3(x, y, z)));
         ProcService.forget(player.getUUID());

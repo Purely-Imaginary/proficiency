@@ -32,6 +32,8 @@ public final class ClientInputEvents {
 
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
+        // The 1.33.0 style migration runs here, on the title screen, before a config screen can be opened.
+        dev.amman.proficiency.config.ProficiencyClientConfig.migrateUiStyle();
         SkillTooltip.tick();
         Minecraft minecraft = Minecraft.getInstance();
         LayoutDemo.tick(minecraft);
@@ -42,7 +44,7 @@ public final class ClientInputEvents {
             Skill skill = Skill.byId(OPEN_TREE);
             if (skill != null) {
                 openedFromEnvironment = true;
-                minecraft.setScreen(new TalentTreeScreen(skill, new SkillsScreen()));
+                minecraft.setScreen(new TalentTreeScreen(skill, dev.amman.proficiency.client.stone.SkillstoneScreen.skills()));
             }
         }
         if (OPEN_JOURNAL && !journalOpenedFromEnvironment && minecraft.player != null
@@ -50,12 +52,16 @@ public final class ClientInputEvents {
                         || minecraft.screen instanceof net.minecraft.client.gui.screens.PauseScreen)
                 && minecraft.player.tickCount > 100) {
             journalOpenedFromEnvironment = true;
-            minecraft.setScreen(new DiscoveryJournalScreen(new SkillsScreen()));
+            minecraft.setScreen(new DiscoveryJournalScreen(dev.amman.proficiency.client.stone.SkillstoneScreen.skills()));
         }
         while (ProficiencyClient.OPEN_SKILLS.consumeClick()) {
             if (minecraft.screen == null && minecraft.player != null) {
-                minecraft.setScreen(new SkillsScreen());
+                minecraft.setScreen(dev.amman.proficiency.client.stone.SkillstoneScreen.skills());
             }
+        }
+        // The Waywheel's own key (unbound by default): opens the stone wheel at once, in either style.
+        while (ProficiencyClient.WAYWHEEL.consumeClick()) {
+            dev.amman.proficiency.client.stone.WaywheelScreen.open(minecraft, ProficiencyClient.WAYWHEEL);
         }
         // A tap casts what the hands say; a hold opens the wheel. The press is only counted here,
         // and the tap is decided on release, so a hold never casts the held item's ability first.
@@ -69,7 +75,11 @@ public final class ClientInputEvents {
                 heldTicks = -1;
             } else if (ProficiencyClient.USE_ABILITY.isDown()) {
                 heldTicks++;
-                if (heldTicks >= WHEEL_HOLD_TICKS) {
+                if (heldTicks >= WHEEL_HOLD_TICKS && dev.amman.proficiency.client.stone.SkillstoneScreen.modern()) {
+                    // The MODERN style's wheel: the stone Waywheel (1.33.0), with every skill, not only the unlocked.
+                    heldTicks = -1;
+                    dev.amman.proficiency.client.stone.WaywheelScreen.open(minecraft, ProficiencyClient.USE_ABILITY);
+                } else if (heldTicks >= WHEEL_HOLD_TICKS) {
                     heldTicks = -1;
                     AbilityWheelScreen wheel = AbilityWheelScreen.forPlayer(minecraft.player);
                     if (wheel == null) {

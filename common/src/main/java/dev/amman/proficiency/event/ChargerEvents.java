@@ -503,7 +503,8 @@ public final class ChargerEvents {
         }
         data.putBoolean(FIRST_BLOOD_PAID, true);
         noteSpot(player, target);
-        return SkillService.grant(player, Skill.CHARGER, xp, SOURCE_FIRST_BLOOD);
+        return SkillService.grantTrial(player, Skill.CHARGER, xp, SOURCE_FIRST_BLOOD,
+                dev.amman.proficiency.skill.SpawnOrigin.trialFactor(target), true);
     }
 
     /**
@@ -565,7 +566,8 @@ public final class ChargerEvents {
         }
         data.putInt(CHARGES_PAID, paid + 1);
         noteSpot(player, target);
-        return SkillService.grant(player, Skill.CHARGER, xp, SOURCE_CHARGE);
+        return SkillService.grantTrial(player, Skill.CHARGER, xp, SOURCE_CHARGE,
+                dev.amman.proficiency.skill.SpawnOrigin.trialFactor(target), true);
     }
 
     /** Lifesteal, only in the 5 s after a charge hit, from level 25. Returns the health given. */
@@ -645,7 +647,8 @@ public final class ChargerEvents {
             return 0f;
         }
         noteSpot(player, victim);
-        return SkillService.grant(player, Skill.CHARGER, xp, SOURCE_SPEARHEAD);
+        return SkillService.grantTrial(player, Skill.CHARGER, xp, SOURCE_SPEARHEAD,
+                dev.amman.proficiency.skill.SpawnOrigin.trialFactor(victim), true);
     }
 
     // ---- The spot rule -------------------------------------------------------------------------

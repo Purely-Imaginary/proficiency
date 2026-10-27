@@ -43,6 +43,14 @@ public final class PlayerSkills {
         ).apply(i, MasteryState::new));
     }
 
+    /** The Codex's saved part, one field of the codec (a record codec group holds 16 at most). */
+    public record CodexState(List<String> seen, String title) {
+        public static final Codec<CodexState> CODEC = RecordCodecBuilder.create(i -> i.group(
+                Codec.STRING.listOf().optionalFieldOf("seen", List.of()).forGetter(CodexState::seen),
+                Codec.STRING.optionalFieldOf("title", "").forGetter(CodexState::title)
+        ).apply(i, CodexState::new));
+    }
+
     public static final Codec<PlayerSkills> CODEC = RecordCodecBuilder.create(instance ->
             instance.group(
                     Codec.unboundedMap(Codec.STRING, SkillState.CODEC)
@@ -83,7 +91,13 @@ public final class PlayerSkills {
                     // Expertise (protocol 8): node id to rank. An older save has no field and loads empty.
                     Codec.unboundedMap(Codec.STRING, Codec.INT)
                             .optionalFieldOf("expertise", Map.of())
-                            .forGetter(skills -> Map.copyOf(skills.expertise))
+                            .forGetter(skills -> Map.copyOf(skills.expertise)),
+                    // Seam Sense's Motherlode charge (1.10.0). Saved, and synced since protocol 10.
+                    Codec.DOUBLE.optionalFieldOf("lode", 0.0)
+                            .forGetter(skills -> skills.lode),
+                    // The Codex (1.21.0): milestones already announced, and the title shown in the tab list.
+                    CodexState.CODEC.optionalFieldOf("codex", new CodexState(List.of(), ""))
+                            .forGetter(skills -> new CodexState(List.copyOf(skills.codexSeen), skills.codexTitle))
             ).apply(instance, PlayerSkills::fromParts));
 
     /**
@@ -135,6 +149,10 @@ public final class PlayerSkills {
             buf.writeUtf(id);
             buf.writeVarInt(rank);
         });
+        // The Motherlode charge (protocol 10), for the pips under the Mining bar.
+        buf.writeFloat((float) skills.lode);
+        // The Codex title shown in the tab list (protocol 13 / Forge 15), "" for none.
+        buf.writeUtf(skills.codexTitle);
     }
 
     /** Reads what {@link #write} wrote. */
@@ -178,6 +196,9 @@ public final class PlayerSkills {
                 skills.expertise.put(id, Math.min(rank, node.maxRank()));
             }
         }
+        skills.lode = LodeMath.sane(buf.readFloat());
+        String title = buf.readUtf();
+        skills.codexTitle = Codex.parse(title) == null ? "" : title;
         return skills;
     }
 
@@ -261,6 +282,15 @@ public final class PlayerSkills {
      * pauses it and the client can draw it. Only a death zeroes it.
      */
     private long streakTicks;
+
+    /** Seam Sense's Motherlode charge, 0 to 4 (see {@link LodeMath}). Saved; a death empties it. */
+    private double lode;
+
+    /** Codex milestones ({@code skill:kinds}) already announced; a login backfill adds without announcing. */
+    private final Set<String> codexSeen = new HashSet<>();
+
+    /** The Codex title shown beside the badge in the tab list, "" for none. Synced. */
+    private String codexTitle = "";
 
     /** Game time of the last XP grant, which is what "active" means. A relog has to earn it again. */
     private transient long lastActiveAt = Long.MIN_VALUE;
@@ -481,6 +511,47 @@ public final class PlayerSkills {
         return true;
     }
 
+    // ---- Codex ---------------------------------------------------------------------------------
+
+    /** Distinct first-time kinds found for one skill. */
+    public int kindsFound(Skill skill) {
+        return Codex.count(visited, skill);
+    }
+
+    /** Marks a milestone announced; true the first time only. */
+    public boolean markCodexSeen(String titleId) {
+        if (Codex.parse(titleId) != null && codexSeen.add(titleId)) {
+            dirty = true;
+            return true;
+        }
+        return false;
+    }
+
+    public boolean codexSeen(String titleId) {
+        return codexSeen.contains(titleId);
+    }
+
+    /** The picked title id, "" for none. */
+    public String codexTitle() {
+        return codexTitle;
+    }
+
+    /** Picks a title (or "" to clear). False, and nothing changes, for an id that is not a title or not earned yet. */
+    public boolean setCodexTitle(String id) {
+        if (!id.isEmpty()) {
+            Codex.Title title = Codex.parse(id);
+            if (title == null || !Codex.earned(visited, title)) {
+                return false;
+            }
+            id = title.id();
+        }
+        if (!id.equals(codexTitle)) {
+            codexTitle = id;
+            dirty = true;
+        }
+        return true;
+    }
+
     public boolean hasVisited(String id) {
         return visited.contains(id);
     }
@@ -597,6 +668,19 @@ public final class PlayerSkills {
     public void setStreakTicks(long ticks) {
         streakTicks = Math.max(0L, ticks);
         dirty = true;
+    }
+
+    /** Seam Sense's Motherlode charge: whole charges banked plus the one being built. */
+    public double lode() {
+        return lode;
+    }
+
+    public void setLode(double value) {
+        double next = LodeMath.sane(value);
+        if (next != lode) {
+            lode = next;
+            dirty = true;
+        }
     }
 
     /** Death: the whole streak goes. Returns the stacks that were lost. */
@@ -918,6 +1002,8 @@ public final class PlayerSkills {
         expertise.clear();
         visited.clear();
         buildFirst.clear();
+        codexSeen.clear();
+        codexTitle = "";
         // Cooldowns too. A reset player is back at level 0, below the level an ability unlocks at,
         // so a cooldown left running is one they cannot even clear by using the ability again.
         java.util.Arrays.fill(cooldownUntil, 0L);
@@ -928,6 +1014,7 @@ public final class PlayerSkills {
         java.util.Arrays.fill(usedAt, Long.MIN_VALUE);
         java.util.Arrays.fill(restedSent, 0f);
         streakTicks = 0;
+        lode = 0;
         dirty = true;
     }
 
@@ -1190,6 +1277,8 @@ public final class PlayerSkills {
      */
     public Map<Skill, Float> applyDeathPenalty() {
         Map<Skill, Float> lost = new EnumMap<>(Skill.class);
+        // The Motherlode charge is progress like a bar, and no ward keeps it.
+        lode = 0;
         for (Skill skill : Skill.VALUES) {
             int index = skill.ordinal();
             if (xp[index] <= 0f && overflow[index] <= 0f) {
@@ -1235,6 +1324,10 @@ public final class PlayerSkills {
         this.buildFirst.clear();
         this.buildFirst.putAll(other.buildFirst);
         this.streakTicks = other.streakTicks;
+        this.lode = other.lode;
+        this.codexSeen.clear();
+        this.codexSeen.addAll(other.codexSeen);
+        this.codexTitle = other.codexTitle;
         for (int i = 0; i < rested.length; i++) {
             this.rested[i] = other.rested[i] == null ? null : other.rested[i].copy();
         }
@@ -1260,8 +1353,12 @@ public final class PlayerSkills {
             List<String> paid,
             Map<String, Long> cooldowns, List<String> visited, boolean onboarded, long streak, boolean xpFeed,
             long buildDay, Map<String, Integer> buildFirst, Map<String, MasteryState> mastery,
-            Map<String, RestedPool.State> rested, Map<String, Long> usedDay, Map<String, Integer> expertise) {
+            Map<String, RestedPool.State> rested, Map<String, Long> usedDay, Map<String, Integer> expertise,
+            double lode, CodexState codex) {
         PlayerSkills skills = new PlayerSkills();
+        codex.seen().stream().filter(id -> Codex.parse(id) != null).forEach(skills.codexSeen::add);
+        skills.codexTitle = Codex.parse(codex.title()) == null ? "" : codex.title();
+        skills.lode = LodeMath.sane(lode);
         // A node that left the table is dropped, and a rank past a node's maximum is clamped.
         expertise.forEach((id, rank) -> {
             ExpertiseNode node = Expertise.byId(id);

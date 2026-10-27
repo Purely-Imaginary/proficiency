@@ -105,7 +105,7 @@ public final class HearthDemo {
     }
 
     /** True while the ledger on show for this Hearth is a demo's fake one (the panel then asks nobody). */
-    static boolean fakeLedgerAt(long hearth) {
+    public static boolean fakeLedgerAt(long hearth) {
         HearthLedgerPayload shown = HearthView.ledger();
         return shown != null && shown == fakeLedger && shown.pos() == hearth;
     }

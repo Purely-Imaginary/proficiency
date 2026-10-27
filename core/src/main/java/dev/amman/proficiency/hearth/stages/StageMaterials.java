@@ -23,7 +23,7 @@ public final class StageMaterials {
     public static String group(char role) {
         return switch (role) {
             case 'S', 's' -> "stone";
-            case 'W', 'P', 'w' -> "wood";
+            case 'W', 'P', 'w', 'p' -> "wood";
             case 'N' -> "banner";
             case 'i' -> "iron";
             case 'c' -> "copper";

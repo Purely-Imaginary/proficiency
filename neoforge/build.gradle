@@ -15,6 +15,15 @@ java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 sourceSets.main.java.srcDirs project(':core').file('src/main/java'), project(':common').file('src/main/java')
 sourceSets.main.resources.srcDir project(':common').file('src/main/resources')
 
+repositories {
+    maven { name = 'Modrinth'; url = 'https://api.modrinth.com/maven'; content { includeGroup 'maven.modrinth' } }
+}
+
+dependencies {
+    // The optional Jade plugin (common/.../jade), compile-only: never bundled, never needed to run.
+    compileOnly "maven.modrinth:jade:${jade_neoforge_version}"
+}
+
 neoForge {
     version = neo_version
 

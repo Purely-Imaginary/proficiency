@@ -138,7 +138,7 @@ final class HearthTestGuard {
         int players = 0;
         for (ServerPlayer player : List.copyOf(level.getServer().getPlayerList().getPlayers())) {
             if (!keepPlayers.contains(player.getUUID())
-                    && player.getClass().getName().startsWith(GameTestHelper.class.getName() + "$")) {
+                    && MockPlayers.isMock(player)) {
                 player.server.getPlayerList().remove(player);
                 players++;
             }

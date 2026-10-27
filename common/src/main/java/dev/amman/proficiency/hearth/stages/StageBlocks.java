@@ -12,6 +12,7 @@ import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LiquidBlock;
@@ -29,7 +30,7 @@ import java.util.List;
  * <ul>
  * <li>Each role of docs/HEARTH-DESIGNS-SPEC.md's legend is a block tag ({@link #ROLE_TAGS}):
  * {@code #proficiency:hearth/stone} for S, {@code .../stone_shaped} for s, {@code #minecraft:logs} for W,
- * {@code #minecraft:planks} for P, {@code .../wood_shaped} for w, {@code #minecraft:banners} for N,
+ * {@code #minecraft:planks} for P, {@code .../wood_shaped} for w and for p (the lantern post, drawn as a fence), {@code #minecraft:banners} for N,
  * {@code .../iron}, {@code .../copper}, {@code .../gold}, {@code .../iron_bars}, {@code .../chain},
  * {@code .../lantern}, {@code #minecraft:anvil}, {@code #minecraft:cauldrons}, {@code .../bell},
  * {@code .../lightning_rod} and {@code .../lodestone}; and the dressing roles: {@code #minecraft:flower_pots},
@@ -47,6 +48,7 @@ public final class StageBlocks {
     private static final String[][] ROLE_IDS = {
             {"S", "proficiency:hearth/stone"}, {"s", "proficiency:hearth/stone_shaped"},
             {"W", "minecraft:logs"}, {"P", "minecraft:planks"}, {"w", "proficiency:hearth/wood_shaped"},
+            {"p", "proficiency:hearth/wood_shaped"},
             {"N", "minecraft:banners"}, {"i", "proficiency:hearth/iron"}, {"c", "proficiency:hearth/copper"},
             {"g", "proficiency:hearth/gold"}, {"b", "proficiency:hearth/iron_bars"},
             {"h", "proficiency:hearth/chain"}, {"l", "proficiency:hearth/lantern"},
@@ -253,7 +255,16 @@ public final class StageBlocks {
 
     /** The Hearth's build read from the world, around the campfire at {@code origin}. */
     public static HearthStructure.Probe probe(BlockGetter level, BlockPos origin, HearthData data) {
-        return new LevelProbe(level, origin);
+        return new LevelProbe(level, origin, false);
+    }
+
+    /**
+     * {@link #probe} that never loads a chunk: a block in a chunk that is not loaded reads as air. For a read
+     * that is only a tooltip (the Jade Hearth lane), where loading a neighbour from a look would be a cost
+     * the build itself does not ask for.
+     */
+    public static HearthStructure.Probe probeLoaded(LevelReader level, BlockPos origin) {
+        return new LevelProbe(level, origin, true);
     }
 
     /** {@link HearthStructure.Probe} over a level: the role tags, air for the dot. */
@@ -263,14 +274,19 @@ public final class StageBlocks {
         private final BlockPos origin;
         private final BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
 
-        LevelProbe(BlockGetter level, BlockPos origin) {
+        private final boolean loadedOnly;
+
+        LevelProbe(BlockGetter level, BlockPos origin, boolean loadedOnly) {
+            this.loadedOnly = loadedOnly;
             this.level = level;
             this.origin = origin.immutable();
         }
 
         @Override
         public boolean is(char role, int dx, int dy, int dz) {
-            BlockState state = level.getBlockState(cursor.setWithOffset(origin, dx, dy, dz));
+            cursor.setWithOffset(origin, dx, dy, dz);
+            BlockState state = loadedOnly && level instanceof LevelReader reader && !reader.hasChunkAt(cursor)
+                    ? Blocks.AIR.defaultBlockState() : level.getBlockState(cursor);
             if (role == '.') {
                 return state.isAir();
             }

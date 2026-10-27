@@ -5,6 +5,7 @@ LEG = {
  ".":"air (smoke column, walkways, doorways)", " ":"anything (not checked)",
  "S":"stone block (#proficiency:hearth/stone)","s":"stone shape: stairs, slabs, walls (#proficiency:hearth/stone_shaped)",
  "W":"log (#minecraft:logs)","P":"planks (#minecraft:planks)","w":"wood shape: stairs, slabs, fences, gates, trapdoors",
+ "p":"lantern post: any wood shape, drawn as a fence (a lantern cannot stand on a bottom slab)",
  "N":"banner (#minecraft:banners)","i":"iron block","c":"copper block or cut copper, any oxidation, waxed or not",
  "g":"gold block","b":"iron bars","h":"chain","l":"lantern or soul lantern","a":"anvil","u":"cauldron","B":"bell",
  "v":"water source block (a waterlogged block does NOT count)","V":"lava source block (forge and demonic lanes only; never under or beside anything flammable)",
@@ -39,6 +40,9 @@ def render(st,path_d):
                 assert (z,)+p not in d or d[(z,)+p]=='.',("path blocked",z,p,d.get((z,)+p))
                 d[(z,)+p]='.'
     for z in range(1,6): d[(z,0,0)]='.'
+    # A wood shape under a standing lantern is a post: a bottom slab cannot hold it, a fence can.
+    for (z,x,y),ch in list(d.items()):
+        if ch=='w' and d.get((z+1,x,y))=='l': d[(z,x,y)]='p'
     d[(0,0,0)]='F'
     layers={}
     for z in range(-1,6):
@@ -172,7 +176,7 @@ def T6(s): s.d[(-1,0,0)]='k'; s.sym(-1,4,1,'I'); s.sym(0,4,1,'W'); s.sym(1,4,1,'
 
 PAL=lambda **k: k
 def pal(S,s,W,P,w,G,N,m,f,C,**extra):
-    d={"S":S,"s":s,"W":W,"P":P,"w":w,"G":G,"N":N,"m":m,"f":f,"C":C}
+    d={"S":S,"s":s,"W":W,"P":P,"w":w,"p":w.replace("_slab","_fence"),"G":G,"N":N,"m":m,"f":f,"C":C}
     d.update(extra); return {k:("minecraft:"+v) for k,v in d.items()}
 PALS={
  "longhouse":pal("cobbled_deepslate","cobbled_deepslate_slab","spruce_log","spruce_planks","dark_oak_slab","glass","red_banner","red_carpet","potted_fern","candle",c="weathered_cut_copper",x="barrel",h="chain",l="lantern"),

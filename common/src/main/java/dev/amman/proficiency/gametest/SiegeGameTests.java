@@ -136,7 +136,7 @@ public final class SiegeGameTests {
         }
 
         ServerPlayer player(BlockPos rel, boolean active, double warmth) {
-            ServerPlayer player = helper.makeMockServerPlayerInLevel();
+            ServerPlayer player = MockPlayers.make(helper);
             player.setGameMode(GameType.SURVIVAL);
             player.setPos(helper.absoluteVec(Vec3.atBottomCenterOf(rel)));
             if (active) {

@@ -59,6 +59,11 @@ public class HearthBlockEntity extends BlockEntity {
         return lanes.getCompound(lane);
     }
 
+    /** The lane's tag if it already exists, else null: reads without creating (or saving) an empty tag. */
+    public CompoundTag peekLane(String lane) {
+        return lanes.contains(lane, Tag.TAG_COMPOUND) ? lanes.getCompound(lane) : null;
+    }
+
     /** The position as core packs it ({@link HearthPos}): the same long as {@code getBlockPos().asLong()}. */
     public long packedPos() {
         return worldPosition.asLong();

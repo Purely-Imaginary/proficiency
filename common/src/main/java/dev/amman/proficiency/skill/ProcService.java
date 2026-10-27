@@ -52,8 +52,21 @@ public final class ProcService {
         return fire(player, skill, target, null, chanceScale);
     }
 
+    /**
+     * As {@link #fire(Player, Skill, BlockPos)}, with {@code bonus} added to the chance after every
+     * other factor (Seam Sense's Motherlode charge). The chance never passes 1.
+     */
+    public static boolean fireWithBonus(Player player, Skill skill, @Nullable BlockPos pos, double bonus) {
+        return fire(player, skill, null, pos, 1.0, bonus);
+    }
+
     private static boolean fire(Player player, Skill skill, @Nullable LivingEntity target,
             @Nullable BlockPos pos, double chanceScale) {
+        return fire(player, skill, target, pos, chanceScale, 0.0);
+    }
+
+    private static boolean fire(Player player, Skill skill, @Nullable LivingEntity target,
+            @Nullable BlockPos pos, double chanceScale, double bonus) {
         if (!(player instanceof ServerPlayer serverPlayer) || player.level().isClientSide()) {
             return false;
         }
@@ -71,6 +84,9 @@ public final class ProcService {
         double chance = dev.amman.proficiency.skill.CritRules.scaledChance(
                 ProficiencyAttachments.of(player).procChance(skill) * situational(serverPlayer, skill),
                 chanceScale);
+        if (chance > 0 && bonus > 0) {
+            chance = Math.min(1.0, chance + bonus);
+        }
         if (chance <= 0) {
             return false;
         }
@@ -184,6 +200,7 @@ public final class ProcService {
     public static void celebrate(ServerPlayer player, Skill skill, @Nullable LivingEntity target,
             @Nullable BlockPos pos) {
         TelemetryService.proc(player, skill);
+        ProficiencyAdvancements.award(player, Achievements.SIGNATURE_PROC);
         // The name of the moment is drawn above the crosshair by the client (ProcCallout), from the
         // same packet as the particles: where you are looking, not down on the action bar.
 
@@ -204,9 +221,11 @@ public final class ProcService {
         ServerLevel level = player.serverLevel();
         // Not playNotifySound: everyone nearby should hear that something happened to you.
         level.playSound(null, player.getX(), player.getY(), player.getZ(),
-                sound(skill), SoundSource.PLAYERS, 0.7f, pitch(skill));
+                sound(skill), SoundSource.PLAYERS, skill == Skill.MINING ? 0.5f : 0.7f, pitch(skill));
         // The particles are the client's job (ProcFx has the recipe). Each client can switch them off.
         ProcFxSender.send(player, skill, target, pos);
+        // Mastery stars: the skill's own rider on its own proc (nothing below level 100 with a star).
+        MasteryRiders.onProc(player, skill, target, pos);
     }
 
     /**
@@ -225,6 +244,10 @@ public final class ProcService {
     }
 
     private static SoundEvent sound(Skill skill) {
+        if (skill == Skill.MINING) {
+            // A deep stone crunch, not the XP ding: Motherlode fires often on a long dig.
+            return SoundEvents.DEEPSLATE_BREAK;
+        }
         return switch (skill.category()) {
             case COMBAT -> SoundEvents.PLAYER_ATTACK_CRIT;
             case GATHERING -> SoundEvents.EXPERIENCE_ORB_PICKUP;
@@ -239,6 +262,9 @@ public final class ProcService {
     }
 
     private static float pitch(Skill skill) {
+        if (skill == Skill.MINING) {
+            return 0.75f;
+        }
         return switch (skill.category()) {
             case COMBAT -> 0.9f;
             case GATHERING -> 1.4f;

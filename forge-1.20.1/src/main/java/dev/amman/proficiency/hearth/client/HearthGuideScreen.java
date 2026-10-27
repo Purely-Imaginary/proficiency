@@ -1,5 +1,6 @@
 package dev.amman.proficiency.hearth.client;
 
+import dev.amman.proficiency.client.ClickFx;
 import dev.amman.proficiency.client.HudKit;
 import dev.amman.proficiency.client.SkillPalette;
 import net.minecraft.client.gui.GuiGraphics;
@@ -17,6 +18,7 @@ import java.util.List;
  * Discovery Journal. forge-1.20.1 keeps a copy that differs only in the background and scroll overrides.
  */
 public final class HearthGuideScreen extends Screen {
+    private final ClickFx click = new ClickFx();
 
     private static final int PANEL_WIDTH = 360;
     private static final int PANEL_MAX_HEIGHT = 340;
@@ -159,17 +161,17 @@ public final class HearthGuideScreen extends Screen {
 
         for (int i = 0; i < tabButtons.size(); i++) {
             Button button = tabButtons.get(i);
-            button.render(graphics, mouseX, mouseY, partialTick);
+            click.renderButton(graphics, button, mouseX, mouseY, partialTick);
             if (i == tab.ordinal()) {
                 graphics.fill(button.getX(), button.getY() + button.getHeight(),
                         button.getX() + button.getWidth(), button.getY() + button.getHeight() + 2, HearthPalette.EMBER);
             }
         }
-        backButton.render(graphics, mouseX, mouseY, partialTick);
+        click.renderButton(graphics, backButton, mouseX, mouseY, partialTick);
         if (tab == HearthGuide.Tab.BUILD) {
             for (int i = 0; i < laneButtons.size(); i++) {
                 Button button = laneButtons.get(i);
-                button.render(graphics, mouseX, mouseY, partialTick);
+                click.renderButton(graphics, button, mouseX, mouseY, partialTick);
                 if (i == guide.lane()) {
                     graphics.fill(button.getX(), button.getY() + button.getHeight(),
                             button.getX() + button.getWidth(), button.getY() + button.getHeight() + 2, HearthPalette.EMBER);
@@ -200,10 +202,14 @@ public final class HearthGuideScreen extends Screen {
         if (!tip.isEmpty()) {
             HudKit.tooltip(graphics, this.font, tip, mouseX, mouseY, Math.min(300, this.width - 16));
         }
+        click.render(graphics, System.currentTimeMillis(), 1f);
     }
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (button == 0) {
+            click.onClick(this, mouseX, mouseY, HearthPalette.EMBER);
+        }
         // Patchouli's Visualize eyes are drawn inside the list, not widgets: the list hit-tests them.
         if (button == 0 && guide.clickEye(mouseX, mouseY, viewTop, viewHeight)) {
             return true;

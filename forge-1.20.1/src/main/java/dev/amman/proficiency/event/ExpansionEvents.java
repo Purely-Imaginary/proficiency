@@ -622,6 +622,7 @@ public final class ExpansionEvents {
             }
         });
         checkStructure(player, skills, false, found[0]);
+        dev.amman.proficiency.skill.ProficiencyAdvancements.checkPlaces(player);
     }
 
     /**
@@ -1056,6 +1057,11 @@ public final class ExpansionEvents {
         if (cast == null) {
             return;
         }
+        // Ars Nouveau's own cast event pays its items (onRealSpellCast): a click that only opened the
+        // book, used the Scribe's Table or had too little mana is not a spell (user report 2026-10-14).
+        if (arsCastHooked && isArs(event.getItemStack())) {
+            return;
+        }
         // This event fires on every click attempt, not on every spell that actually resolved, so
         // the mod's own cast cooldown is not the throttle the first version assumed it was. Without
         // this, spam-clicking an empty wand farmed XP at click rate, and Tempo then scaled it.
@@ -1066,6 +1072,44 @@ public final class ExpansionEvents {
         }
         LAST_CAST.put(player.getUUID(), now);
         SkillService.grant(player, cast.rule().skill, cast.xp());
+    }
+
+    /** Set by the loader once it listens to Ars Nouveau's SpellCastEvent (only when Ars is installed). */
+    private static volatile boolean arsCastHooked = false;
+
+    public static void markArsCastHooked() {
+        arsCastHooked = true;
+    }
+
+    private static boolean isArs(ItemStack stack) {
+        ResourceLocation id = BuiltInRegistries.ITEM.getKey(stack.getItem());
+        return id != null && (id.getNamespace().startsWith("ars_") || id.getNamespace().equals("arseng"));
+    }
+
+    /**
+     * A spell that really went off. Ars Nouveau posts SpellCastEvent only after its mana check passed and
+     * just before it spends the mana, so the book GUI, the Scribe's Table and an empty mana bar never get
+     * here. Called by the loader's listener (NeoForge and Forge), never for a canceled cast or a fake
+     * player (turrets, rituals). The XP is the cast rule of the caster item in hand, scaled by the mana cost.
+     */
+    public static void onRealSpellCast(Player player, int manaCost) {
+        if (player == null || player.level().isClientSide()
+                || !(player instanceof net.minecraft.server.level.ServerPlayer)
+                || player.getClass().getName().contains("FakePlayer")) {
+            return;
+        }
+        XpMatch cast = castMatch(XpSubjects.item(player.getMainHandItem()));
+        if (cast == null) {
+            cast = castMatch(XpSubjects.item(player.getOffhandItem()));
+        }
+        if (cast == null) {
+            return;   // a spell from something that is not a caster item (a scroll, a ritual): no rule, no XP
+        }
+        // Paid by the mana the spell costs (core ManaXp). Mana is the throttle here, so no click cooldown.
+        double xp = dev.amman.proficiency.xp.ManaXp.forCost(cast.xp(), manaCost);
+        if (xp > 0) {
+            SkillService.grant(player, cast.rule().skill, xp);
+        }
     }
 
     // ---- Engineering -------------------------------------------------------------------------

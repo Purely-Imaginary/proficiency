@@ -139,6 +139,7 @@ public final class TalentService {
         }
         skills.addRank(talent);
         announceChanges(player, before, activeIds(skills));
+        dev.amman.proficiency.skill.ProficiencyAdvancements.check(player);
         if (fills) {
             dev.amman.proficiency.skill.SignatureNotice.rootFilled(player, talent);
         }

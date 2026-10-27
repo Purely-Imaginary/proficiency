@@ -35,7 +35,7 @@ public final class KillBonusGameTests {
     }
 
     private static ServerPlayer fighter(GameTestHelper helper, net.minecraft.world.item.Item weapon) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         player.setGameMode(GameType.SURVIVAL);
         player.setPos(helper.absoluteVec(new Vec3(0.5, 2, 0.5)));
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(weapon));

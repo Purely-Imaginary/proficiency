@@ -42,7 +42,7 @@ class Report(unittest.TestCase):
 
     def test_skill_list_matches_the_java_enum(self):
         java = B.skill_ids()
-        self.assertEqual(35, len(java))
+        self.assertEqual(38, len(java))
         self.assertEqual(sorted(B.SKILLS), sorted(java))
 
     def test_rate_is_the_median_over_players_with_their_count(self):
@@ -84,6 +84,23 @@ class Report(unittest.TestCase):
         self.assertIn("courage, tactician", self.md)
         self.assertNotIn("http://", self.html.replace("http://www.w3.org", ""))
         self.assertNotIn("<script src", self.html)
+
+    def test_json_matches_markdown(self):
+        out = os.path.join(self.tmp.name, "js")
+        B.main(["pandowo=" + os.path.join(self.tmp.name, "pandowo"), "--out", out, "--until", str(END)])
+        d = json.load(open(os.path.join(out, "report.json")))
+        md = open(os.path.join(out, "report.md")).read()
+        self.assertTrue(d["summary"])
+        for line in d["summary"]:
+            self.assertIn("- " + line, md)
+        self.assertEqual({r["skill"] for r in d["skills"]}, set(B.skill_ids()))
+        self.assertTrue(all(isinstance(p["name"], str) for p in d["players"]))
+        anon = os.path.join(self.tmp.name, "jsanon")
+        B.main(["pandowo=" + os.path.join(self.tmp.name, "pandowo"), "--out", anon, "--anon",
+                "--until", str(END)])
+        text = open(os.path.join(anon, "report.json")).read()
+        for secret in ("Amman", "Rowan", "11111111", "22222222"):
+            self.assertNotIn(secret, text)
 
     def test_anon_hides_names_and_ids(self):
         out = os.path.join(self.tmp.name, "anon")

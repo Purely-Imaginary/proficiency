@@ -45,6 +45,13 @@ abstract class XpDefaultsGoldenBase {
         return Math.min(5.0, 0.5 + hardness * 0.30);
     }
 
+    double miningBlockXp(double hardness) {
+        if (hardness < 0) {
+            return 0;
+        }
+        return Math.min(5.0, 0.5 + hardness * 0.05);
+    }
+
     private static final double[] HARDNESS = {-1, 0, 0.1, 0.3, 0.5, 0.6, 1.0, 1.5, 2.0, 3.0, 4.5, 5.0,
             15.0, 22.5, 50.0, 100.0};
 
@@ -80,7 +87,7 @@ abstract class XpDefaultsGoldenBase {
             XpMatch pick = breakOf(hardness, "minecraft:mineable/pickaxe");
             assertEquals(Skill.MINING, pick.rule().skill);
             assertEquals("pickaxe", pick.rule().tool);
-            assertEquals(legacyBlockXp(hardness), pick.xp(), 0.0);
+            assertEquals(miningBlockXp(hardness), pick.xp(), 0.0);
             XpMatch shovel = breakOf(hardness, "minecraft:mineable/shovel");
             assertEquals(Skill.EXCAVATION, shovel.rule().skill);
             assertEquals("shovel", shovel.rule().tool);

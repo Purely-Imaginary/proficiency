@@ -24,6 +24,8 @@ public final class Proficiency {
         dev.amman.proficiency.event.TacticianEvents.init();
         // The Hearth: every lane registers its listeners (docs/HEARTH-CONTRACT.md).
         dev.amman.proficiency.hearth.Hearth.init();
+        // The advancement tab listens for the Hearth's milestones.
+        dev.amman.proficiency.skill.ProficiencyAdvancements.init();
     }
 
     public static ResourceLocation id(String path) {

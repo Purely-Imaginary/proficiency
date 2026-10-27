@@ -1,0 +1,28 @@
+{
+  "parent": "proficiency:first_expertise",
+  "display": {
+    "icon": {
+      "id": "minecraft:end_crystal"
+    },
+    "title": {
+      "translate": "advancement.proficiency.expertise_full.title"
+    },
+    "description": {
+      "translate": "advancement.proficiency.expertise_full.desc"
+    },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "event": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "event"
+    ]
+  ]
+}

@@ -99,6 +99,13 @@ public final class FabricPlatform implements Platform {
     }
 
     @Override
+    public void refreshTabListName(ServerPlayer player) {
+        ((dev.amman.proficiency.fabric.TabNameCache) player).proficiency$resetTabListName();
+        player.server.getPlayerList().broadcastAll(new net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket(
+                net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket.Action.UPDATE_DISPLAY_NAME, player));
+    }
+
+    @Override
     public void sendToPlayer(ServerPlayer player, CustomPacketPayload payload) {
         ServerPlayNetworking.send(player, payload);
     }

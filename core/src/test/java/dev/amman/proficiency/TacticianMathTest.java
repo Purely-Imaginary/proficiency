@@ -77,7 +77,12 @@ class TacticianMathTest {
         double rate = TacticianMath.DEFAULT_OVERWATCH_XP_PER_BLOCK;
         assertEquals(0.0, TacticianMath.overwatchXp(5.9, rate), 1e-9);
         assertEquals(6 * rate, TacticianMath.overwatchXp(6, rate), 1e-9);
-        assertEquals(15 * rate, TacticianMath.overwatchXp(15, rate), 1e-9);
+        // Logarithmic: 6 x (1 + 4 x ln(15/6) / ln 5) = 19.66 blocks' worth, not 15.
+        assertEquals(6 * rate * (1 + 4 * Math.log(2.5) / Math.log(5)),
+                TacticianMath.overwatchXp(15, rate), 1e-9);
+        assertTrue(TacticianMath.overwatchXp(12, rate) - TacticianMath.overwatchXp(6, rate)
+                > TacticianMath.overwatchXp(30, rate) - TacticianMath.overwatchXp(24, rate));
+        assertEquals(30 * rate, TacticianMath.overwatchXp(30, rate), 1e-9);
         assertEquals(30 * rate, TacticianMath.overwatchXp(80, rate), 1e-9);
         assertEquals(0.0, TacticianMath.overwatchXp(Double.NaN, rate), 1e-9);
     }
@@ -233,7 +238,7 @@ class TacticianMathTest {
         Path dir = TestPaths.LANG;
         String en = Files.readString(dir.resolve("en_us.json"));
         String pl = Files.readString(dir.resolve("pl_pl.json"));
-        Matcher keys = Pattern.compile("\"(proficiency\\.[a-z_.]*tactician[a-z_.]*|proficiency\\.synergy\\.(hammer_and_anvil|covering_fire)[a-z_.]*)\"\\s*:")
+        Matcher keys = Pattern.compile("\"(proficiency\\.(?!mastery\\.)[a-z_.]*tactician[a-z_.]*|proficiency\\.synergy\\.(hammer_and_anvil|covering_fire)[a-z_.]*)\"\\s*:")
                 .matcher(en);
         int found = 0;
         while (keys.find()) {

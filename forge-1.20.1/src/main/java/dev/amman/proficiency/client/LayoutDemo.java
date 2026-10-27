@@ -40,7 +40,8 @@ final class LayoutDemo {
             "fr_fr", "ja_jp", "ko_kr", "tr_tr", "uk_ua"};
     /** Window width, height and GUI scale (0 = auto). */
     private static final int[][] SETUPS = {{1920, 1080, 4}, {1280, 720, 0}, {1280, 800, 0}, {1920, 1080, 2},
-            {960, 720, 3}};
+            {960, 720, 3}, {1280, 720, 4}, {1280, 720, -4},
+            {3840, 2160, 0}, {3840, 2160, 4}};
 
     private record Step(String name, Runnable run, long waitMs, BooleanSupplier until) {
     }
@@ -50,7 +51,11 @@ final class LayoutDemo {
     private static final String SETUP_FILTER = System.getenv("PROFICIENCY_LAYOUT_SETUPS");
 
     private static boolean want(String group) {
-        return ONLY == null || ONLY.isEmpty() || java.util.Arrays.asList(ONLY.split(",")).contains(group);
+        if (ONLY == null || ONLY.isEmpty()) {
+            return true;
+        }
+        java.util.List<String> only = java.util.Arrays.asList(ONLY.split(","));
+        return only.contains(group) || group.equals("stoneface") && only.contains("stone");
     }
 
     private static final Deque<Step> STEPS = new ArrayDeque<>();
@@ -170,7 +175,7 @@ final class LayoutDemo {
                     continue;
                 }
                 int[] size = SETUPS[setupIndex];
-                String tag = size[0] + "x" + size[1] + "-gui" + (size[2] == 0 ? "auto" : size[2]);
+                String tag = size[0] + "x" + size[1] + "-gui" + (size[2] == 0 ? "auto" : size[2] < 0 ? "forced" + -size[2] : size[2]);
                 add("window " + tag, 1200, () -> {
                     setup = tag;
                     GLFW.glfwSetWindowSize(mc.getWindow().getWindow(), size[0], size[1]);
@@ -178,8 +183,13 @@ final class LayoutDemo {
                 // The framebuffer follows the window one event poll later, and the GUI scale is
                 // worked out from the framebuffer, so set the scale only now.
                 add("scale " + tag, 800, () -> {
-                    mc.options.guiScale().set(size[2]);
+                    mc.options.guiScale().set(Math.abs(size[2]));
                     mc.resizeDisplay();
+                    if (size[2] < 0) {
+                        // Minecraft keeps a GUI under 320x240 out of reach (1280x720 tops out at scale 3);
+                        // force scale 4 there to audit the smallest slab: 320x180.
+                        mc.getWindow().setGuiScale(4);
+                    }
                 });
                 add("scale log", 100, () -> LayoutAudit.note("SETUP " + lang + " " + tag + " -> gui "
                         + mc.getWindow().getGuiScaledWidth() + "x" + mc.getWindow().getGuiScaledHeight()
@@ -229,6 +239,371 @@ final class LayoutDemo {
         });
         shot(mc, "panel-hearth");
         add("panel hearth off", 100, () -> dev.amman.proficiency.hearth.net.HearthClients.hud(hearthHud(false)));
+        // Groups folded: the arrows, the "n skills, best N" summary on a folded header.
+        add("panel folded", 700, () -> {
+            SkillsScreen.foldForDemo(java.util.List.of(dev.amman.proficiency.skill.SkillCategory.GATHERING,
+                    dev.amman.proficiency.skill.SkillCategory.MOVEMENT, dev.amman.proficiency.skill.SkillCategory.CRAFTING,
+                    dev.amman.proficiency.skill.SkillCategory.CONSTRUCTION, dev.amman.proficiency.skill.SkillCategory.SOCIAL,
+                    dev.amman.proficiency.skill.SkillCategory.SURVIVAL));
+            mc.setScreen(new SkillsScreen());
+            mouse(mc, 2, 2);
+        });
+        shot(mc, "panel-folded");
+        add("panel unfold", 100, () -> SkillsScreen.foldForDemo(java.util.List.of()));
+
+        prune(mark, group);
+        mark = STEPS.size();
+        group = "stone";
+        // The Skillstone (ui.style = modern, 1.30.0): the opening frozen at the storyboard's times, the
+        // settled dial, a hovered rune, Combat's 13 rows, a Face, a synergy chip, a refused tab, a rune click.
+        for (long at : new long[] {0, 120, 220, 270, 320, 450, 520, 600, 680, 760, 830, 900, 1100}) {
+            add("stone intro " + at, 350, () -> {
+                dev.amman.proficiency.client.stone.SkillstoneScreen.demoTime(at);
+                mc.setScreen(new dev.amman.proficiency.client.stone.SkillstoneScreen());
+                mouse(mc, 2, 2);
+            });
+            shot(mc, "stone-intro-" + String.format(java.util.Locale.ROOT, "%04d", at));
+        }
+        add("stone dial", 600, () -> {
+            dev.amman.proficiency.client.stone.SkillstoneScreen.demoTime(-1);
+            dev.amman.proficiency.client.stone.SkillstoneScreen screen = new dev.amman.proficiency.client.stone.SkillstoneScreen();
+            screen.skipIntroForDemo();
+            mc.setScreen(screen);
+            mouse(mc, 2, 2);
+        });
+        shot(mc, "stone-dial");
+        add("stone rune hover", 500, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.SkillstoneScreen screen) {
+                int[] p = screen.hitPoint(0, 4);
+                if (p != null) {
+                    mouse(mc, p[0], p[1]);
+                }
+            }
+        });
+        shot(mc, "stone-rune-hover");
+        add("stone rune click", 90, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.SkillstoneScreen screen) {
+                int[] p = screen.hitPoint(0, 0);
+                if (p != null) {
+                    mouse(mc, p[0], p[1]);
+                    screen.mouseClicked(p[0], p[1], 0);
+                }
+            }
+        });
+        shot(mc, "stone-rune-click");
+        add("stone combat row", 900, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.SkillstoneScreen screen) {
+                int[] p = screen.hitPoint(1, Skill.SWORDS.ordinal());
+                if (p != null) {
+                    mouse(mc, p[0], p[1]);
+                }
+            }
+        });
+        shot(mc, "stone-combat");
+        add("stone open face", 60, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.SkillstoneScreen screen) {
+                int[] p = screen.hitPoint(1, Skill.SWORDS.ordinal());
+                if (p != null) {
+                    screen.mouseClicked(p[0], p[1], 0);
+                }
+            }
+        });
+        shot(mc, "stone-turn");
+        prune(mark, group);
+        mark = STEPS.size();
+        group = "stoneface"; // PROFICIENCY_LAYOUT_ONLY=stoneface runs just the Face scenes (stone runs them too)
+        add("stone face", 700, () -> {
+            mc.setScreen(new dev.amman.proficiency.client.stone.SkillstoneScreen(Skill.MINING));
+            mouse(mc, 2, 2);
+        });
+        shot(mc, "stone-face");
+        add("stone face synergy", 500, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.SkillstoneScreen screen) {
+                int[] p = screen.hitPoint(6, 2);
+                if (p != null) {
+                    mouse(mc, p[0], p[1]);
+                }
+            }
+        });
+        shot(mc, "stone-face-synergy");
+        // The one-column Face (GUI 4 and 960x720 at GUI 3): the audit line says whether it is on and how long the
+        // column is; then the wheel scrolls it to the middle and to the end. Bigger sizes keep two columns and ignore the wheel.
+        add("stone face column", 300, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.SkillstoneScreen screen) {
+                LayoutAudit.note("FACE " + setup + " " + screen.faceInfo());
+            }
+        });
+        add("stone face scroll", 400, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.SkillstoneScreen screen) {
+                for (int i = 0; i < 3; i++) {
+                    screen.mouseScrolled(10, 10, -1);
+                }
+            }
+        });
+        shot(mc, "stone-face-scroll");
+        add("stone face end", 400, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.SkillstoneScreen screen) {
+                for (int i = 0; i < 40; i++) {
+                    screen.mouseScrolled(10, 10, -1);
+                }
+                LayoutAudit.note("FACE " + setup + " end " + screen.faceInfo());
+            }
+        });
+        shot(mc, "stone-face-end");
+        add("stone refuse", 60, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.SkillstoneScreen screen) {
+                int[] p = screen.hitPoint(3, 2);
+                if (p != null) {
+                    mouse(mc, p[0], p[1]);
+                    screen.mouseClicked(p[0], p[1], 0);
+                }
+            }
+        });
+        shot(mc, "stone-refuse");
+        prune(mark, group);
+        mark = STEPS.size();
+        group = "stone";
+        // The Tree tab (stage 2): Mining at level 60 from an empty tree, a hovered socket, the root
+        // filled rank by rank with a frame sheet of the last rank, a refused click, a capstone flare.
+        // A respec costs a vanilla level per 10 points in survival.
+        add("stone tree levels", 300, () -> command(mc, "xp add @s 30 levels"));
+        add("stone tree respec", 400, () -> command(mc, "proficiency respec mining"));
+        // The root's last rank wants materials (Cobblestone and Coal for Mining): bring them.
+        add("stone tree give cobble", 300, () -> command(mc, "give @s cobblestone 128"));
+        add("stone tree give coal", 300, () -> command(mc, "give @s coal 64"));
+        add("stone tree", 800, () -> {
+            dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(-1);
+            dev.amman.proficiency.client.stone.SkillstoneScreen screen = new dev.amman.proficiency.client.stone.SkillstoneScreen(Skill.MINING);
+            mc.setScreen(screen);
+            screen.treeFor(Skill.MINING, null);
+            mouse(mc, 2, 2);
+        });
+        shot(mc, "stone-tree");
+        for (int k = 0; k < 4; k++) {
+            add("stone tree root " + k, 500, () -> stoneClick(mc, 7, 0));
+        }
+        add("stone tree hover", 500, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.SkillstoneScreen screen) {
+                int[] p = screen.hitPoint(7, 1);
+                if (p != null) {
+                    mouse(mc, p[0], p[1]);
+                }
+            }
+        });
+        shot(mc, "stone-tree-hover");
+        add("stone tree freeze", 100, () -> dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(0));
+        add("stone tree last rank", 600, () -> stoneClick(mc, 7, 0));
+        for (long at : new long[] {0, 60, 130, 200, 280, 360, 460, 600, 800, 1000}) {
+            add("stone unlock " + at, 120, () -> dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(at));
+            shot(mc, "stone-unlock-" + String.format(java.util.Locale.ROOT, "%04d", at));
+        }
+        add("stone tree thaw", 600, () -> dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(-1));
+        shot(mc, "stone-tree-after");
+        add("stone tree refuse", 90, () -> {
+            java.util.List<dev.amman.proficiency.perk.Talent> nodes = dev.amman.proficiency.perk.Talents.of(Skill.MINING);
+            for (int i = nodes.size() - 1; i >= 0; i--) {
+                if (nodes.get(i).requiredLevel() > 60) {
+                    stoneClick(mc, 7, i);
+                    break;
+                }
+            }
+        });
+        shot(mc, "stone-tree-refuse");
+        add("stone tree scroll", 400, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.SkillstoneScreen screen) {
+                int[] p = screen.hitPoint(7, 0);
+                if (p != null) {
+                    screen.mouseScrolled(p[0], p[1], -40); // to the end: the last row's labels must show
+                }
+            }
+        });
+        shot(mc, "stone-tree-scrolled");
+        add("stone capstone", 100, () -> {
+            dev.amman.proficiency.client.stone.SkillstoneScreen screen = new dev.amman.proficiency.client.stone.SkillstoneScreen(Skill.SWORDS);
+            mc.setScreen(screen);
+            screen.treeFor(Skill.SWORDS, null);
+            mouse(mc, 2, 2);
+        });
+        add("stone capstone fill", 900, () -> command(mc, "proficiency filltree @s swords"));
+        add("stone capstone freeze", 100, () -> {
+            dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(0);
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.SkillstoneScreen screen) {
+                java.util.List<dev.amman.proficiency.perk.Talent> nodes = dev.amman.proficiency.perk.Talents.of(Skill.SWORDS);
+                screen.demoLand(nodes.get(nodes.size() - 1).id());
+            }
+        });
+        for (long at : new long[] {120, 220, 340, 500, 700}) {
+            add("stone capstone " + at, 120, () -> dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(at));
+            shot(mc, "stone-capstone-" + String.format(java.util.Locale.ROOT, "%04d", at));
+        }
+        add("stone capstone thaw", 200, () -> dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(-1));
+        // The Hearth tab (stage 3): the demo's fake Hearth on the stone face, then a stage and a pool tier rising.
+        add("stone hearth feed", 900, () -> {
+            dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(-1);
+            dev.amman.proficiency.hearth.client.HearthDemo.feed("clear");
+            dev.amman.proficiency.hearth.client.HearthDemo.feed("home");
+            dev.amman.proficiency.hearth.client.HearthDemo.feed("panel");
+        });
+        add("stone hearth", 900, () -> {
+            mc.setScreen(null);
+            dev.amman.proficiency.client.stone.SkillstoneScreen.openHearth();
+            mouse(mc, 2, 2);
+        });
+        shot(mc, "stone-hearth");
+        add("stone hearth hover", 400, () -> stoneHover(mc, 8, 0));
+        shot(mc, "stone-hearth-hover");
+        add("stone hearth rise", 100, () -> {
+            dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(0);
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.SkillstoneScreen screen) {
+                screen.demoHearthRise();
+            }
+        });
+        for (long at : new long[] {200, 350, 550}) {
+            add("stone hearth " + at, 120, () -> dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(at));
+            shot(mc, "stone-hearth-rise-" + String.format(java.util.Locale.ROOT, "%04d", at));
+        }
+        // Stage 3b (1.32.0): the Hearth's further slab pages on the same fake Hearth.
+        add("stone guide", 900, () -> {
+            dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(-1);
+            mc.setScreen(null);
+            dev.amman.proficiency.client.stone.SkillstoneScreen.openHearth();
+            mc.setScreen(new dev.amman.proficiency.client.stone.StoneGuideScreen(mc.screen));
+            mouse(mc, 2, 2);
+        });
+        shot(mc, "stone-guide");
+        add("stone guide hover", 700, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.StoneGuideScreen screen) {
+                int[] p = screen.point(1, 2);
+                if (p != null) {
+                    mouse(mc, p[0], p[1]);
+                }
+            }
+        });
+        shot(mc, "stone-guide-hover");
+        add("stone guide lane", 700, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.StoneGuideScreen screen) {
+                screen.show(dev.amman.proficiency.hearth.client.HearthGuide.Tab.BUILD, 2, 0);
+                mouse(mc, 2, 2);
+            }
+        });
+        shot(mc, "stone-guide-lane");
+        add("stone guide boons", 500, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.StoneGuideScreen screen) {
+                screen.show(dev.amman.proficiency.hearth.client.HearthGuide.Tab.BOONS, -1, 0);
+            }
+        });
+        shot(mc, "stone-guide-boons");
+        add("stone keepers", 700, () -> {
+            mc.setScreen(null);
+            dev.amman.proficiency.client.stone.SkillstoneScreen.openHearth();
+            mc.setScreen(new dev.amman.proficiency.client.stone.StoneKeepersScreen(mc.screen, -1, false));
+            mouse(mc, 2, 2);
+        });
+        shot(mc, "stone-keepers");
+        add("stone keepers hover", 400, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.StoneKeepersScreen screen) {
+                int[] p = screen.keeperPoint();
+                mouse(mc, p[0], p[1]);
+            }
+        });
+        shot(mc, "stone-keepers-hover");
+        add("stone keepers pool", 600, () -> {
+            mc.setScreen(new dev.amman.proficiency.client.stone.StoneKeepersScreen(null, 0, true));
+            mouse(mc, 2, 2);
+        });
+        shot(mc, "stone-keepers-pool");
+        add("stone plan", 700, () -> {
+            mc.setScreen(dev.amman.proficiency.client.stone.StonePlanScreen.demo(demoPlan(), null));
+            mouse(mc, 2, 2);
+        });
+        shot(mc, "stone-plan");
+        add("stone plan open", 500, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.StonePlanScreen screen) {
+                screen.demoOpen();
+            }
+        });
+        shot(mc, "stone-plan-open");
+        add("stone plan refuse", 90, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.StonePlanScreen screen) {
+                int[] p = screen.point(1, 3);
+                if (p != null) {
+                    sheetClick(mc, p);
+                }
+            }
+        });
+        shot(mc, "stone-plan-refuse");
+        // Stage 4 (1.32.0): Expertise, Mastery and Titles, the Journal, and the dial's fifth corner socket.
+        add("stone expertise", 800, () -> {
+            dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(-1);
+            mc.setScreen(new dev.amman.proficiency.client.stone.StoneExpertiseScreen(null));
+            mouse(mc, 2, 2);
+        });
+        shot(mc, "stone-expertise");
+        add("stone expertise hover", 400, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.StoneExpertiseScreen screen) {
+                int[] p = screen.nodePoint(0);
+                if (p != null) {
+                    mouse(mc, p[0], p[1]);
+                }
+            }
+        });
+        shot(mc, "stone-expertise-hover");
+        add("stone expertise freeze", 100, () -> dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(0));
+        add("stone expertise click", 700, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.StoneExpertiseScreen screen) {
+                int[] p = screen.nodePoint(0);
+                if (p != null) {
+                    sheetClick(mc, p);
+                }
+            }
+        });
+        for (long at : new long[] {60, 130, 200, 340, 500}) {
+            add("stone expertise " + at, 120, () -> dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(at));
+            shot(mc, "stone-expertise-" + String.format(java.util.Locale.ROOT, "%04d", at));
+        }
+        add("stone expertise thaw", 300, () -> dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(-1));
+        add("stone mastery", 700, () -> {
+            mc.setScreen(new dev.amman.proficiency.client.stone.StoneLedgerScreen(null, false));
+            mouse(mc, 2, 2);
+        });
+        shot(mc, "stone-mastery");
+        add("stone titles", 700, () -> {
+            mc.setScreen(new dev.amman.proficiency.client.stone.StoneLedgerScreen(null, true));
+            mouse(mc, 2, 2);
+        });
+        shot(mc, "stone-titles");
+        add("stone titles hover", 400, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.StoneLedgerScreen screen) {
+                int[] p = screen.point(2, -1);
+                if (p != null) {
+                    mouse(mc, p[0], p[1]);
+                }
+            }
+        });
+        shot(mc, "stone-titles-hover");
+        add("stone journal", 700, () -> {
+            mc.setScreen(new dev.amman.proficiency.client.stone.StoneJournalScreen(null));
+            mouse(mc, 2, 2);
+        });
+        shot(mc, "stone-journal");
+        add("stone journal skills", 600, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.StoneJournalScreen screen) {
+                screen.showTab(3);
+            }
+        });
+        shot(mc, "stone-journal-skills");
+        add("stone corner", 900, () -> {
+            mc.setScreen(new dev.amman.proficiency.client.stone.SkillstoneScreen());
+            dev.amman.proficiency.client.stone.SkillstoneScreen.demoTime(-1);
+        });
+        add("stone corner hover", 400, () -> stoneHover(mc, 2, 3));
+        shot(mc, "stone-corner");
+        add("stone hearth thaw", 200, () -> {
+            dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(-1);
+            mc.setScreen(null);
+            dev.amman.proficiency.hearth.client.HearthDemo.feed("clear");
+        });
+        add("stone close", 200, () -> mc.setScreen(null));
 
         prune(mark, group);
         mark = STEPS.size();
@@ -386,6 +761,43 @@ final class LayoutDemo {
 
         prune(mark, group);
         mark = STEPS.size();
+        group = "tempo";
+        // 3b the Tempo fire on the Mining bar: embers, a step up (the flare), mid heat, the cap, then the lapse
+        // sinking to smoke. A grant brings the line up (and sends the server's own chain, at step 0); the chain
+        // shown is then fed to the client as the server's packet would be, with a long window that holds it.
+        add("tempo quiet", 300, () -> {
+            mc.setScreen(null);
+            mc.player.getInventory().selected = 1;
+            command(mc, "gamerule sendCommandFeedback false");
+        });
+        // The bar about two thirds full, then the chat cleared: its box would cover the line.
+        add("tempo fill", 1500, () -> command(mc, "proficiency addxp @s mining 300"));
+        add("tempo chat", 100, () -> mc.gui.getChat().clearMessages(false));
+        tempoStep(mc, "tempo low", 1, 1020, 400, 900);
+        shot(mc, "tempo-1-low");
+        tempoStep(mc, "tempo mid", 12, 1240, 400, 900);
+        add("tempo step", 60, () -> TempoBadge.accept(
+                new dev.amman.proficiency.net.TempoPayload(Skill.MINING.ordinal(), 13, 25, 1260, 400)));
+        shot(mc, "tempo-2-flare");
+        add("tempo mid settled", 700, () -> {
+        });
+        shot(mc, "tempo-3-mid");
+        tempoStep(mc, "tempo high", 20, 1400, 400, 900);
+        shot(mc, "tempo-4-high");
+        tempoStep(mc, "tempo cap", 25, 1500, 400, 900);
+        shot(mc, "tempo-5-cap");
+        // A one-tick window: it lapses at once and the fire dies down.
+        add("tempo lapse", 330, () -> TempoBadge.accept(
+                new dev.amman.proficiency.net.TempoPayload(Skill.MINING.ordinal(), 25, 25, 1500, 1)));
+        shot(mc, "tempo-6-sinking");
+        add("tempo smoke", 450, () -> {
+        });
+        shot(mc, "tempo-7-smoke");
+        add("tempo gone", 1600, () -> {
+        });
+        shot(mc, "tempo-8-gone");
+        prune(mark, group);
+        mark = STEPS.size();
         group = "recap";
         // 4 death recap
         add("recap banner", 100, () -> {
@@ -463,6 +875,226 @@ final class LayoutDemo {
 
         prune(mark, group);
         mark = STEPS.size();
+        group = "waywheel";
+        // The Waywheel (ui.style = modern, 1.33.0): three pins on the belt with Mining's Tempo fire and Running
+        // cooling, the opening frozen at storyboard times, Gathering's tokens with Mining hovered, Combat's two
+        // rings, Construction, a refused release (a locked ability) and a cast that flares the belt.
+        add("waywheel style", 300, () -> {
+            dev.amman.proficiency.config.ProficiencyClientConfig.setUiStyle(UiStyle.MODERN);
+            dev.amman.proficiency.config.ProficiencyClientConfig.setUiWaywheelPins("mining,swords,running");
+            mc.setScreen(null);
+            mc.player.getInventory().selected = 0;
+            command(mc, "gamerule sendCommandFeedback false");
+        });
+        for (String id : new String[] {"mining", "swords", "running", "woodcutting"}) {
+            add("waywheel fill " + id, 400, () -> command(mc, "proficiency filltree @s " + id));
+        }
+        add("waywheel cast running", 700, () -> ClientInputEvents.cast(Skill.RUNNING));
+        add("waywheel tempo", 600, () -> {
+            TempoBadge.accept(new dev.amman.proficiency.net.TempoPayload(Skill.MINING.ordinal(), 20, 25, 1400, 6000));
+            mc.gui.getChat().clearMessages(false);
+        });
+        shot(mc, "waywheel-belt");
+        add("waywheel freeze", 100, () -> {
+            dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(-1);
+            dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(0);
+            mc.setScreen(new dev.amman.proficiency.client.stone.WaywheelScreen(ProficiencyClient.USE_ABILITY));
+            mouse(mc, mc.getWindow().getGuiScaledWidth() / 2, mc.getWindow().getGuiScaledHeight() / 2);
+        });
+        for (long at : new long[] {0, 40, 80, 120, 160, 240, 330}) {
+            add("waywheel open " + at, 150, () -> dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(at));
+            shot(mc, "waywheel-open-" + String.format(java.util.Locale.ROOT, "%04d", at));
+        }
+        add("waywheel thaw", 300, () -> dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(-1));
+        add("waywheel gathering", 500, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.WaywheelScreen wheel) {
+                wheel.showCategory(dev.amman.proficiency.skill.SkillCategory.GATHERING);
+            }
+        });
+        add("waywheel mining", 400, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.WaywheelScreen wheel) {
+                int[] p = wheel.tokenPoint(wheel.tokenOf(Skill.MINING));
+                mouse(mc, p[0], p[1]);
+            }
+        });
+        shot(mc, "waywheel-mining");
+        add("waywheel rune", 400, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.WaywheelScreen wheel) {
+                int[] p = wheel.runeAt(dev.amman.proficiency.skill.SkillCategory.MOVEMENT.ordinal());
+                mouse(mc, p[0], p[1]);
+            }
+        });
+        shot(mc, "waywheel-movement");
+        add("waywheel combat", 600, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.WaywheelScreen wheel) {
+                // The cursor back to the hub first: inside the rim it would pick its own rune again.
+                mouse(mc, mc.getWindow().getGuiScaledWidth() / 2, mc.getWindow().getGuiScaledHeight() / 2);
+                wheel.showCategory(dev.amman.proficiency.skill.SkillCategory.COMBAT);
+            }
+        });
+        add("waywheel swords", 400, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.WaywheelScreen wheel) {
+                int[] p = wheel.tokenPoint(wheel.tokenOf(Skill.SWORDS));
+                mouse(mc, p[0], p[1]);
+            }
+        });
+        shot(mc, "waywheel-combat");
+        add("waywheel construction", 600, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.WaywheelScreen wheel) {
+                wheel.showCategory(dev.amman.proficiency.skill.SkillCategory.CONSTRUCTION);
+                mouse(mc, 4, 4);
+            }
+        });
+        shot(mc, "waywheel-construction");
+        add("waywheel locked", 600, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.WaywheelScreen wheel) {
+                wheel.showCategory(dev.amman.proficiency.skill.SkillCategory.GATHERING);
+            }
+        });
+        add("waywheel fishing", 400, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.WaywheelScreen wheel) {
+                int[] p = wheel.tokenPoint(wheel.tokenOf(Skill.FISHING));
+                mouse(mc, p[0], p[1]);
+            }
+        });
+        add("waywheel refuse", 100, () -> {
+            dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(0);
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.WaywheelScreen wheel) {
+                wheel.demoRelease();
+            }
+        });
+        for (long at : new long[] {30, 90, 200}) {
+            add("waywheel refuse " + at, 120, () -> dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(at));
+            shot(mc, "waywheel-refuse-" + String.format(java.util.Locale.ROOT, "%04d", at));
+        }
+        add("waywheel refuse thaw", 700, () -> dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(-1));
+        // A world kept from an earlier run may hold Mining's and Woodcutting's cooldowns: clear them on both
+        // sides so the cast below fires instead of being refused.
+        add("waywheel cooldowns", 300, () -> {
+            net.minecraft.server.MinecraftServer server = mc.getSingleplayerServer();
+            java.util.UUID id = mc.player.getUUID();
+            for (Skill s : new Skill[] {Skill.MINING, Skill.WOODCUTTING}) {
+                dev.amman.proficiency.ProficiencyAttachments.of(mc.player).shortenCooldown(s, 1_000_000L, mc.player.level().getGameTime());
+            }
+            if (server != null) {
+                server.execute(() -> {
+                    net.minecraft.server.level.ServerPlayer sp = server.getPlayerList().getPlayer(id);
+                    if (sp != null) {
+                        for (Skill s : new Skill[] {Skill.MINING, Skill.WOODCUTTING}) {
+                            dev.amman.proficiency.ProficiencyAttachments.of(sp).shortenCooldown(s, 1_000_000L, sp.level().getGameTime());
+                        }
+                    }
+                });
+            }
+        });
+        add("waywheel again", 500, () -> {
+            mc.setScreen(new dev.amman.proficiency.client.stone.WaywheelScreen(ProficiencyClient.USE_ABILITY));
+        });
+        add("waywheel cast hover", 400, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.WaywheelScreen wheel) {
+                wheel.showCategory(dev.amman.proficiency.skill.SkillCategory.GATHERING);
+                int[] p = wheel.tokenPoint(wheel.tokenOf(Skill.MINING));
+                mouse(mc, p[0], p[1]);
+            }
+        });
+        // The cast (1.34.0), frozen at storyboard times: the wheel closes at once, the HUD folds the disc and
+        // flies Mining (pinned) to its belt socket, which flares as it lands.
+        add("waywheel cast freeze", 100, () -> {
+            dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(-1);
+            dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(0);
+        });
+        add("waywheel cast", 120, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.WaywheelScreen wheel) {
+                wheel.demoRelease();
+            }
+        });
+        for (long at : new long[] {0, 40, 80, 120, 160, 200, 250, 300, 360, 480}) {
+            add("waywheel fly " + at, 150, () -> dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(at));
+            shot(mc, "waywheel-fly-" + String.format(java.util.Locale.ROOT, "%04d", at));
+        }
+        add("waywheel fly thaw", 700, () -> dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(-1));
+        shot(mc, "waywheel-cast-after");
+        // Off the belt: Woodcutting is not pinned, so its token lifts off the wheel and burns away.
+        add("waywheel pop open", 500, () -> {
+            mc.setScreen(new dev.amman.proficiency.client.stone.WaywheelScreen(ProficiencyClient.USE_ABILITY));
+        });
+        add("waywheel pop hover", 400, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.WaywheelScreen wheel) {
+                wheel.showCategory(dev.amman.proficiency.skill.SkillCategory.GATHERING);
+                int[] p = wheel.tokenPoint(wheel.tokenOf(Skill.WOODCUTTING));
+                mouse(mc, p[0], p[1]);
+            }
+        });
+        add("waywheel pop freeze", 100, () -> {
+            dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(-1);
+            dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(0);
+        });
+        add("waywheel pop", 120, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.WaywheelScreen wheel) {
+                wheel.demoRelease();
+            }
+        });
+        for (long at : new long[] {0, 60, 120, 180}) {
+            add("waywheel pop " + at, 150, () -> dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(at));
+            shot(mc, "waywheel-pop-" + String.format(java.util.Locale.ROOT, "%04d", at));
+        }
+        add("waywheel pop thaw", 500, () -> dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(-1));
+        add("waywheel classic", 200, () -> {
+            dev.amman.proficiency.config.ProficiencyClientConfig.setUiStyle(UiStyle.CLASSIC);
+            dev.amman.proficiency.config.ProficiencyClientConfig.setUiWaywheelPins("");
+            mc.setScreen(null);
+        });
+
+        prune(mark, group);
+        mark = STEPS.size();
+        group = "campstone";
+        campstoneScenes(mc);
+
+        prune(mark, group);
+        mark = STEPS.size();
+        group = "tbA";
+        // The style toggle both ways (1.34.0): stone -> classic by the slab's rune, then (tbB) classic -> stone by
+        // the classic panel's own button. tbA leaves CLASSIC saved, tbB leaves MODERN; tbrestart only opens the
+        // skills screen as the saved config says, so a second launch shows the choice stuck.
+        add("tb stone", 1800, () -> {
+            dev.amman.proficiency.config.ProficiencyClientConfig.setUiStyle(UiStyle.MODERN);
+            mc.setScreen(dev.amman.proficiency.client.stone.SkillstoneScreen.skills());
+        });
+        shot(mc, "tb1-stone");
+        add("tb to classic", 1200, () -> stoneClick(mc, 2, 4));
+        shot(mc, "tb2-classic");
+        add("tb hover stone button", 300, () -> {
+            if (mc.screen instanceof SkillsScreen screen) {
+                int[] p = screen.stonePoint();
+                mouse(mc, p[0], p[1]);
+            }
+        });
+        shot(mc, "tb3-classic-tooltip");
+
+        prune(mark, group);
+        mark = STEPS.size();
+        group = "tbB";
+        add("tb classic open", 800, () -> {
+            dev.amman.proficiency.config.ProficiencyClientConfig.setUiStyle(UiStyle.CLASSIC);
+            mc.setScreen(dev.amman.proficiency.client.stone.SkillstoneScreen.skills());
+        });
+        add("tb back to stone", 1800, () -> {
+            if (mc.screen instanceof SkillsScreen screen) {
+                int[] p = screen.stonePoint();
+                mouse(mc, p[0], p[1]);
+                screen.mouseClicked(p[0], p[1], 0);
+            }
+        });
+        shot(mc, "tb4-back-in-stone");
+
+        prune(mark, group);
+        mark = STEPS.size();
+        group = "tbrestart";
+        add("tb restart open", 1800, () -> mc.setScreen(dev.amman.proficiency.client.stone.SkillstoneScreen.skills()));
+        shot(mc, "tb-restart");
+
+        prune(mark, group);
+        mark = STEPS.size();
         group = "item";
         // 6 item tooltip, collapsed and with Shift
         add("item", 700, () -> {
@@ -499,6 +1131,13 @@ final class LayoutDemo {
             mc.setScreen(screen);
         });
         shot(mc, "journal");
+        add("codex titles", 700, () -> mc.setScreen(new CodexTitlesScreen(null)));
+        shot(mc, "codex-titles");
+        add("codex toast", 900, () -> {
+            mc.setScreen(null);
+            SkillToasts.codex(longestSkill(mc), 100);
+        });
+        shot(mc, "codex-toast");
         add("config", 700, () -> mc.setScreen(new ClientConfigScreen(null)));
         shot(mc, "config");
         prune(mark, group);
@@ -701,6 +1340,131 @@ final class LayoutDemo {
         shot(mc, "guide-away");
         ghostScenes(mc);
         add("guide done", 300, () -> mc.setScreen(null));
+    }
+
+    /** The campfire the campstone scenes placed, and the style to put back after them. */
+    private static net.minecraft.core.BlockPos campfireAt;
+    private static UiStyle campStyle;
+
+    /** The real server's answer to an empty hand on that campfire: its stage-0 panel payload, sent to this client. */
+    private static void campfireClick(Minecraft mc) {
+        var server = mc.getSingleplayerServer();
+        if (server == null || campfireAt == null) {
+            return;
+        }
+        java.util.UUID id = mc.player.getUUID();
+        net.minecraft.core.BlockPos at = campfireAt;
+        server.execute(() -> {
+            net.minecraft.server.level.ServerPlayer player = server.getPlayerList().getPlayer(id);
+            if (player != null) {
+                dev.amman.proficiency.hearth.stages.HearthOfferings.panelSender.accept(player,
+                        dev.amman.proficiency.hearth.net.HearthNet.campfireState(player.serverLevel(), at));
+            }
+        });
+    }
+
+    /**
+     * A plain campfire's preview (1.34.0): the classic panel under CLASSIC, the stone Hearth face for comparison,
+     * then the campfire's own slab page under MODERN with hovers, the build guide switched on and a refused
+     * Build it for me (frame sheets on the frozen clock).
+     */
+    private static void campstoneScenes(Minecraft mc) {
+        add("campstone setup", 900, () -> {
+            campStyle = dev.amman.proficiency.config.ProficiencyClientConfig.uiStyle();
+            dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(-1);
+            mc.setScreen(null);
+            command(mc, "gamerule sendCommandFeedback false");
+            campfireAt = mc.player.blockPosition().offset(0, 0, 3);
+            command(mc, "setblock " + campfireAt.getX() + " " + campfireAt.getY() + " " + campfireAt.getZ() + " campfire");
+            command(mc, "tp @s ~ ~ ~ 0 25");
+        });
+        add("campstone classic", 1200, () -> {
+            dev.amman.proficiency.config.ProficiencyClientConfig.setUiStyle(UiStyle.CLASSIC);
+            mc.setScreen(null);
+            campfireClick(mc);
+            mouse(mc, 2, 2);
+        });
+        add("campstone-classic cursor", 300, () -> mouse(mc, 2, 2));
+        shot(mc, "campstone-classic");
+        add("campstone hearth", 900, () -> {
+            mc.setScreen(null);
+            dev.amman.proficiency.config.ProficiencyClientConfig.setUiStyle(UiStyle.MODERN);
+            dev.amman.proficiency.hearth.client.HearthDemo.feed("clear");
+            dev.amman.proficiency.hearth.client.HearthDemo.feed("home");
+            dev.amman.proficiency.hearth.client.HearthDemo.feed("panel");
+            dev.amman.proficiency.client.stone.SkillstoneScreen.openHearth();
+            mouse(mc, 2, 2);
+        });
+        shot(mc, "campstone-hearth");
+        add("campstone stone", 1200, () -> {
+            mc.setScreen(null);
+            dev.amman.proficiency.hearth.client.HearthDemo.feed("clear");
+            campfireClick(mc);
+            mouse(mc, 2, 2);
+        });
+        add("campstone-campfire cursor", 300, () -> mouse(mc, 2, 2));
+        shot(mc, "campstone-campfire");
+        add("campstone hover stage", 400, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.StoneCampfireScreen screen) {
+                int[] p = screen.partPoint(0);
+                mouse(mc, p[0], p[1]);
+            }
+        });
+        shot(mc, "campstone-hover-stage");
+        add("campstone hover pool", 400, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.StoneCampfireScreen screen) {
+                int[] p = screen.partPoint(1);
+                mouse(mc, p[0], p[1]);
+            }
+        });
+        shot(mc, "campstone-hover-pool");
+        add("campstone hover build", 400, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.StoneCampfireScreen screen) {
+                int[] p = screen.platePoint(3);
+                if (p != null) {
+                    mouse(mc, p[0], p[1]);
+                }
+            }
+        });
+        shot(mc, "campstone-hover-build");
+        add("campstone guide freeze", 100, () -> {
+            mouse(mc, 2, 2);
+            dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(0);
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.StoneCampfireScreen screen) {
+                screen.demoPress(0);
+            }
+        });
+        for (long at : new long[] {60, 160, 320}) {
+            add("campstone guide " + at, 120, () -> dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(at));
+            shot(mc, "campstone-guide-" + String.format(java.util.Locale.ROOT, "%04d", at));
+        }
+        add("campstone guide thaw", 700, () -> dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(-1));
+        shot(mc, "campstone-guide-on");
+        add("campstone refuse freeze", 100, () -> {
+            dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(0);
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.StoneCampfireScreen screen) {
+                screen.demoPress(3);
+            }
+        });
+        for (long at : new long[] {30, 90, 200}) {
+            add("campstone refuse " + at, 120, () -> dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(at));
+            shot(mc, "campstone-refuse-" + String.format(java.util.Locale.ROOT, "%04d", at));
+        }
+        add("campstone ghosts", 1500, () -> {
+            dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(-1);
+            mc.setScreen(null);
+        });
+        shot(mc, "campstone-ghosts");
+        add("campstone done", 400, () -> {
+            dev.amman.proficiency.hearth.client.HearthGhost.off();
+            mc.setScreen(null);
+            if (campfireAt != null) {
+                command(mc, "setblock " + campfireAt.getX() + " " + campfireAt.getY() + " " + campfireAt.getZ() + " air");
+            }
+            if (campStyle != null) {
+                dev.amman.proficiency.config.ProficiencyClientConfig.setUiStyle(campStyle);
+            }
+        });
     }
 
     /**
@@ -910,6 +1674,19 @@ final class LayoutDemo {
         });
     }
 
+    /**
+     * The Mining line brought back up by a swap of the held item (no grant, so the server sends no chain of
+     * its own), then the chain {@code steps} of 25 fed as the server sends it.
+     */
+    private static void tempoStep(Minecraft mc, String name, int steps, int permille, int windowTicks, long waitMs) {
+        add(name + " swap", 150, () -> mc.player.getInventory().selected = 0);
+        add(name, waitMs, () -> {
+            mc.player.getInventory().selected = 1;
+            TempoBadge.accept(
+                    new dev.amman.proficiency.net.TempoPayload(Skill.MINING.ordinal(), steps, 25, permille, windowTicks));
+        });
+    }
+
     /** Drops the steps added since {@code mark} when their scene group is not wanted. */
     private static void prune(int mark, String group) {
         if (group.isEmpty() || want(group)) {
@@ -998,6 +1775,56 @@ final class LayoutDemo {
         } catch (ReflectiveOperationException | RuntimeException e) {
             LayoutAudit.note("MOUSE FAILED " + e);
             GLFW.glfwSetCursorPos(mc.getWindow().getWindow(), guiX * scale, guiY * scale);
+        }
+    }
+
+    /** A fake self-build plan for the stone plan page: three roles, one a fluid, stock in a pack and a chest. */
+    private static dev.amman.proficiency.hearth.net.HearthBuildPlanPayload demoPlan() {
+        java.util.List<dev.amman.proficiency.hearth.net.HearthBuildPlanPayload.Where> where = java.util.List.of(
+                new dev.amman.proficiency.hearth.net.HearthBuildPlanPayload.Where(true, 0, 0, 0, 64),
+                new dev.amman.proficiency.hearth.net.HearthBuildPlanPayload.Where(false, 3, 0, -2, 32));
+        java.util.List<dev.amman.proficiency.hearth.net.HearthBuildPlanPayload.Option> stone = java.util.List.of(
+                new dev.amman.proficiency.hearth.net.HearthBuildPlanPayload.Option("minecraft:stone_bricks", 96, where),
+                new dev.amman.proficiency.hearth.net.HearthBuildPlanPayload.Option("minecraft:cobblestone", 210, where),
+                new dev.amman.proficiency.hearth.net.HearthBuildPlanPayload.Option("minecraft:deepslate_bricks", 12, where),
+                new dev.amman.proficiency.hearth.net.HearthBuildPlanPayload.Option("minecraft:mossy_stone_bricks", 40, where));
+        java.util.List<dev.amman.proficiency.hearth.net.HearthBuildPlanPayload.Row> rows = java.util.List.of(
+                new dev.amman.proficiency.hearth.net.HearthBuildPlanPayload.Row('S', 64, "minecraft:stone_bricks", stone),
+                new dev.amman.proficiency.hearth.net.HearthBuildPlanPayload.Row('W', 18, "minecraft:spruce_log", java.util.List.of(
+                        new dev.amman.proficiency.hearth.net.HearthBuildPlanPayload.Option("minecraft:spruce_log", 7, where))),
+                new dev.amman.proficiency.hearth.net.HearthBuildPlanPayload.Row('l', 4, "minecraft:lantern", java.util.List.of(
+                        new dev.amman.proficiency.hearth.net.HearthBuildPlanPayload.Option("minecraft:lantern", 4, where))),
+                new dev.amman.proficiency.hearth.net.HearthBuildPlanPayload.Row('v', 1, "minecraft:water_bucket", java.util.List.of()));
+        return new dev.amman.proficiency.hearth.net.HearthBuildPlanPayload(net.minecraft.core.BlockPos.asLong(0, 64, 0), 3, 0,
+                false, 2, 5, 0, rows);
+    }
+
+    /** A click at a GUI point on the open screen, as the mouse would send it. */
+    private static void sheetClick(Minecraft mc, int[] p) {
+        mouse(mc, p[0], p[1]);
+        if (mc.screen != null) {
+            mc.screen.mouseClicked(p[0], p[1], 0);
+        }
+    }
+
+    /** Moves the cursor over the Skillstone's part {@code kind}/{@code index} from the last frame. */
+    private static void stoneHover(Minecraft mc, int kind, int index) {
+        if (mc.screen instanceof dev.amman.proficiency.client.stone.SkillstoneScreen screen) {
+            int[] p = screen.hitPoint(kind, index);
+            if (p != null) {
+                mouse(mc, p[0], p[1]);
+            }
+        }
+    }
+
+    /** A click on the Skillstone's part {@code kind}/{@code index} from the last frame. */
+    private static void stoneClick(Minecraft mc, int kind, int index) {
+        if (mc.screen instanceof dev.amman.proficiency.client.stone.SkillstoneScreen screen) {
+            int[] p = screen.hitPoint(kind, index);
+            if (p != null) {
+                mouse(mc, p[0], p[1]);
+                screen.mouseClicked(p[0], p[1], 0);
+            }
         }
     }
 

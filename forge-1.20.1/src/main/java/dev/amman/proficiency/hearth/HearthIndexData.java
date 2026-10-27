@@ -30,6 +30,8 @@ public final class HearthIndexData extends SavedData {
     public static final int SWEEP_TICKS = 600;
 
     private final HearthIndexStore store = new HearthIndexStore();
+    /** Hearths whose running build holds a chunk ticket now (idea 16): so a restart loads only these. */
+    private final LongOpenHashSet held = new LongOpenHashSet();
 
     public static HearthIndexData create() {
         return new HearthIndexData();
@@ -39,6 +41,7 @@ public final class HearthIndexData extends SavedData {
         HearthIndexData data = new HearthIndexData();
         data.store.decode(tag.getLongArray("hearths"));
         data.store.decodeRadii(tag.getLongArray("radii"));
+        data.held.addAll(new LongArrayList(tag.getLongArray("held")));
         return data;
     }
 
@@ -46,12 +49,27 @@ public final class HearthIndexData extends SavedData {
     public CompoundTag save(CompoundTag tag) {
         tag.putLongArray("hearths", store.encode());
         tag.putLongArray("radii", store.encodeRadii());
+        if (!held.isEmpty()) {
+            tag.putLongArray("held", held.toLongArray());
+        }
         return tag;
     }
 
     /** This dimension's index. One map lookup, no allocation: fine on a hot path. */
     public static HearthIndexData get(ServerLevel level) {
         return level.getDataStorage().computeIfAbsent(HearthIndexData::load, HearthIndexData::create, NAME);
+    }
+
+    /** Records that the Hearth's build holds (or no longer holds) its chunk ticket. */
+    public void setHeld(BlockPos pos, boolean on) {
+        if (on ? held.add(pos.asLong()) : held.remove(pos.asLong())) {
+            setDirty();
+        }
+    }
+
+    /** The Hearths that held a ticket when the world was saved. */
+    public long[] heldPositions() {
+        return held.toLongArray();
     }
 
     public HearthIndexStore store() {
@@ -96,6 +114,7 @@ public final class HearthIndexData extends SavedData {
      */
     public static void forget(ServerLevel level, BlockPos pos) {
         get(level).remove(pos);
+        dev.amman.proficiency.hearth.stages.HearthChunks.release(level, pos);
         HearthWorldData.get(level.getServer()).forgetHearth(HearthBlockEntity.key(level, pos));
         dev.amman.proficiency.hearth.comfort.HearthComfort.hearthGone(level, pos);
     }

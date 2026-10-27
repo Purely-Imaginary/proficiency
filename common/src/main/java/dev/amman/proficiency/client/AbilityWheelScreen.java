@@ -46,6 +46,8 @@ public final class AbilityWheelScreen extends Screen {
     private final List<Integer> extras;
     @Nullable
     private final Skill inHands;
+    private final ClickFx click = new ClickFx();
+    private long closeAt;
     private int selected = -1;
     private boolean done;
 
@@ -141,7 +143,7 @@ public final class AbilityWheelScreen extends Screen {
         long now = player.level().getGameTime();
 
         int pick = pick(mouseX, mouseY);
-        if (pick != selected) {
+        if (!done && pick != selected) {
             selected = pick;
             if (pick >= 0 && this.minecraft != null) {
                 this.minecraft.getSoundManager().play(
@@ -158,44 +160,59 @@ public final class AbilityWheelScreen extends Screen {
 
         double step = 2 * Math.PI / count();
         boolean icons = SkillIcons.enabled();
+        long clock = System.currentTimeMillis();
         for (int i = 0; i < count(); i++) {
             double angle = -Math.PI / 2 + i * step;
             int x = cx + (int) Math.round(radius * Math.cos(angle));
             int y = cy + (int) Math.round(radius * Math.sin(angle));
-            if (i >= entries.size()) {
-                extraSlot(graphics, extras.get(i - entries.size()), x, y, i == selected, player);
-                continue;
-            }
-            Skill skill = entries.get(i);
-            int accent = SkillPalette.accent(skill.category());
-            long cooldown = skills.cooldownRemaining(skill, now);
             int half = slotSize() / 2;
-            if (i == selected) {
-                graphics.fill(x - half - 2, y - half - 2, x + half + 2, y + half + 2, accent);
-                graphics.fill(x - half, y - half, x + half, y + half, 0xF0121418);
-            } else {
-                graphics.fill(x - half, y - half, x + half, y + half, 0xA023282F);
-            }
-            if (icons) {
-                // The skill's own icon: an item stood in for most skills only loosely (a cake for
-                // Social, a golden apple for Guardian), the drawn one names the skill.
-                int iconSize = Math.min(SkillIcons.LARGE, half * 2 - 2);
-                SkillIcons.draw(graphics, skill, x - iconSize / 2, y - iconSize / 2, iconSize);
-            } else {
-                graphics.renderItem(icon(skill), x - 8, y - 8);
-            }
-            if (cooldown > 0) {
-                // A cooling ability is greyed and fills back up from the bottom as it recovers.
-                double left = cooldown / (double) Math.max(1L, ActiveService.cooldownTicks(skills, skill));
-                int shade = (int) Math.round(half * 2 * Math.min(1.0, left));
-                graphics.fill(x - half, y + half - shade, x + half, y + half, 0xA0000000);
-            }
-            if (skill == inHands) {
-                graphics.fill(x + half - 4, y - half + 1, x + half - 1, y - half + 4, SkillPalette.MAXED);
-            }
+            click.begin(graphics, i, x - half, y - half, half * 2, half * 2, clock);
+            drawSlot(graphics, i, x, y, icons, player, skills, now);
+            click.end(graphics, i, x - half, y - half, half * 2, half * 2, clock);
+        }
+        click.render(graphics, clock, 1f);
+        if (closeAt > 0 && clock >= closeAt) {
+            closeAt = 0;
+            onClose();
+            return;
         }
 
         centre(graphics, cx, cy, radius - RING_HALF_WIDTH - 10, skills, now);
+    }
+
+    private void drawSlot(GuiGraphics graphics, int i, int x, int y, boolean icons, Player player,
+            PlayerSkills skills, long now) {
+        if (i >= entries.size()) {
+            extraSlot(graphics, extras.get(i - entries.size()), x, y, i == selected, player);
+            return;
+        }
+        Skill skill = entries.get(i);
+        int accent = SkillPalette.accent(skill.category());
+        long cooldown = skills.cooldownRemaining(skill, now);
+        int half = slotSize() / 2;
+        if (i == selected) {
+            graphics.fill(x - half - 2, y - half - 2, x + half + 2, y + half + 2, accent);
+            graphics.fill(x - half, y - half, x + half, y + half, 0xF0121418);
+        } else {
+            graphics.fill(x - half, y - half, x + half, y + half, 0xA023282F);
+        }
+        if (icons) {
+            // The skill's own icon: an item stood in for most skills only loosely (a cake for
+            // Social, a golden apple for Guardian), the drawn one names the skill.
+            int iconSize = Math.min(SkillIcons.LARGE, half * 2 - 2);
+            SkillIcons.draw(graphics, skill, x - iconSize / 2, y - iconSize / 2, iconSize);
+        } else {
+            graphics.renderItem(icon(skill), x - 8, y - 8);
+        }
+        if (cooldown > 0) {
+            // A cooling ability is greyed and fills back up from the bottom as it recovers.
+            double left = cooldown / (double) Math.max(1L, ActiveService.cooldownTicks(skills, skill));
+            int shade = (int) Math.round(half * 2 * Math.min(1.0, left));
+            graphics.fill(x - half, y + half - shade, x + half, y + half, 0xA0000000);
+        }
+        if (skill == inHands) {
+            graphics.fill(x + half - 4, y - half + 1, x + half - 1, y - half + 4, SkillPalette.MAXED);
+        }
     }
 
     /** What the selected slot would cast, in the middle of the ring; the hint when none is. */
@@ -319,6 +336,29 @@ public final class AbilityWheelScreen extends Screen {
             return;
         }
         Skill skill = selected >= 0 ? entries.get(selected) : null;
+        if (skill != null && ClickFx.on() && this.minecraft != null && this.minecraft.player != null) {
+            // Let the slot answer before the wheel goes: a wiggle and a thunk when it is cooling, a pop when it fires.
+            long clock = System.currentTimeMillis();
+            int half = slotSize() / 2;
+            int[] at = slotPoint(selected);
+            boolean cooling = ProficiencyAttachments.of(this.minecraft.player)
+                    .cooldownRemaining(skill, this.minecraft.player.level().getGameTime()) > 0;
+            if (cooling) {
+                click.no(selected, at[0] - half, at[1] - half, half * 2, half * 2, clock);
+            } else {
+                click.success(selected, at[0] - half, at[1] - half, half * 2, half * 2,
+                        SkillPalette.accent(skill.category()), 0, 0.6f, clock);
+            }
+            if (cooling) {
+                // Nothing fires, so there is no input to hold up: let the slot answer "no" first.
+                closeAt = clock + 300L;
+            } else {
+                // The cast must not wait on a quarter second of blocked input: the wheel goes at once.
+                onClose();
+            }
+            ClientInputEvents.cast(skill);
+            return;
+        }
         onClose();
         if (skill != null) {
             ClientInputEvents.cast(skill);
@@ -415,6 +455,9 @@ public final class AbilityWheelScreen extends Screen {
             case CHARGER -> Items.WHITE_BANNER;
             case TACTICIAN -> Items.SPYGLASS;
             case HOMEBUILDER -> Items.CAMPFIRE;
+            case HUSBANDRY -> Items.LEAD;
+            case RIDING -> Items.SADDLE;
+            case COMMERCE -> Items.EMERALD;
         };
         return new ItemStack(item);
     }

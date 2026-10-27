@@ -40,6 +40,10 @@ public final class NeoForgeNetwork {
         registrar.playToClient(LevelUpPayload.TYPE, LevelUpPayload.STREAM_CODEC,
                 (payload, context) -> context.enqueueWork(() ->
                         dev.amman.proficiency.client.ClientWiring.onLevelUp(payload)));
+        registrar.playToClient(dev.amman.proficiency.net.TempoPayload.TYPE,
+                dev.amman.proficiency.net.TempoPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() ->
+                        dev.amman.proficiency.client.ClientWiring.onTempo(payload)));
         registrar.playToClient(XpLogPayload.TYPE, XpLogPayload.STREAM_CODEC,
                 (payload, context) -> context.enqueueWork(() ->
                         dev.amman.proficiency.client.ClientWiring.onXpLog(payload)));

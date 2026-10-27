@@ -46,6 +46,8 @@ public final class ProficiencyFabricClient implements ClientModInitializer {
                 (payload, context) -> ClientWiring.onSync(payload, context.player()));
         ClientPlayNetworking.registerGlobalReceiver(LevelUpPayload.TYPE,
                 (payload, context) -> ClientWiring.onLevelUp(payload));
+        ClientPlayNetworking.registerGlobalReceiver(dev.amman.proficiency.net.TempoPayload.TYPE,
+                (payload, context) -> ClientWiring.onTempo(payload));
         ClientPlayNetworking.registerGlobalReceiver(XpLogPayload.TYPE,
                 (payload, context) -> ClientWiring.onXpLog(payload));
         ClientPlayNetworking.registerGlobalReceiver(XpFeedPayload.TYPE,

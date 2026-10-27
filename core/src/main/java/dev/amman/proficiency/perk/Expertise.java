@@ -11,11 +11,11 @@ import java.util.Set;
 
 /**
  * Expertise: one tree across all skills, paid for with points that come from breadth and depth.
- * One point per 100 levels summed over every skill (35 at most) and one per 5 Mastery stars summed
- * over every skill (35 at most), so 70 at the very end. The points are worked out from the levels
+ * One point per 100 levels summed over every skill (38 at most) and one per 5 Mastery stars summed
+ * over every skill (38 at most), so 76 at the very end. The points are worked out from the levels
  * and stars each time, never stored, so they cannot drift from what the player has.
  *
- * <p>The rules the tree keeps ({@code ExpertiseTest}): the whole tree costs no more than the 70
+ * <p>The rules the tree keeps ({@code ExpertiseTest}): the whole tree costs no more than the 76
  * points a player can earn, no node excludes another, and nothing softens a death. Every effect is
  * a multiplier on a {@link PerkEffect} that the skills already read through
  * {@code PlayerSkills.modifier}, so the tree screen's breakdown shows it as its own part.
@@ -28,10 +28,10 @@ public final class Expertise {
     public static final int LEVELS_PER_POINT = 100;
     /** Summed Mastery stars per point. */
     public static final int STARS_PER_POINT = 5;
-    /** Most points from levels: 35 skills at level 100. */
-    public static final int MAX_FROM_LEVELS = 35;
-    /** Most points from stars: 35 skills at five stars. */
-    public static final int MAX_FROM_STARS = 35;
+    /** Most points from levels: 38 skills at level 100. */
+    public static final int MAX_FROM_LEVELS = 38;
+    /** Most points from stars: 38 skills at five stars. */
+    public static final int MAX_FROM_STARS = 38;
     public static final int MAX_POINTS = MAX_FROM_LEVELS + MAX_FROM_STARS;
     /** Vanilla XP levels a respec costs per this many points refunded (at least one level). */
     public static final int RESPEC_POINTS_PER_LEVEL = 10;

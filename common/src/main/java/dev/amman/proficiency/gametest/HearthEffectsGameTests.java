@@ -114,7 +114,7 @@ public final class HearthEffectsGameTests {
 
         /** A survival player beside the Hearth, no spawn protection, login grace over. */
         ServerPlayer player() {
-            ServerPlayer player = helper.makeMockServerPlayerInLevel();
+            ServerPlayer player = MockPlayers.make(helper);
             player.setGameMode(GameType.SURVIVAL);
             player.setPos(helper.absoluteVec(new Vec3(2.5, 2, 2.5)));
             clearSpawnProtection(player);

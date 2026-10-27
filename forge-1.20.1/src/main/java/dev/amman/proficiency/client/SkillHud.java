@@ -3,7 +3,9 @@ package dev.amman.proficiency.client;
 import dev.amman.proficiency.Proficiency;
 import dev.amman.proficiency.ProficiencyAttachments;
 import dev.amman.proficiency.config.ProficiencyClientConfig;
+import dev.amman.proficiency.perk.TalentService;
 import dev.amman.proficiency.skill.ActiveService;
+import dev.amman.proficiency.skill.LodeMath;
 import dev.amman.proficiency.skill.Mastery;
 import dev.amman.proficiency.skill.PlayerSkills;
 import dev.amman.proficiency.skill.Skill;
@@ -55,6 +57,11 @@ public final class SkillHud {
      */
     private static double lift;
     private static long liftAt = Long.MIN_VALUE;
+
+    /** Full Motherlode charges last drawn (-1 before the first), and when and which pip last filled. */
+    private static int lodeFull = -1;
+    private static long lodeFilledAt = Long.MIN_VALUE / 2;
+    private static int lodeFlashPip = -1;
 
     private static Skill lastSkill;
     private static int lastLevel = -1;
@@ -126,6 +133,8 @@ public final class SkillHud {
         lastLevel = -1;
         lastStars = -1;
         java.util.Arrays.fill(SEEN, -1);
+        lodeFull = -1;
+        lodeFlashPip = -1;
         cSkill = null;
         cLevel = -1;
         cPercent = -1;
@@ -257,6 +266,7 @@ public final class SkillHud {
         StreakBadge.observe(SurvivalStreak.percent(SurvivalStreak.stacks(skills)), now);
         AbilityFx.render(graphics, minecraft.player, skills, context, event.getPartialTick(), now);
         DeathRecapHud.render(graphics, minecraft, now);
+        dev.amman.proficiency.client.stone.WaywheelBelt.render(graphics, minecraft);
         ProcCallout.render(graphics, minecraft, now);
 
         // A level gained on a skill the HUD is not showing borrows the line for a moment.
@@ -347,6 +357,11 @@ public final class SkillHud {
         if (ProficiencyClientConfig.hudStreakFx() && StreakBadge.holding(now)) {
             shownAt = now;
         }
+        // And the Tempo fire, so a lapsed chain is seen dying down to smoke: the window outlasts the line's
+        // own timer when the last action was the one that started its count. The fade starts after the smoke.
+        if (TempoBadge.visible(skill)) {
+            shownAt = Math.max(shownAt, now - (VISIBLE_MS - FADE_MS));
+        }
 
         long elapsed = now - shownAt;
         if (elapsed > VISIBLE_MS) {
@@ -362,7 +377,7 @@ public final class SkillHud {
                     graphics.guiWidth() - 16);
             int width = minecraft.font.width(frenzy);
             graphics.drawString(minecraft.font, frenzy,
-                    graphics.guiWidth() / 2 - width / 2, graphics.guiHeight() - fromBottom() - 11,
+                    graphics.guiWidth() / 2 - width / 2, graphics.guiHeight() - fromBottom() - 11 - TempoBadge.currentLift(),
                     0xFFF2D98A, true);
         }
     }
@@ -377,7 +392,10 @@ public final class SkillHud {
             int shownLevel, double shown, int alpha, long now, boolean dots) {
         Font font = minecraft.font;
         int centreX = graphics.guiWidth() / 2;
-        int y = graphics.guiHeight() - fromBottom();
+        int lineY = graphics.guiHeight() - fromBottom();
+        // While the Tempo fire burns on the bar the label rises, so the tallest flame stays under it; the
+        // bar itself never moves (below it is the held-item name and the action bar).
+        int y = lineY - TempoBadge.lift(skill);
         int accent = SkillPalette.accent(skill.category());
         int rgb = accent & 0x00FFFFFF;
         int a24 = alpha << 24;
@@ -487,7 +505,7 @@ public final class SkillHud {
         }
 
         int barLeft = centreX - BAR_WIDTH / 2;
-        int barTop = y + 11;
+        int barTop = lineY + 11;
         graphics.fill(barLeft, barTop, barLeft + BAR_WIDTH, barTop + 2,
                 (SkillPalette.TRACK & 0x00FFFFFF) | a24);
         int filled = (int) Math.round(BAR_WIDTH * BarValue.fill(shown));
@@ -504,6 +522,11 @@ public final class SkillHud {
             int restedAlpha = Math.round(alpha * 0.9f) << 24;
             graphics.fill(barLeft + rested[0], barTop, barLeft + rested[1], barTop + 2,
                     restedAlpha | (SkillPalette.RESTED_BAR & 0x00FFFFFF));
+        }
+        // Tempo: the fire rises from the fill (TempoBadge), the multiplier small past the bar's right end.
+        TempoBadge.draw(graphics, barLeft, barTop, BAR_WIDTH, filled, alpha, skill);
+        if (skill == Skill.MINING) {
+            drawLodePips(graphics, skills, barLeft, barTop + 2 + LodePips.BELOW_BAR, alpha, now);
         }
         if (flash > 0f) {
             int glow = Math.round(alpha * flash * 0.85f);
@@ -522,6 +545,47 @@ public final class SkillHud {
             anchorY = barTop + 1;
             anchorAt = net.minecraft.Util.getMillis();
             anchorSkill = skill;
+        }
+    }
+
+    /**
+     * Seam Sense's Motherlode charge, a row of pips under the Mining bar (see {@link LodePips}).
+     * Nothing without Seam Sense. A pip that fills while the line is up flashes; one that filled
+     * while it was not on show just appears full.
+     */
+    private static void drawLodePips(GuiGraphics graphics, PlayerSkills skills, int left, int top, int alpha,
+            long now) {
+        int seam = TalentService.rank(skills, Skill.MINING, "lode_charge");
+        if (seam <= 0) {
+            lodeFull = -1;
+            return;
+        }
+        double lode = skills.lode();
+        int capacity = LodeMath.capacity(TalentService.rank(skills, Skill.MINING, "lode_capacity"));
+        int full = LodeMath.full(lode);
+        if (lodeFull >= 0 && full > lodeFull) {
+            lodeFilledAt = now;
+            lodeFlashPip = Math.min(capacity, full) - 1;
+        }
+        lodeFull = full;
+        int a24 = alpha << 24;
+        float flash = LodePips.flash(now - lodeFilledAt);
+        LodePips.Pip[] pips = LodePips.of(lode, capacity, BAR_WIDTH);
+        for (int i = 0; i < pips.length; i++) {
+            LodePips.Pip pip = pips[i];
+            int x0 = left + pip.left();
+            graphics.fill(x0, top, left + pip.right(), top + LodePips.HEIGHT, (SkillPalette.TRACK & 0x00FFFFFF) | a24);
+            if (pip.filled() > 0) {
+                int rgb = (pip.banked() ? LodePips.BANKED : LodePips.BUILDING) & 0x00FFFFFF;
+                graphics.fill(x0, top, x0 + pip.filled(), top + LodePips.HEIGHT, a24 | rgb);
+            }
+            if (i == lodeFlashPip && flash > 0f) {
+                int glow = Math.round(alpha * flash * 0.9f);
+                if (glow > 8) {
+                    graphics.fill(x0 - 1, top - 1, left + pip.right() + 1, top + LodePips.HEIGHT + 1,
+                            (glow << 24) | 0xFFFFFF);
+                }
+            }
         }
     }
 

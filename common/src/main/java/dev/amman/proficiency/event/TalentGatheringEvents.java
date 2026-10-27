@@ -81,7 +81,6 @@ public final class TalentGatheringEvents {
     private static final int FERTILE_TICKS = 100;
     private static final int FERTILE_RADIUS = 3;
 
-    private static final double BREEDING_XP = 2.0;
     private static final double BONEMEAL_XP = 0.5;
     /** Sunken Treasure's book is enchanted like a vanilla treasure catch's. */
     private static final int TREASURE_BOOK_LEVELS = 30;
@@ -352,6 +351,92 @@ public final class TalentGatheringEvents {
         }
     }
 
+    // ---- Mining: Seam Sense, Lodestone, Tempering ----------------------------------------------
+
+    /**
+     * Motherlode's roll on a pickaxe break. Without Seam Sense it is the plain roll. With it, plain
+     * stone charges the next ore instead of rolling (a Motherlode on stone only paid cobblestone),
+     * and an ore spends the charge: a full one makes the Motherlode certain, a partial one is added
+     * to the chance. Mining Frenzy is a Motherlode on every block either way and leaves the charge.
+     */
+    static boolean motherlode(Player player, BlockState state, BlockPos pos) {
+        int seam = TalentService.rank(player, Skill.MINING, "lode_charge");
+        if (seam <= 0 || dev.amman.proficiency.skill.ActiveService.isFrenzied(player, Skill.MINING)) {
+            return dev.amman.proficiency.skill.ProcService.fire(player, Skill.MINING, pos);
+        }
+        dev.amman.proficiency.skill.PlayerSkills skills = dev.amman.proficiency.ProficiencyAttachments.of(player);
+        if (state.is(Tags.Blocks.ORES)) {
+            dev.amman.proficiency.skill.LodeMath.Strike strike =
+                    dev.amman.proficiency.skill.LodeMath.strike(skills.lode());
+            skills.setLode(strike.left());
+            if (strike.certain()) {
+                dev.amman.proficiency.skill.ProcService.forceNext(player, Skill.MINING);
+            }
+            return dev.amman.proficiency.skill.ProcService.fireWithBonus(player, Skill.MINING, pos, strike.bonus());
+        }
+        if (!state.is(BlockTags.BASE_STONE_OVERWORLD) && !state.is(BlockTags.BASE_STONE_NETHER)) {
+            // Obsidian, end stone, terracotta and the rest roll as before.
+            return dev.amman.proficiency.skill.ProcService.fire(player, Skill.MINING, pos);
+        }
+        // No charge before Motherlode itself is unlocked.
+        if (skills.procChance(Skill.MINING) <= 0) {
+            return false;
+        }
+        int capacity = dev.amman.proficiency.skill.LodeMath.capacity(
+                TalentService.rank(player, Skill.MINING, "lode_capacity"));
+        double before = skills.lode();
+        double after = dev.amman.proficiency.skill.LodeMath.charge(before, seam, capacity);
+        skills.setLode(after);
+        int full = dev.amman.proficiency.skill.LodeMath.full(after);
+        if (full > dev.amman.proficiency.skill.LodeMath.full(before)) {
+            player.displayClientMessage(net.minecraft.network.chat.Component.translatable(
+                    "proficiency.lode.charged", full, capacity)
+                    .withStyle(style -> style.withColor(
+                            dev.amman.proficiency.client.SkillPalette.STONE & 0xFFFFFF)), true);
+            player.level().playSound(null, player.blockPosition(),
+                    net.minecraft.sounds.SoundEvents.POLISHED_DEEPSLATE_PLACE,
+                    net.minecraft.sounds.SoundSource.PLAYERS, 0.6f, 0.7f + 0.1f * full);
+        }
+        return false;
+    }
+
+    /** The pickaxe and its damage at the last Motherlode, per player: Tempering mends the wear since. */
+    private record Tempered(ItemStack tool, int damage) {
+    }
+
+    private static final java.util.Map<UUID, Tempered> TEMPERED = new ConcurrentHashMap<>();
+
+    /**
+     * Tempering: each Motherlode mends up to 4 durability, never more than 80% of the wear since the
+     * last Motherlode with the same pickaxe (see LodeMath.mend). The same stack object, not the same
+     * item: swapping between two pickaxes starts the count again rather than mending either for free.
+     */
+    static void tempering(Player player) {
+        if (!TalentService.hasSpecial(player, Skill.MINING, "lode_mend")) {
+            return;
+        }
+        ItemStack tool = player.getMainHandItem();
+        if (!tool.isDamageableItem()) {
+            return;
+        }
+        int damage = tool.getDamageValue();
+        Tempered last = TEMPERED.get(player.getUUID());
+        if (last != null && last.tool() == tool && damage > last.damage()) {
+            int mend = dev.amman.proficiency.skill.ProcService.roundRandomly(player,
+                    dev.amman.proficiency.skill.LodeMath.mend(damage - last.damage()));
+            damage = Math.max(0, damage - mend);
+            tool.setDamageValue(damage);
+        }
+        TEMPERED.put(player.getUUID(), new Tempered(tool, damage));
+    }
+
+    /** Falling Leaf: two seconds of Slow Falling on each Timber, so a felled perch is not a fall. */
+    static void fallingLeaf(Player player) {
+        if (TalentService.hasSpecial(player, Skill.WOODCUTTING, "timber_slow_fall")) {
+            player.addEffect(new MobEffectInstance(MobEffects.SLOW_FALLING, 40, 0));
+        }
+    }
+
     // ---- Excavation --------------------------------------------------------------------------
 
     /** What Archaeologist and Fossil Hunter turn up. Built per call: ItemStacks are mutable. */
@@ -478,9 +563,11 @@ public final class TalentGatheringEvents {
         }
     }
 
-    /** Husbandry: breeding trains Farming, and sometimes the pair has twins. */
-    @SubscribeEvent
-    public static void onBabySpawn(BabyEntitySpawnEvent event) {
+    /**
+     * Farming's Herdsman node: a 10% chance per rank of twins on a breeding. The XP for breeding
+     * moved to the Husbandry skill (HusbandryEvents), which calls this when its own Twins did not land.
+     */
+    public static void farmingTwins(BabyEntitySpawnEvent event) {
         Player player = event.getCausedByPlayer();
         if (player == null || player.level().isClientSide()) {
             return;
@@ -489,7 +576,6 @@ public final class TalentGatheringEvents {
         if (rank <= 0) {
             return;
         }
-        SkillService.grant(player, Skill.FARMING, BREEDING_XP, "proficiency.xplog.source.breeding");
         if (event.getChild() == null
                 || !(event.getParentA() instanceof Animal mother)
                 || !(event.getParentB() instanceof Animal father)
@@ -704,6 +790,7 @@ public final class TalentGatheringEvents {
     public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
         DARK_SIGHTED.remove(event.getEntity().getUUID());
         FISHING_TRIP.remove(event.getEntity().getUUID());
+        TEMPERED.remove(event.getEntity().getUUID());
     }
 
     // ---- Synergies on a proc -----------------------------------------------------------------

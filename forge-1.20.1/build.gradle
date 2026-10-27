@@ -78,6 +78,8 @@ def sharedHearthJava = [
         'dev/amman/proficiency/hearth/comfort/ComfortTags.java',
         'dev/amman/proficiency/hearth/effects/HearthStations.java',
         'dev/amman/proficiency/hearth/effects/HearthStreak.java',
+        'dev/amman/proficiency/hearth/stages/HearthAutoBuild.java',
+        'dev/amman/proficiency/hearth/stages/HearthChunks.java',
         'dev/amman/proficiency/hearth/stages/HearthPresence.java',
         'dev/amman/proficiency/hearth/stages/HearthStageCheck.java',
         'dev/amman/proficiency/hearth/stages/StageBlocks.java',
@@ -95,10 +97,36 @@ def sharedHearthJava = [
         'dev/amman/proficiency/hearth/client/HearthText.java',
         'dev/amman/proficiency/hearth/client/HearthView.java',
         'dev/amman/proficiency/hearth/client/HearthGuide.java',
+        // The Skillstone UI (ui.style = modern, 1.30.0): written once against APIs both versions share.
+        'dev/amman/proficiency/client/stone/Stone.java',
+        'dev/amman/proficiency/client/stone/SkillstoneScreen.java',
+        'dev/amman/proficiency/client/stone/TreePage.java',
+        'dev/amman/proficiency/client/stone/FaceColumn.java',
+        'dev/amman/proficiency/client/stone/HearthPage.java',
+        'dev/amman/proficiency/client/stone/StoneSheet.java',
+        'dev/amman/proficiency/client/stone/StoneGuideScreen.java',
+        'dev/amman/proficiency/client/stone/StoneKeepersScreen.java',
+        'dev/amman/proficiency/client/stone/StonePlanScreen.java',
+        'dev/amman/proficiency/client/stone/StoneExpertiseScreen.java',
+        'dev/amman/proficiency/client/stone/StoneLedgerScreen.java',
+        'dev/amman/proficiency/client/stone/StoneJournalScreen.java',
+        'dev/amman/proficiency/client/stone/StoneCampfireScreen.java',
+        'dev/amman/proficiency/client/stone/WaywheelScreen.java',
+        'dev/amman/proficiency/client/stone/WaywheelBelt.java',
+        'dev/amman/proficiency/client/stone/WaywheelToken.java',
         'dev/amman/proficiency/hearth/client/HearthGhost.java',
         'dev/amman/proficiency/hearth/client/HearthVisualize.java',
         'dev/amman/proficiency/hearth/client/HearthPreview.java',
         'dev/amman/proficiency/hearth/client/HearthMapMarks.java',
+        // The optional Jade plugin (1.16.0): the server's answers and the lines, the same on both versions.
+        // The plugin class, the block provider and the request packet are this line's own (Jade 11).
+        'dev/amman/proficiency/look/XpLookData.java',
+        'dev/amman/proficiency/look/HearthLookData.java',
+        'dev/amman/proficiency/jade/LookText.java',
+        'dev/amman/proficiency/jade/SkillIconElement.java',
+        'dev/amman/proficiency/jade/BlockLookView.java',
+        'dev/amman/proficiency/jade/MobLookProvider.java',
+        'dev/amman/proficiency/jade/HearthLookProvider.java',
 ]
 def copySharedHearth = tasks.register('copySharedHearth', Sync) {
     description = "Copies the Hearth classes both Minecraft versions compile unchanged from common's sources."
@@ -174,6 +202,8 @@ repositories {
 
 dependencies {
     compileOnly 'maven.modrinth:xaeros-world-map:forge-1.20.1-1.40.16'
+    // The optional Jade plugin (compat/jade), compile-only: never bundled, never needed to run.
+    compileOnly "maven.modrinth:jade:${jade_forge_version}"
     testImplementation "com.google.code.gson:gson:${gson_version}"
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
     compileOnly(annotationProcessor('io.github.llamalad7:mixinextras-common:0.4.1'))
@@ -266,6 +296,10 @@ tasks.matching { it.name == 'runGameTestServer' }.configureEach {
             file.withInputStream { props.load(it) }
         }
         props.setProperty('level-type', 'minecraft:flat')
+        // A random seed on the default flat preset sometimes generated a real village on the test
+        // cells ("structure visited before it was planted", 1 run in 2 on 2026-10-20). No worldgen
+        // structures: the discovery tests plant their own.
+        props.setProperty('generate-structures', 'false')
         file.parentFile.mkdirs()
         file.withOutputStream { props.store(it, 'Minecraft server properties (GameTest run: a flat world)') }
     }

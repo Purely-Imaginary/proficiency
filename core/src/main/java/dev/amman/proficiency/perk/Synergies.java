@@ -338,6 +338,10 @@ public final class Synergies {
                 grants(SMITHING, PROC_POWER, 1.10, ENGINEERING, XP_RATE, 1.05), null);
         add("runesmith", needs(SMITHING, "disenchanter", 1, ALCHEMY, "runescribe", 1),
                 grants(SMITHING, ABILITY_DURATION, 1.10, ALCHEMY, PROC_POWER, 1.10), null);
+        // The smith's eye for a good piece and the caster's feel for the weave: Whetstone and
+        // Temper gifts come more often and can land at II or III (Spellforge, TalentCraftingEvents).
+        add("spellforged", needs(SMITHING, "temper", 3, SPELLCASTING, "spell_surge", 5),
+                grants(SMITHING, PROC_CHANCE, 1.05, SPELLCASTING, XP_RATE, 1.05), "spellforged");
         add("guild_prices", needs(SMITHING, "haggler", 5, SOCIAL, "good_word", 2),
                 grants(SMITHING, BONUS, 1.05, SOCIAL, PROC_CHANCE, 1.10), null);
         add("wrought_iron", needs(SMITHING, "legendary", 1, DECORATING, "curator", 3),
@@ -386,6 +390,70 @@ public final class Synergies {
                 grants(HOMEBUILDER, PROC_POWER, 1.10, MASONRY, TEMPO, 1.15), null);
         add("housewarming", needs(DECORATING, "hygge", 3, HOMEBUILDER, "light_step", 5),
                 grants(DECORATING, XP_RATE, 1.05, HOMEBUILDER, BONUS, 1.05), "housewarming");
+
+        // Husbandry (docs/batch-log/husbandry.md): ten pairings with the trees it works beside.
+        add("farm_to_table", needs(FARMING, "green_thumb", 1, HUSBANDRY, "good_stock", 3),
+                grants(HUSBANDRY, XP_RATE, 1.10, FARMING, BONUS, 1.05), null);
+        add("feed_the_herd", needs(FARMING, "seed_saver", 2, HUSBANDRY, "gentle_hands", 2),
+                grants(FARMING, XP_RATE, 1.05, HUSBANDRY, XP_RATE, 1.10), null);
+        add("packmaster", needs(BEASTSLAYING, "tracking", 3, HUSBANDRY, "wolf_learns", 2),
+                grants(HUSBANDRY, BONUS, 1.10, BEASTSLAYING, XP_RATE, 1.05), null);
+        add("fresh_dairy", needs(COOKING, "second_helping", 3, HUSBANDRY, "fresh_pail", 2),
+                grants(COOKING, BONUS, 1.05, HUSBANDRY, XP_RATE, 1.05), null);
+        add("stable_roof", needs(HOMEBUILDER, "light_step", 3, HUSBANDRY, "good_stock", 3),
+                grants(HOMEBUILDER, XP_RATE, 1.05, HUSBANDRY, PROC_CHANCE, 1.10), null);
+        add("village_herd", needs(SOCIAL, "fellowship", 3, HUSBANDRY, "twin_luck", 3),
+                grants(HUSBANDRY, PROC_CHANCE, 1.05, SOCIAL, XP_RATE, 1.10), null);
+        add("watchdog", needs(GUARDIAN, "bodyguard", 2, HUSBANDRY, "shared_strength", 2),
+                grants(GUARDIAN, BONUS, 1.05, HUSBANDRY, BONUS, 1.10), null);
+        add("trail_companion", needs(WAYFARING, "trailwise", 3, HUSBANDRY, "gentle_hands", 3),
+                grants(WAYFARING, XP_RATE, 1.05, HUSBANDRY, XP_RATE, 1.05), null);
+        add("brave_hounds", needs(COURAGE, "battle_cry", 3, HUSBANDRY, "shared_strength", 3),
+                grants(COURAGE, BONUS, 1.05, HUSBANDRY, PROC_POWER, 1.10), null);
+        add("honey_tonic", needs(ALCHEMY, "potency", 3, HUSBANDRY, "long_summer", 2),
+                grants(HUSBANDRY, ABILITY_DURATION, 1.10, ALCHEMY, XP_RATE, 1.05), null);
+        // Riding (docs/batch-log/riding.md): ten pairings with the trees it rides beside.
+        add("open_country", needs(RUNNING, "second_wind", 3, RIDING, "fair_wind", 3),
+                grants(RIDING, XP_RATE, 1.05, RUNNING, XP_RATE, 1.05), null);
+        add("ferryman", needs(SWIMMING, "streamline", 3, RIDING, "barding", 2),
+                grants(RIDING, XP_RATE, 1.05, SWIMMING, BONUS, 1.05), null);
+        add("heavy_cavalry", needs(CHARGER, "head_start", 2, RIDING, "couched_lance", 2),
+                grants(CHARGER, BONUS, 1.05, RIDING, PROC_POWER, 1.10), null);
+        add("horse_whisperer", needs(HUSBANDRY, "gentle_hands", 2, RIDING, "whistle", 2),
+                grants(RIDING, BONUS, 1.05, HUSBANDRY, XP_RATE, 1.05), null);
+        add("horse_archer", needs(ARCHERY, "steady_aim", 3, RIDING, "saddle_archer", 2),
+                grants(ARCHERY, BONUS, 1.05, RIDING, PROC_CHANCE, 1.10), null);
+        add("mounted_hunt", needs(BEASTSLAYING, "monster_lore", 3, RIDING, "couched_lance", 3),
+                grants(BEASTSLAYING, XP_RATE, 1.05, RIDING, PROC_POWER, 1.10), null);
+        add("rocketeer", needs(ENGINEERING, "spare_parts", 3, RIDING, "rocket_saver", 2),
+                grants(RIDING, ABILITY_DURATION, 1.10, ENGINEERING, XP_RATE, 1.05), null);
+        add("hard_rider", needs(ENDURANCE, "iron_constitution", 3, RIDING, "good_seat", 3),
+                grants(ENDURANCE, BONUS, 1.05, RIDING, XP_RATE, 1.10), null);
+        add("outrider", needs(TACTICIAN, "spotter", 3, RIDING, "fair_wind", 3),
+                grants(TACTICIAN, BONUS, 1.05, RIDING, PROC_CHANCE, 1.05), null);
+        add("cavalry_shield", needs(BLOCKING, "reinforced", 3, RIDING, "high_seat", 2),
+                grants(BLOCKING, BONUS, 1.05, RIDING, BONUS, 1.10), null);
+        // Commerce (docs/batch-log/commerce.md): ten pairings with the trees that sell to the villagers.
+        add("market_day", needs(SOCIAL, "good_word", 2, COMMERCE, "fair_dealing", 3),
+                grants(COMMERCE, XP_RATE, 1.05, SOCIAL, BONUS, 1.05), null);
+        add("fresh_stock", needs(FISHING, "fresh_catch", 2, COMMERCE, "last_piece", 2),
+                grants(FISHING, XP_RATE, 1.05, COMMERCE, BONUS, 1.05), null);
+        add("book_deal", needs(SPELLCASTING, "arcane_focus", 3, COMMERCE, "silver_tongue", 3),
+                grants(SPELLCASTING, XP_RATE, 1.05, COMMERCE, PROC_CHANCE, 1.10), null);
+        add("pantry_account", needs(COOKING, "seasoning", 3, COMMERCE, "sweetener", 2),
+                grants(COOKING, BONUS, 1.05, COMMERCE, XP_RATE, 1.05), null);
+        add("apothecary_trade", needs(ALCHEMY, "potency", 3, COMMERCE, "regulars", 2),
+                grants(ALCHEMY, XP_RATE, 1.05, COMMERCE, PROC_POWER, 1.10), null);
+        add("stone_contract", needs(MASONRY, "thrifty", 3, COMMERCE, "fair_dealing", 4),
+                grants(MASONRY, XP_RATE, 1.05, COMMERCE, BONUS, 1.05), null);
+        add("good_furnishings", needs(DECORATING, "thrift_shop", 3, COMMERCE, "silver_tongue", 2),
+                grants(DECORATING, BONUS, 1.05, COMMERCE, PROC_CHANCE, 1.05), null);
+        add("dig_for_gold", needs(EXCAVATION, "quick_dig", 3, COMMERCE, "gold_rush", 2),
+                grants(EXCAVATION, XP_RATE, 1.05, COMMERCE, XP_RATE, 1.10), null);
+        add("trade_tools", needs(ENGINEERING, "precision_parts", 3, COMMERCE, "better_deals", 2),
+                grants(ENGINEERING, XP_RATE, 1.05, COMMERCE, ABILITY_DURATION, 1.10), null);
+        add("fletchers_stall", needs(ARCHERY, "fletching", 3, COMMERCE, "old_debts", 2),
+                grants(ARCHERY, BONUS, 1.05, COMMERCE, BONUS, 1.10), null);
         add("salon", needs(DECORATING, "host", 2, SOCIAL, "strength_in_numbers", 2),
                 grants(SOCIAL, PROC_CHANCE, 1.05, DECORATING, ABILITY_DURATION, 1.10), null);
 

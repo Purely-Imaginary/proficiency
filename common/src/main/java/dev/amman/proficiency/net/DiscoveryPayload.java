@@ -37,6 +37,12 @@ public record DiscoveryPayload(int kind, String name, String id, int skill, floa
     /** The first Hearth this player ever lit: as {@link #HEARTH}, with its own kicker. */
     public static final int HEARTH_FIRST = 6;
 
+    /**
+     * A Codex title earned: {@code name} is the title's key, {@code id} its id ({@code mining:25}),
+     * {@code skill} the skill and {@code xp} the number of kinds found. A toast, not a banner.
+     */
+    public static final int CODEX = 7;
+
     private static final String HEARTH_ID = "proficiency:hearth/";
 
     /** The id a Hearth banner carries: {@code proficiency:hearth/<stage>}. */

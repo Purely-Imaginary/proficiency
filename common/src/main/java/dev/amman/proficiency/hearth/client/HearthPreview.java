@@ -36,7 +36,7 @@ import java.util.List;
  *
  * <p>Both Minecraft versions compile this file unchanged (forge-1.20.1's sharedHearthJava).
  */
-final class HearthPreview {
+public final class HearthPreview {
 
     static final int TURN_SECONDS = 16;
     /** The 9 x 9 x 7 box's diagonal view fits this many blocks across: the preview's size divided by it is one block. */
@@ -187,7 +187,7 @@ final class HearthPreview {
      * Draws lane {@code lane}'s stage {@code stage} (1..6) in the square at ({@code x}, {@code y}) of
      * {@code size} pixels, turned by the clock. The caller's scissor clips it.
      */
-    static void draw(GuiGraphics graphics, int lane, int stage, int x, int y, int size, long millis) {
+    public static void draw(GuiGraphics graphics, int lane, int stage, int x, int y, int size, long millis) {
         if (lane < 0 || lane >= CACHE.length || stage < 1 || stage > HearthDesigns.STAGES) {
             return;
         }

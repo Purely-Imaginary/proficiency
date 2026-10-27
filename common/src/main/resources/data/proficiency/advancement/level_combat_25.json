@@ -1,0 +1,28 @@
+{
+  "parent": "proficiency:level_combat_10",
+  "display": {
+    "icon": {
+      "id": "minecraft:iron_sword"
+    },
+    "title": {
+      "translate": "advancement.proficiency.level_combat_25.title"
+    },
+    "description": {
+      "translate": "advancement.proficiency.level_combat_25.desc"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "event": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "event"
+    ]
+  ]
+}

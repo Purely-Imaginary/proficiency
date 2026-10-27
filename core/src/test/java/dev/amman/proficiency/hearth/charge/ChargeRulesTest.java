@@ -31,10 +31,13 @@ class ChargeRulesTest {
 
     @Test
     void theDefaultDataMapsTheSpecTable() {
-        for (Skill skill : new Skill[] {Skill.MINING, Skill.WOODCUTTING, Skill.EXCAVATION, Skill.FARMING, Skill.FISHING}) {
+        for (Skill skill : new Skill[] {Skill.MINING, Skill.WOODCUTTING, Skill.EXCAVATION, Skill.FISHING}) {
             assertEquals(HearthPool.HEARTY, ChargeRules.pool(skill, D), skill.id());
         }
-        assertEquals(HearthPool.REGEN, ChargeRules.pool(Skill.DECORATING, D));
+        // Farming and decorating both feed REGEN (farming moved from HEARTY's gathering category).
+        for (Skill skill : new Skill[] {Skill.DECORATING, Skill.FARMING}) {
+            assertEquals(HearthPool.REGEN, ChargeRules.pool(skill, D), skill.id());
+        }
         assertEquals(HearthPool.FORTIFIED, ChargeRules.pool(Skill.MASONRY, D));
         for (Skill skill : new Skill[] {Skill.SMITHING, Skill.COOKING, Skill.ALCHEMY}) {
             assertEquals(HearthPool.WORKSHOP, ChargeRules.pool(skill, D), skill.id());

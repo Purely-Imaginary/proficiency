@@ -42,6 +42,8 @@ dependencies {
     modImplementation "net.fabricmc.fabric-api:fabric-api:${fabric_version}"
     // NeoForge's ModConfigSpec on Fabric, so ProficiencyConfig stays exactly as written.
     modImplementation "maven.modrinth:forge-config-api-port:${fcap_version}"
+    // The optional Jade plugin (common/.../jade), compile-only: never bundled, never needed to run.
+    modCompileOnly "maven.modrinth:jade:${jade_fabric_version}"
 
     // Forge Config API Port nests night-config as jar-in-jar, which dev runs do not unpack;
     // ProficiencyConfig's static init needs it. The shipped jar needs neither: in a real instance

@@ -1,5 +1,6 @@
 package dev.amman.proficiency.client;
 
+import dev.amman.proficiency.skill.Skill;
 import dev.amman.proficiency.skill.SkillCategory;
 
 /** One colour per category, so the panel reads as four groups at a glance. */
@@ -19,6 +20,14 @@ public final class SkillPalette {
     public static final int RESTED_BAR = 0xFF2C3B59;
 
     private SkillPalette() {
+    }
+
+    /** Motherlode's callout and charge text: stone grey, quieter than the Gathering green. */
+    public static final int STONE = 0xFFA8A49C;
+
+    /** The colour of a skill's proc callout: its category's, but Motherlode's is stone. */
+    public static int procAccent(Skill skill) {
+        return skill == Skill.MINING ? STONE : accent(skill.category());
     }
 
     public static int accent(SkillCategory category) {

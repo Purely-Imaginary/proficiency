@@ -1,5 +1,6 @@
 package dev.amman.proficiency.hearth.client;
 
+import dev.amman.proficiency.client.ClickFx;
 import dev.amman.proficiency.client.HudKit;
 import dev.amman.proficiency.client.SkillPalette;
 import dev.amman.proficiency.client.TooltipDetail;
@@ -46,6 +47,7 @@ import java.util.function.Supplier;
  * their top sources.
  */
 public final class HearthScreen extends Screen {
+    private final ClickFx click = new ClickFx();
 
     private static final int PANEL_WIDTH = 400;
     private static final int PADDING = 10;
@@ -112,6 +114,13 @@ public final class HearthScreen extends Screen {
     private Button guideButton;
     private Button laneButton;
     private boolean guideShown;
+    /** The self-build's start/stop (HearthAutoBuild on the server: one block a minute, no XP). */
+    private Button buildButton;
+    private boolean buildShown;
+    /** The build status last seen and when, so the countdown runs between two updates. */
+    @Nullable
+    private HearthStatePayload.Build seenBuild;
+    private long seenAt;
     /** Footer rows: the three buttons share one row when they fit, else the range button takes a row of its own. */
     private int footerRows = 1;
     private Button weekButton;
@@ -146,7 +155,7 @@ public final class HearthScreen extends Screen {
     }
 
     /** Opens it straight on the keepers tab ranked by {@code pool} (-1 for all); the layout demo uses it. */
-    static HearthScreen keepers(int pool, boolean lifetime) {
+    public static HearthScreen keepers(int pool, boolean lifetime) {
         HearthScreen screen = new HearthScreen();
         screen.tab = Tab.KEEPERS;
         screen.poolFilter = pool;
@@ -187,7 +196,8 @@ public final class HearthScreen extends Screen {
         int rangeW = Math.min(panelW - PADDING * 2, this.font.width(rangeLabel) + 20);
         int guideW = Math.max(this.font.width(guideLabel(true)), this.font.width(guideLabel(false))) + 16;
         int laneW = widestLaneLabel() + 16;
-        footerRows = rangeW + guideW + laneW + 8 <= panelW - PADDING * 2 ? 1 : 2;
+        int buildW = Math.max(this.font.width(buildLabel(true)), this.font.width(buildLabel(false))) + 16;
+        footerRows = rangeW + guideW + laneW + buildW + 12 <= panelW - PADDING * 2 ? 1 : 2;
         int footerH = 6 + 20 * footerRows + 4 * (footerRows - 1) + PADDING - 2;
         int room = this.height - 8 - headerH - footerH;
         hearthBodyH = Math.max(hearthHeight(), ROW * 3);
@@ -218,13 +228,18 @@ public final class HearthScreen extends Screen {
             int rangeX;
             int guideX;
             int guideY;
+            int buildX;
             if (footerRows == 1) {
-                int total = rangeW + guideW + laneW + 8;
+                int total = rangeW + guideW + laneW + buildW + 12;
                 rangeX = panelX + (panelW - total) / 2;
                 guideX = rangeX + rangeW + 4;
                 guideY = footerY;
+                buildX = guideX + guideW + 4 + laneW + 4;
             } else {
-                rangeX = panelX + (panelW - rangeW) / 2;
+                // Two rows: the guide and its lane on top, the range and the self-build under them.
+                buildW = Math.min(buildW, inner - rangeW - 4);
+                rangeX = panelX + (panelW - (rangeW + 4 + buildW)) / 2;
+                buildX = rangeX + rangeW + 4;
                 guideX = panelX + (panelW - (guideW + laneW + 4)) / 2;
                 guideY = footerY - 22;
             }
@@ -236,6 +251,11 @@ public final class HearthScreen extends Screen {
                     b -> toggleGuide()).bounds(guideX, guideY, guideW, 18).build());
             laneButton = addWidget(Button.builder(laneLabel(HearthGhost.lane()), b -> cycleLane())
                     .bounds(guideX + guideW + 4, guideY, laneW, 18).build());
+            buildShown = shown != null && shown.build().on();
+            buildButton = addWidget(Button.builder(buildLabel(buildShown), b -> toggleBuild())
+                    .tooltip(net.minecraft.client.gui.components.Tooltip.create(
+                            Component.translatable("proficiency.hearth.client.panel.build.tip")))
+                    .bounds(buildX, footerY, buildW, 18).build());
         } else {
             Component week = Component.translatable("proficiency.hearth.client.keepers.week");
             Component life = Component.translatable("proficiency.hearth.client.keepers.lifetime");
@@ -364,6 +384,25 @@ public final class HearthScreen extends Screen {
         }
     }
 
+    private static Component buildLabel(boolean on) {
+        return Component.translatable(on ? "proficiency.hearth.client.panel.build.plan"
+                : "proficiency.hearth.client.panel.build.start");
+    }
+
+    /** Opens the self-build's plan, in the lane the guide shows (the Hearth's own lane when the guide is off). */
+    private void toggleBuild() {
+        HearthStatePayload state = HearthView.panelState();
+        if (state == null) {
+            return;
+        }
+        HearthBuildScreen.request(state.pos(), HearthGhost.showing(state.pos()) ? HearthGhost.lane() : -1);
+    }
+
+    private static boolean canBuild(@Nullable HearthStatePayload state) {
+        return state != null && !HearthView.previewing() && state.reason() != HearthStatePayload.CAMPFIRE
+                && state.stage() < 6;
+    }
+
     private void cycleLane() {
         HearthGhost.cycleLane();
         if (laneButton != null) {
@@ -392,6 +431,12 @@ public final class HearthScreen extends Screen {
         }
         h += LINE;
         h += Math.min(3, HudKit.wrap(this.font, HearthText.stageBuild(state.stage() + 1).getString(), width).size()) * LINE;
+        if (state.build().on()) {
+            h += LINE;
+            if (state.build().held()) {
+                h += LINE;
+            }
+        }
         return h + 18 + 4;
     }
 
@@ -538,7 +583,7 @@ public final class HearthScreen extends Screen {
         graphics.fill(panelX + PADDING, ruleY, panelX + panelW - PADDING, ruleY + 1, SkillPalette.PANEL_BORDER);
         if (tab == Tab.HEARTH && rangeButton != null) {
             rangeButton.active = state != null;
-            rangeButton.render(graphics, mouseX, mouseY, partialTick);
+            click.renderButton(graphics, rangeButton, mouseX, mouseY, partialTick);
             guideButton.active = state != null;
             laneButton.active = state != null;
             boolean guideOn = state != null && HearthGhost.showing(state.pos());
@@ -547,8 +592,20 @@ public final class HearthScreen extends Screen {
                 guideShown = guideOn;
                 guideButton.setMessage(guideLabel(guideOn));
             }
-            guideButton.render(graphics, mouseX, mouseY, partialTick);
-            laneButton.render(graphics, mouseX, mouseY, partialTick);
+            click.renderButton(graphics, guideButton, mouseX, mouseY, partialTick);
+            click.renderButton(graphics, laneButton, mouseX, mouseY, partialTick);
+            boolean building = state != null && state.build().on();
+            if (building != buildShown) {
+                buildShown = building;
+                buildButton.setMessage(buildLabel(building));
+            }
+            buildButton.active = canBuild(state) || building;
+            click.renderButton(graphics, buildButton, mouseX, mouseY, partialTick);
+            if (building) {
+                graphics.fill(buildButton.getX(), buildButton.getY() + buildButton.getHeight(),
+                        buildButton.getX() + buildButton.getWidth(), buildButton.getY() + buildButton.getHeight() + 2,
+                        HearthPalette.EMBER);
+            }
             if (state != null && HearthGhost.showing(state.pos())) {
                 // On: an ember bar under the toggle, as the active tab has.
                 graphics.fill(guideButton.getX(), guideButton.getY() + guideButton.getHeight(),
@@ -561,7 +618,7 @@ public final class HearthScreen extends Screen {
                     partialTick);
             drawTab(graphics, lifetimeButton, window == LedgerView.Window.LIFETIME, mouseX, mouseY, partialTick);
             if (poolButton != null) {
-                poolButton.render(graphics, mouseX, mouseY, partialTick);
+                click.renderButton(graphics, poolButton, mouseX, mouseY, partialTick);
                 if (poolFilter >= 0) {
                     graphics.fill(poolButton.getX(), poolButton.getY() + poolButton.getHeight(),
                             poolButton.getX() + poolButton.getWidth(), poolButton.getY() + poolButton.getHeight() + 2,
@@ -581,6 +638,7 @@ public final class HearthScreen extends Screen {
                 }
             }
         }
+        click.render(graphics, System.currentTimeMillis(), 1f);
     }
 
     private void drawTab(GuiGraphics graphics, @Nullable Button button, boolean active, int mouseX, int mouseY,
@@ -588,7 +646,7 @@ public final class HearthScreen extends Screen {
         if (button == null) {
             return;
         }
-        button.render(graphics, mouseX, mouseY, partialTick);
+        click.renderButton(graphics, button, mouseX, mouseY, partialTick);
         if (active) {
             graphics.fill(button.getX(), button.getY() + button.getHeight(), button.getX() + button.getWidth(),
                     button.getY() + button.getHeight() + 2, HearthPalette.EMBER);
@@ -760,6 +818,9 @@ public final class HearthScreen extends Screen {
             hovers.add(new Hover(x, buildTop, width, y - buildTop, () -> List.of(HearthText.stageBuild(next).copy()
                     .withStyle(ChatFormatting.GRAY)), -1));
         }
+        if (state.build().on()) {
+            y = drawBuildStatus(graphics, state.build(), x, y, width);
+        }
         // The offering, as the item, then the Character the stage wants.
         ItemStack offering = offeringStack();
         int cursor = x;
@@ -783,6 +844,38 @@ public final class HearthScreen extends Screen {
             graphics.drawString(this.font, shown, cursor, y + 4, met ? OK : HearthPalette.LOCKED, false);
         }
         return y + 18 + 4;
+    }
+
+    /** One line: the self-build's progress and countdown, or what it waits for (the whole list on hover). */
+    private int drawBuildStatus(GuiGraphics graphics, HearthStatePayload.Build build, int x, int y, int width) {
+        long millis = net.minecraft.Util.getMillis();
+        if (!build.equals(seenBuild)) {
+            seenBuild = build;
+            seenAt = millis;
+        }
+        long left = Math.max(0, build.seconds() - (millis - seenAt) / 1000);
+        Component line = HearthText.buildStatus(build, left);
+        int colour = HearthText.buildColour(build);
+        String text = line.getString();
+        String shown = HudKit.clip(this.font, text, width);
+        if (!shown.equals(text)) {
+            HudKit.note("hearth.panel.build_status");
+            hovers.add(new Hover(x, y, width, LINE, () -> List.of(line), -1));
+        }
+        graphics.drawString(this.font, shown, x, y, colour, false);
+        y += LINE;
+        if (build.held()) {
+            Component away = Component.translatable("proficiency.hearth.client.panel.build.away");
+            String awayText = away.getString();
+            String awayShown = HudKit.clip(this.font, awayText, width);
+            if (!awayShown.equals(awayText)) {
+                HudKit.note("hearth.panel.build_away");
+                hovers.add(new Hover(x, y, width, LINE, () -> List.of(away), -1));
+            }
+            graphics.drawString(this.font, awayShown, x, y, HearthPalette.LOCKED, false);
+            y += LINE;
+        }
+        return y;
     }
 
     private ItemStack offeringStack() {
@@ -913,7 +1006,8 @@ public final class HearthScreen extends Screen {
         int boonY = barTop + BAR + 2;
         boolean giving = HearthText.boonLine(pool, tier, false) != null;
         for (String line : boonLines) {
-            graphics.drawString(this.font, line, x, boonY, giving ? colour : SkillPalette.TEXT_DIM, false);
+            // The pool's colour stays on its bar and tier; the words are one neutral colour.
+            graphics.drawString(this.font, line, x, boonY, giving ? SkillPalette.TEXT : SkillPalette.TEXT_DIM, false);
             boonY += BOON_LINE;
         }
         hovers.add(new Hover(x - 2, y - 2, width + 4, poolRowHeight(boonLines) - 1, () -> poolTip(pool, row, thresholds),
@@ -1315,6 +1409,9 @@ public final class HearthScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (button == 0) {
+            click.onClick(this, mouseX, mouseY, HearthPalette.EMBER);
+        }
         if (super.mouseClicked(mouseX, mouseY, button)) {
             return true;
         }

@@ -79,7 +79,7 @@ public final class CraftingEvents {
         } else if (result.isEdible()) {
             // Farmer's Delight cooks on a board and in a pot, never through a furnace, so without
             // this a cook who uses the mod the pack ships earns nothing at all.
-            SkillService.grant(player, Skill.COOKING, Math.max(1, result.getCount()) * 0.75,
+            SkillService.grant(player, Skill.COOKING, Math.min(4, Math.max(1, result.getCount())) * 0.75,
                     result.getDescriptionId());
             if (ProcService.fire(player, Skill.COOKING)) {
                 player.getInventory().placeItemBackInInventory(result.copyWithCount(extraPortions(player)));

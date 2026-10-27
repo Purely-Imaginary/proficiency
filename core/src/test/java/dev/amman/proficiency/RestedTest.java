@@ -394,6 +394,17 @@ class RestedTest {
     }
 
     @Test
+    void theSyncPacketCarriesTheMotherlodeCharge() {
+        PlayerSkills skills = new PlayerSkills();
+        skills.setLode(2.25);
+        Buffer buffer = new Buffer();
+        skills.write(buffer);
+        PlayerSkills read = PlayerSkills.read(buffer);
+        assertEquals(2.25, read.lode(), 1e-6);
+        assertTrue(buffer.queue.isEmpty());
+    }
+
+    @Test
     void theSyncPacketCarriesThePoolAndTheDaysUnused() {
         PlayerSkills skills = at(30);
         skills.fillRested(S, 12f);

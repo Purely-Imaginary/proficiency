@@ -68,7 +68,19 @@ class ComfortDataFilesTest {
         assertTrue(trophy.contains("proficiency:siege_trophy") && trophy.contains("minecraft:skeleton_skull")
                 && trophy.contains("minecraft:player_wall_head"), trophy.toString());
         List<String> storage = ids(read(TAGS.resolve("block/comfort/storage.json")));
-        assertEquals(Set.of("minecraft:barrel", "minecraft:chest", "minecraft:decorated_pot"), new HashSet<>(storage));
+        assertEquals(Set.of("minecraft:barrel", "minecraft:chest", "minecraft:decorated_pot", "#c:chests", "#c:barrels"),
+                new HashSet<>(storage));
+        // Modded chests and barrels (c:chests, c:barrels) and Macaw's Stairs seats are optional: a pack without
+        // them must still load.
+        assertTrue(ids(read(TAGS.resolve("block/comfort/seat.json"))).containsAll(List.of("#mcwstairs:compact_stairs",
+                "#mcwstairs:bulk_stairs", "#mcwstairs:loft_stairs", "#mcwstairs:skyline_stairs", "#mcwstairs:terrace_stairs")));
+        for (String kind : List.of("seat", "storage")) {
+            for (JsonElement v : read(TAGS.resolve("block/comfort/" + kind + ".json")).getAsJsonArray("values")) {
+                if (v.isJsonObject()) {
+                    assertFalse(v.getAsJsonObject().get("required").getAsBoolean(), kind + ": " + v);
+                }
+            }
+        }
         assertEquals(Set.of("minecraft:bookshelf", "minecraft:chiseled_bookshelf", "minecraft:lectern"),
                 new HashSet<>(ids(read(TAGS.resolve("block/comfort/books.json")))));
         assertEquals(Set.of("minecraft:jukebox", "minecraft:note_block"),

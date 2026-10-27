@@ -24,6 +24,8 @@ public final class FabricHearthNetwork {
         PayloadTypeRegistry.playS2C().register(HearthTrackerPayload.TYPE, HearthTrackerPayload.STREAM_CODEC);
         PayloadTypeRegistry.playS2C().register(HearthGainPayload.TYPE, HearthGainPayload.STREAM_CODEC);
         PayloadTypeRegistry.playS2C().register(HearthLedgerPayload.TYPE, HearthLedgerPayload.STREAM_CODEC);
+        PayloadTypeRegistry.playS2C().register(dev.amman.proficiency.hearth.net.HearthBuildPlanPayload.TYPE,
+                dev.amman.proficiency.hearth.net.HearthBuildPlanPayload.STREAM_CODEC);
         PayloadTypeRegistry.playS2C().register(SiegePanelPayload.TYPE, SiegePanelPayload.STREAM_CODEC);
         PayloadTypeRegistry.playS2C().register(HearthPingPayload.TYPE, HearthPingPayload.STREAM_CODEC);
         PayloadTypeRegistry.playS2C().register(HearthHudPayload.TYPE, HearthHudPayload.STREAM_CODEC);

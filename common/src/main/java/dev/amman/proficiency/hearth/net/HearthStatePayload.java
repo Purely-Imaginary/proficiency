@@ -27,7 +27,67 @@ import java.util.List;
 public record HearthStatePayload(int reason, long pos, String dimension, int stage, int ceiling,
         boolean smouldering, int comfort, List<String> comfortKinds, int character, int characterNext,
         List<PoolRow> pools, int defenceStreak, boolean siegesOn, int siegePhase, float playHoursSinceSiege,
-        float radius, int below, int above, Extra extra) implements CustomPacketPayload {
+        float radius, int below, int above, Extra extra, Build build) implements CustomPacketPayload {
+
+    /** The payload with no self-build running ({@link Build#NONE}). */
+    public HearthStatePayload(int reason, long pos, String dimension, int stage, int ceiling,
+            boolean smouldering, int comfort, List<String> comfortKinds, int character, int characterNext,
+            List<PoolRow> pools, int defenceStreak, boolean siegesOn, int siegePhase, float playHoursSinceSiege,
+            float radius, int below, int above, Extra extra) {
+        this(reason, pos, dimension, stage, ceiling, smouldering, comfort, comfortKinds, character, characterNext,
+                pools, defenceStreak, siegesOn, siegePhase, playHoursSinceSiege, radius, below, above, extra, Build.NONE);
+    }
+
+    /**
+     * The Hearth's self-build as the panel shows it: whether it runs, the stage it builds, blocks done of the
+     * total, seconds to the next block, why it waits (0 it does not, 1 material, 2 a player's block in the way,
+     * 3 a block with nothing to stand on) and the missing material groups as {@code group:count}.
+     */
+    public record Build(boolean on, int stage, int done, int total, int seconds, int why, List<String> missing) {
+
+        public static final Build NONE = new Build(false, 0, 0, 0, 0, 0, List.of());
+        static final int MAX_MISSING = 8;
+        /** Bit set in {@code why} while the build holds the Hearth's chunk: it goes on while the player is away. */
+        public static final int HELD = 16;
+
+        /** The wait reason without the {@link #HELD} bit. */
+        public int reason() {
+            return why & (HELD - 1);
+        }
+
+        public boolean held() {
+            return (why & HELD) != 0;
+        }
+
+        void write(FriendlyByteBuf buf) {
+            buf.writeBoolean(on);
+            buf.writeVarInt(stage);
+            buf.writeVarInt(done);
+            buf.writeVarInt(total);
+            buf.writeVarInt(seconds);
+            buf.writeVarInt(why);
+            int count = Math.min(MAX_MISSING, missing.size());
+            buf.writeVarInt(count);
+            for (int i = 0; i < count; i++) {
+                buf.writeUtf(missing.get(i), 64);
+            }
+        }
+
+        static Build read(FriendlyByteBuf buf) {
+            boolean on = buf.readBoolean();
+            int stage = buf.readVarInt();
+            int done = buf.readVarInt();
+            int total = buf.readVarInt();
+            int seconds = buf.readVarInt();
+            int why = buf.readVarInt();
+            int count = Math.min(MAX_MISSING, Math.max(0, buf.readVarInt()));
+            List<String> missing = new ArrayList<>(count);
+            for (int i = 0; i < count; i++) {
+                missing.add(buf.readUtf(64));
+            }
+            return new Build(on, stage, done, total, seconds, why, List.copyOf(missing));
+        }
+    }
 
     /** The payload as the foundation built it, with no {@link Extra}. */
     public HearthStatePayload(int reason, long pos, String dimension, int stage, int ceiling,
@@ -228,6 +288,7 @@ public record HearthStatePayload(int reason, long pos, String dimension, int sta
                 buf.writeVarInt(p.below());
                 buf.writeVarInt(p.above());
                 (p.extra() == null ? Extra.NONE : p.extra()).write(buf);
+                (p.build() == null ? Build.NONE : p.build()).write(buf);
             },
             buf -> {
                 int reason = buf.readVarInt();
@@ -253,9 +314,10 @@ public record HearthStatePayload(int reason, long pos, String dimension, int sta
                 int below = buf.readVarInt();
                 int above = buf.readVarInt();
                 Extra extra = Extra.read(buf);
+                Build build = Build.read(buf);
                 return new HearthStatePayload(reason, pos, dimension, stage, ceiling, smouldering, comfort,
                         List.copyOf(comfortKinds), character, characterNext, pools, streak, siegesOn, siegePhase,
-                        hours, radius, below, above, extra);
+                        hours, radius, below, above, extra, build);
             });
 
     @Override

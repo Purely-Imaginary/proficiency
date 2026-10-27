@@ -280,6 +280,11 @@ public final class PlayerHearth {
         return milestones.add(key);
     }
 
+    /** Every milestone key recorded so far, read-only. */
+    public Set<String> milestoneKeys() {
+        return java.util.Collections.unmodifiableSet(milestones);
+    }
+
     public boolean hasMilestone(String key) {
         return milestones.contains(key);
     }

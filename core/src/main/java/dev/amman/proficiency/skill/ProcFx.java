@@ -155,8 +155,9 @@ public final class ProcFx {
                 l(Kind.GLOW, 6, Anchor.FOCUS, 0.4f, 0.04f, 3, 0));
 
         // Gathering
+        // Stone-grey dust, not orange glints: Motherlode fires often on a long dig (2026-10-15).
         put(Skill.MINING, "minecraft:stone",
-                l(Kind.WAX_ON, 12, Anchor.FOCUS, 0.45f, 0.45f),
+                block(Kind.BLOCK_DUST, 12, Anchor.FOCUS, 0.45f, 0.45f, 0, 0, "minecraft:stone"),
                 l(Kind.BLOCK, 8, Anchor.FOCUS, 0.4f, 0.12f));
         put(Skill.WOODCUTTING, "minecraft:oak_log",
                 l(Kind.BLOCK, 8, Anchor.COLUMN, 0.6f, 0.1f, 0, 4),
@@ -245,6 +246,24 @@ public final class ProcFx {
                 l(Kind.LAVA, 3, Anchor.FOCUS, 0.2f, 0.0f, 1, 2),
                 l(Kind.CAMPFIRE_SMOKE, 2, Anchor.FOCUS, 0.15f, 0.01f, 2, 4),
                 l(Kind.SMALL_FLAME, 6, Anchor.BODY, 0.35f, 0.02f, 2, 4));
+
+        // Husbandry: Twins is hearts over the pair and a puff of happy green where the second baby lands.
+        put(Skill.HUSBANDRY, "minecraft:hay_block",
+                l(Kind.HEART, 5, Anchor.FOCUS, 0.5f, 0.0f, 0, 4),
+                l(Kind.HAPPY_VILLAGER, 8, Anchor.FOCUS, 0.45f, 0.0f, 2, 5),
+                l(Kind.BLOCK_DUST, 4, Anchor.FEET, 0.4f, 0.03f, 1, 3));
+
+        // Riding: Tailwind is a streak of dust kicked up behind you and a gust of white at the saddle.
+        put(Skill.RIDING, "minecraft:dirt",
+                block(Kind.BLOCK_DUST, 8, Anchor.TRAIL, 0.35f, 0.04f, 0, 4, "minecraft:dirt"),
+                l(Kind.CLOUD, 6, Anchor.TRAIL, 0.3f, 0.05f, 1, 4),
+                l(Kind.END_ROD, 4, Anchor.BODY, 0.4f, 0.06f, 0, 3));
+
+        // Commerce: Good Deal is a handful of green sparks over the trader's hands and a ring of gold glints.
+        put(Skill.COMMERCE, "minecraft:emerald_block",
+                l(Kind.HAPPY_VILLAGER, 10, Anchor.FOCUS, 0.45f, 0.0f, 0, 4),
+                block(Kind.BLOCK_DUST, 6, Anchor.FOCUS, 0.35f, 0.04f, 1, 3, "minecraft:emerald_block"),
+                l(Kind.END_ROD, 5, Anchor.BODY, 0.45f, 0.05f, 2, 4));
     }
 
     private ProcFx() {

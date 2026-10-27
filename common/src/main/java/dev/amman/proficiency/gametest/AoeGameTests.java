@@ -99,7 +99,7 @@ public final class AoeGameTests {
     }
 
     private static ServerPlayer survivor(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         player.setGameMode(GameType.SURVIVAL);
         // The mock player may keep the creative ability after setGameMode; these tests need survival.
         player.getAbilities().instabuild = false;

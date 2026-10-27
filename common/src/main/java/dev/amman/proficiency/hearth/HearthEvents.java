@@ -31,7 +31,13 @@ public final class HearthEvents {
     }
 
     /** A siege was defended: siege kills per player, and every non-AFK player who was in range. Fired by Sieges. */
-    public record SiegeDefended(ServerLevel level, BlockPos hearth, Map<UUID, Integer> kills, List<ServerPlayer> present) {
+    public record SiegeDefended(ServerLevel level, BlockPos hearth, Map<UUID, Integer> kills, List<ServerPlayer> present,
+            int siegeLevel) {
+
+        /** Without the siege's level (1..5); 0 reads as the lowest. */
+        public SiegeDefended(ServerLevel level, BlockPos hearth, Map<UUID, Integer> kills, List<ServerPlayer> present) {
+            this(level, hearth, kills, present, 0);
+        }
     }
 
     /** A Feast started or someone joined it: the eaters it warmed. Fired by Tales. */

@@ -71,7 +71,7 @@ public final class SkillNumbers {
     }
 
     /** The name of the node that wakes the signature and the ability: the tree's root. */
-    static Component rootName(Skill skill) {
+    public static Component rootName(Skill skill) {
         var root = dev.amman.proficiency.perk.Talents.root(skill);
         return root == null ? Component.empty() : Component.translatable(root.nameKey());
     }
@@ -110,6 +110,16 @@ public final class SkillNumbers {
                     Component.literal(value(stat.format(), stat.base())).withStyle(ChatFormatting.DARK_GRAY),
                     Component.literal(value(stat.format(), stat.current()))
                             .withStyle(changed ? ChatFormatting.GREEN : ChatFormatting.GRAY)));
+        }
+        return rows;
+    }
+
+    /** Every stat the passive changes as it is now, plain text: the Skillstone's passive card. */
+    public static List<String> nowRows(PlayerSkills skills, Skill skill) {
+        List<String> rows = new ArrayList<>(3);
+        for (SkillPassives.Stat stat : SkillPassives.of(skills, skill)) {
+            rows.add(Component.translatable("proficiency.stat.now", statName(stat),
+                    Component.literal(value(stat.format(), stat.current()))).getString());
         }
         return rows;
     }
@@ -157,6 +167,7 @@ public final class SkillNumbers {
         lines.addAll(statRows(skills, skill));
         lines.add(procPart(skills, skill));
         lines.add(ability != null ? ability : abilityLockedPart(skills, skill));
+        lines.add(ClientCodex.line(skill).copy().withStyle(ChatFormatting.AQUA));
         return lines;
     }
 
@@ -178,6 +189,7 @@ public final class SkillNumbers {
                         .withStyle(ChatFormatting.LIGHT_PURPLE)
                 : Component.translatable("proficiency.tooltip.proc_locked", procUnlock())
                         .withStyle(ChatFormatting.DARK_PURPLE));
+        lines.add(ClientCodex.line(skill).copy().withStyle(ChatFormatting.AQUA));
         return lines;
     }
 
@@ -251,6 +263,10 @@ public final class SkillNumbers {
                 seconds(ProficiencyConfig.abilityCooldown()),
                 times(skills.perkModifier(skill, PerkEffect.ABILITY_COOLDOWN))).withStyle(ChatFormatting.DARK_GRAY));
 
+        // The Codex: first-time kinds found and the next title.
+        lines.add(Component.literal(" "));
+        lines.add(ClientCodex.line(skill).copy().withStyle(ChatFormatting.AQUA));
+
         // What the skill is about, last: it is the longest part.
         lines.add(Component.literal(" "));
         lines.add(Component.translatable(skill.descriptionKey()).withStyle(ChatFormatting.GRAY));
@@ -289,7 +305,7 @@ public final class SkillNumbers {
         return "×" + number(multiplier, 2);
     }
 
-    static String seconds(long ticks) {
+    public static String seconds(long ticks) {
         return number(ticks / 20.0, ticks % 20 == 0 ? 0 : 1);
     }
 

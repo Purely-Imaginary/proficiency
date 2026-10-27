@@ -10,6 +10,8 @@ import java.util.Set;
 public enum XpDomain {
     /** Breaking a block: the gathering skill, the XP, the tool it needs. */
     BREAK("break", Set.of("crop")),
+    /** Finishing a brush on a suspicious block (Archaeology): the block that was brushed, the skill and the XP. */
+    BRUSH("brush", Set.of()),
     /** Placing a block: Masonry, Decorating, Farming (planting) or Engineering (machines). */
     PLACE("place", Set.of("planting", "machine", "decor")),
     /** Crafting an item: the Engineering craft bonus for machine parts. */

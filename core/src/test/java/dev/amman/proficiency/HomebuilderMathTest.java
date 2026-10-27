@@ -26,7 +26,7 @@ class HomebuilderMathTest {
 
     @Test
     void theSkillIsConstructionAndLastSoNoOrdinalMoved() {
-        assertSame(Skill.HOMEBUILDER, Skill.VALUES[Skill.VALUES.length - 1]);
+        assertSame(Skill.HOMEBUILDER, Skill.VALUES[34]);
         assertSame(SkillCategory.CONSTRUCTION, Skill.HOMEBUILDER.category());
         assertEquals(0.20, Skill.HOMEBUILDER.defaultMaxBonus(), 1e-12);
         assertEquals(0.20, Skill.HOMEBUILDER.defaultProcChance(), 1e-12);

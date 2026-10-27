@@ -327,7 +327,7 @@ Also readable: `homebuilder.HomePassive.bonus(player)` (the home passive in use 
 ender pearl's landing), `HEARTH_TICK` (Night Watch), `DEATH`, and every
 `HearthEvents` signal (milestones; `FEAST` also for Heart of the Home). Hearthglow books its charge
 through `HearthCharge.credit` (capped, ledger source the earning skill's id, dots from that skill), and
-only for a grant `ChargeRules.route` sends to a pool.
+only for a grant `ChargeRules.route` sends to a pool; see docs/hearth-build-log/homebuilder.md.
 
 Homeward's channel breaks on the shared `LivingDamageEvent.Post` (a hit that landed, after every
 handler, shields and the hurt cooldown; absorption hearts taking it counts), not on
@@ -408,7 +408,7 @@ skill line's room for the glyph group, eased with its fades; core `WarmthGlyph.l
 told every HUD pass, drawn or hidden: `TrackerHud.hidden(now)` is the hidden pass). `showSiege` follows the
 master banner switch only; its caller applies `hearth.siegePanel` (fc01's fix round). Test hooks: `/proficiency hearth demo <players> <scene> [pos]`
 (operator, fake payloads only, `hearth.client.HearthDemoCommand`, registered from `Hearth.init`), the client
-tour `PROFICIENCY_HEARTH_DEMO=<dir>` and the layout demo group `hearth`.
+tour `PROFICIENCY_HEARTH_DEMO=<dir>` and the layout demo group `hearth`. Log: docs/hearth-build-log/client.md.
 Since the Forge polish pass (polish-forge, 2026-10-10): a player who logs in or respawns at a Hearth gets
 `hearth_state ENTER` at once (`HearthPresence.joined`, from `HearthCommonEvents`' login and respawn hooks; the
 edge stays silent, the tracker gets its Comfort and Character lines at once; with the Hearth's chunk not loaded

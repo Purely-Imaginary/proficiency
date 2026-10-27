@@ -120,7 +120,7 @@ public final class HearthChargeGameTests {
 
         /** A survival player at relative (x, 2, z), at home. */
         ServerPlayer player(double x, double z) {
-            ServerPlayer player = helper.makeMockServerPlayerInLevel();
+            ServerPlayer player = MockPlayers.make(helper);
             player.setGameMode(GameType.SURVIVAL);
             player.setPos(helper.absoluteVec(new Vec3(x, 2, z)));
             home(player);
@@ -736,7 +736,8 @@ public final class HearthChargeGameTests {
             SkillService.grant(amman, Skill.MINING, 10.0, "block.minecraft.stone");
             SkillService.grant(amman, Skill.MINING, 12.0, "block.minecraft.deepslate");
             SkillService.grant(amman, Skill.COOKING, 10.0, "item.minecraft.bread");
-            SkillService.grant(rowan, Skill.FARMING, 10.0, "block.minecraft.wheat");
+            // Farming now feeds REGEN (not HEARTY); use Fishing which stays in HEARTY's gathering category.
+            SkillService.grant(rowan, Skill.FISHING, 10.0, "item.minecraft.cod");
             HearthCharge.credit(home.level, home.hearth, rowan, HearthPool.HOMECOMING, HearthLedger.TALES, 7.5, true, null);
 
             // Every point in exactly one cell: the cells sum to each pool's charge.

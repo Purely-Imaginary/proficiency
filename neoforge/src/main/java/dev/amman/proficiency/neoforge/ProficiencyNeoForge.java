@@ -26,6 +26,8 @@ public final class ProficiencyNeoForge {
         modBus.addListener(NeoForgeNetwork::register);
         Proficiency.init();
         NeoForgeEventBridge.register();
+        // Spellcasting pays on Ars Nouveau's real casts, not on every click with a spell book.
+        dev.amman.proficiency.neoforge.compat.ArsCastHook.register();
         container.registerConfig(ModConfig.Type.SERVER, ProficiencyConfig.SPEC);
 
         if (FMLEnvironment.dist.isClient()) {

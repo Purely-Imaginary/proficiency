@@ -175,12 +175,28 @@ public final class DiscoveryJournalScreen extends Screen {
                 lines.add(new Line(namespaceName(group.namespace()), group.found() + "/" + group.entries().size(),
                         accent, true));
             }
+            // A run of unfound entries is one line with its count, not a wall of "???".
+            int unknown = 0;
             for (JournalData.Entry entry : group.entries()) {
-                lines.add(entry.found()
-                        ? new Line(entry.label(), "", SkillPalette.TEXT, false)
-                        : new Line(Component.translatable("proficiency.journal.unknown").getString(), "",
-                                SkillPalette.TEXT_DIM, false));
+                if (entry.found()) {
+                    unknownRun(unknown);
+                    unknown = 0;
+                    lines.add(new Line(entry.label(), "", SkillPalette.TEXT, false));
+                } else {
+                    unknown++;
+                }
             }
+            unknownRun(unknown);
+        }
+    }
+
+    private void unknownRun(int count) {
+        if (count == 1) {
+            lines.add(new Line(Component.translatable("proficiency.journal.unknown").getString(), "",
+                    SkillPalette.TEXT_DIM, false));
+        } else if (count > 1) {
+            lines.add(new Line(Component.translatable("proficiency.journal.unknown.many", count).getString(), "",
+                    SkillPalette.TEXT_DIM, false));
         }
     }
 
@@ -189,7 +205,7 @@ public final class DiscoveryJournalScreen extends Screen {
         found = 0;
         total = 0;
         boolean any = false;
-        int textWidth = panelWidth - PADDING * 2 - 6;
+        int textWidth = wrapOverride > 0 ? wrapOverride : panelWidth - PADDING * 2 - 6;
         for (Skill skill : Skill.VALUES) {
             List<String> names = kinds.get(skill.id());
             if (names == null || names.isEmpty()) {
@@ -199,6 +215,7 @@ public final class DiscoveryJournalScreen extends Screen {
             found += names.size();
             lines.add(new Line(Component.translatable(skill.translationKey()).getString(),
                     String.valueOf(names.size()), SkillPalette.accent(skill.category()), true));
+            lines.add(new Line(ClientCodex.line(skill).getString(), "", SkillPalette.MAXED, false));
             List<String> labels = new ArrayList<>();
             for (String kind : names) {
                 labels.add(TalentTreeScreen.sourceName(kind));
@@ -394,5 +411,50 @@ public final class DiscoveryJournalScreen extends Screen {
         graphics.fill(x, y + height - 1, x + width, y + height, color);
         graphics.fill(x, y, x + 1, y + height, color);
         graphics.fill(x + width - 1, y, x + width, y + height, color);
+    }
+
+    // ---- The Skillstone's Journal page (1.32.0) reads the same lists --------------------------------
+
+    /** One line of a tab's list, for the Skillstone's Journal page. */
+    public record Row(String text, String right, int colour, boolean header) {
+    }
+
+    private int wrapOverride;
+
+    /** The list of tab {@code index} (0 biomes, 1 structures, 2 dimensions, 3 skills), wrapped to {@code wrap} px. */
+    public List<Row> rows(int index, int wrap) {
+        tab = Tab.values()[Math.max(0, Math.min(Tab.values().length - 1, index))];
+        wrapOverride = wrap;
+        rebuild();
+        List<Row> out = new ArrayList<>(lines.size());
+        for (Line line : lines) {
+            out.add(new Row(line.text(), line.right(), line.colour(), line.header()));
+        }
+        return out;
+    }
+
+    public int foundCount() {
+        return found;
+    }
+
+    public int totalCount() {
+        return total;
+    }
+
+    public static int tabCount() {
+        return Tab.values().length;
+    }
+
+    public static String tabKey(int index) {
+        return Tab.values()[index].key();
+    }
+
+    /** True for the skills tab, whose summary has no total. */
+    public static boolean skillsTab(int index) {
+        return Tab.values()[index] == Tab.SKILLS;
+    }
+
+    public static SkillCategory tabCategory(int index) {
+        return Tab.values()[index].category;
     }
 }

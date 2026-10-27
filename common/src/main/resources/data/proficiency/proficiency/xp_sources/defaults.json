@@ -19,7 +19,7 @@
       "match": "#minecraft:mineable/pickaxe",
       "skill": "mining",
       "tool": "pickaxe",
-      "xp": { "base": 0.5, "per_hardness": 0.3, "max": 5.0 },
+      "xp": { "base": 0.5, "per_hardness": 0.05, "max": 5.0 },
       "priority": -30
     },
     {
@@ -34,6 +34,15 @@
       "skill": "woodcutting",
       "xp": { "base": 0.5, "per_hardness": 0.3, "max": 5.0 },
       "priority": -50
+    }
+  ],
+
+  "brush": [
+    {
+      "match": ["minecraft:suspicious_sand", "minecraft:suspicious_gravel"],
+      "skill": "excavation",
+      "xp": 2.0,
+      "priority": -10
     }
   ],
 

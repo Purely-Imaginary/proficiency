@@ -22,7 +22,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import java.util.OptionalInt;
 
 @Mixin(ServerPlayer.class)
-public abstract class ServerPlayerMixin {
+public abstract class ServerPlayerMixin implements dev.amman.proficiency.fabric.TabNameCache {
 
     @Unique private boolean proficiency$hasTabListName;
     @Unique @Nullable private Component proficiency$tabListName;
@@ -38,6 +38,12 @@ public abstract class ServerPlayerMixin {
         if (NeoForge.EVENT_BUS.post(new LivingDeathEvent(proficiency$self(), source)).isCanceled()) {
             ci.cancel();
         }
+    }
+
+    @Override
+    public void proficiency$resetTabListName() {
+        proficiency$hasTabListName = false;
+        proficiency$tabListName = null;
     }
 
     /** NeoForge: TabListNameFormat, computed on first request and cached, like its patch. */

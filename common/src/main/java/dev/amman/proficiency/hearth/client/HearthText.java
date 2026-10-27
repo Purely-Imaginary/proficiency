@@ -35,6 +35,29 @@ public final class HearthText {
                 : Component.translatable(KEY + "stage.none");
     }
 
+    /**
+     * The self-build's status line: progress with the countdown to the next block while it places blocks, or what
+     * it waits for. One place for the panel and the Jade tooltip.
+     */
+    public static Component buildStatus(HearthStatePayload.Build build, long secondsLeft) {
+        if (build.reason() == 0) {
+            return Component.translatable("proficiency.hearth.client.panel.build.progress", build.done(), build.total(),
+                    String.format(Locale.ROOT, "%d:%02d", secondsLeft / 60, secondsLeft % 60));
+        }
+        return switch (build.reason()) {
+            case 1 -> Component.translatable("proficiency.hearth.client.panel.build.wait.material",
+                    dev.amman.proficiency.hearth.stages.HearthAutoBuild.materials(String.join(",", build.missing())));
+            case 2 -> Component.translatable("proficiency.hearth.client.panel.build.wait.foreign");
+            default -> Component.translatable("proficiency.hearth.client.panel.build.wait.support");
+        };
+    }
+
+    /** The status line's colour: ember while it builds, locked grey while it waits. */
+    public static int buildColour(HearthStatePayload.Build build) {
+        return build.reason() == 0 ? HearthPalette.EMBER
+                : HearthPalette.LOCKED;
+    }
+
     /** The build the stage asks for, in one sentence. */
     public static Component stageBuild(int stage) {
         return Component.translatable(KEY + "stage." + Math.max(1, Math.min(6, stage)) + ".build");

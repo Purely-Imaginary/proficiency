@@ -130,27 +130,31 @@ level-100 skill earns, so every branch fills in the end.
 - **Ballista** · 1 rank · level 90 (after Siege Crew, Quickload). A perfect bolt bursts on impact: a small blast that breaks no blocks. _materials (old Master list)._
 - **Siege Master** · 1 rank · level 100 (after Ballista). +25% damage to targets more than 20 blocks away. _+15% passive, -20% ability cooldown._
 
-## Mining (86 points)
+## Mining (100 points)
 
 - **Pickwork** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches, the signature move and the ability. _+5% XP per rank; materials (old Apprentice list)._
 - **Efficiency** · 5 ranks · level 10 (after Pickwork). Faster mining and more second drops. _+5% passive per rank._
 - **Prospector** · 5 ranks · level 10 (after Pickwork). Motherlode comes more often. _+10% signature chance per rank._
+- **Seam Sense** · 3 ranks · level 10 (after Pickwork). Stone charges your next ore's Motherlode instead of rolling one: 0.4%, 0.7% or 1% per stone by rank. The ore spends it; a full charge makes Motherlode certain.
 - **Geologist** · 3 ranks · level 10 (after Pickwork). Mining ore: 5% chance per rank that nearby ore sparkles through the rock.
 - **Vein Miner** · 3 ranks · level 30 (after Efficiency). Breaking ore also breaks up to 2 connected blocks of the same ore per rank.
+- **Tempering** · 1 rank · level 30 (after Prospector). Each Motherlode mends up to 4 durability of your pickaxe, never more than 80% of what it lost since the last one. A pickaxe lasts at most five times as long.
 - **Gem Cutter** · 3 ranks · level 30 (after Prospector). Motherlode gives more. _+10% signature power per rank._
+- **Lodestone** · 3 ranks · level 30 (after Seam Sense). Seam Sense banks 1 more full Motherlode charge per rank, up to 4. Each ore spends one.
 - **Dark Sight** · 1 rank · level 30 (after Geologist). Below Y 30 with a pickaxe in hand, you see in the dark.
 - **Rich Veins** · 3 ranks · level 60 (after Vein Miner, Gem Cutter). Motherlode gives much more. _+15% signature power per rank; materials (old Journeyman list)._
 - **Hard Hat** · 2 ranks · level 60 (after Dark Sight). Falling blocks and stalactites deal 50% less per rank. Dying keeps more of this skill's progress. _+25% progress kept on death per rank; materials (old Expert list)._
 - **Smelter** · 1 rank · level 90 (after Rich Veins). Ore comes up already smelted. _+25% signature power; materials (old Master list)._
 - **Mountain King** · 1 rank · level 100 (after Smelter, Hard Hat). Everything you mine goes straight into your inventory. _+15% passive, -20% ability cooldown._
 
-## Woodcutting (89 points)
+## Woodcutting (94 points)
 
 - **Lumberjack** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches, the signature move and the ability. _+5% XP per rank; materials (old Apprentice list)._
 - **Sharp Axe** · 5 ranks · level 10 (after Lumberjack). Faster chopping and more second drops. _+5% passive per rank._
 - **Timber!** · 5 ranks · level 10 (after Lumberjack). Timber comes more often. _+10% signature chance per rank._
 - **Sapling Keeper** · 3 ranks · level 10 (after Lumberjack). Chopping the bottom log of a tree: 33% chance per rank to plant its sapling.
 - **Canopy** · 1 rank · level 30 (after Sharp Axe). Timber takes the leaves too, and fells much bigger trees.
+- **Falling Leaf** · 1 rank · level 30 (after Timber!). Timber gives you Slow Falling for 2 seconds, so a tree you stood on lets you down gently.
 - **Heartwood** · 3 ranks · level 30 (after Timber!). Timber fells bigger trees and gives more. _+15% signature power per rank._
 - **Forager** · 3 ranks · level 30 (after Sapling Keeper). Breaking leaves: 10% chance per rank for an apple.
 - **Woodland Stride** · 3 ranks · level 60 (after Canopy, Heartwood). Timber gives you Speed for 3 seconds per rank. _materials (old Journeyman list)._
@@ -158,7 +162,7 @@ level-100 skill earns, so every branch fills in the end.
 - **Sawmill** · 1 rank · level 90 (after Woodland Stride, Seasoned). Everything Timber fells goes straight into your inventory. _materials (old Master list)._
 - **Elder of the Grove** · 1 rank · level 100 (after Sawmill). Every tree you fell replants itself. _+15% passive, -20% ability cooldown._
 
-## Excavation (83 points)
+## Excavation (92 points)
 
 - **Spadework** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches, the signature move and the ability. _+5% XP per rank; materials (old Apprentice list)._
 - **Quick Dig** · 5 ranks · level 10 (after Spadework). Faster digging and more second drops. _+5% passive per rank._
@@ -168,6 +172,7 @@ level-100 skill earns, so every branch fills in the end.
 - **Sifter** · 3 ranks · level 30 (after Landslide Lore). Gravel: 15% chance per rank to also drop flint.
 - **Earthmover** · 3 ranks · level 60 (after Archaeologist, Wide Shovel). Landslide gives more. _+15% signature power per rank; materials (old Journeyman list)._
 - **Mole** · 3 ranks · level 60 (after Sifter). Each block you dig: 3% chance per rank to fill 1 hunger. _materials (old Expert list)._
+- **Careful Hands** · 3 ranks · level 60 (after Archaeologist, Sifter). Brushing suspicious sand and gravel: each stroke has a 20% chance per rank to count twice, and finishing one has an 8% chance per rank to roll its loot a second time.
 - **Fossil Hunter** · 1 rank · level 90 (after Earthmover, Mole). A Landslide rolls for a find once for every three blocks it clears. _materials (old Master list)._
 - **Shaper of Earth** · 1 rank · level 100 (after Fossil Hunter). Digging sand or gravel also digs the column that would fall on you. _+15% passive, -20% ability cooldown._
 
@@ -179,9 +184,9 @@ level-100 skill earns, so every branch fills in the end.
 - **Fertile Soil** · 3 ranks · level 10 (after Tilling). Every 5 seconds, crops within 3 blocks of you: 5% chance per rank to grow a stage.
 - **Seed Saver** · 3 ranks · level 30 (after Bountiful). Harvesting a crop: 15% chance per rank for one extra of its seed.
 - **Green Thumb** · 1 rank · level 30 (after Bountiful, Harvest Moon). Every crop you harvest replants itself.
-- **Husbandry** · 3 ranks · level 30 (after Fertile Soil). Breeding animals trains Farming, with a 10% chance per rank of twins.
+- **Herdsman** · 3 ranks · level 30 (after Fertile Soil). Breeding animals has a 10% chance per rank of twins. The Husbandry skill rolls its own Twins first; this only counts when that did not land.
 - **Scythe Sweep** · 2 ranks · level 60 (after Seed Saver, Green Thumb). Harvesting with a hoe also harvests ripe crops within 1 block per rank. _materials (old Journeyman list)._
-- **Harvest Festival** · 3 ranks · level 60 (after Husbandry). Bountiful Harvest gives more. _+15% signature power per rank; materials (old Expert list)._
+- **Harvest Festival** · 3 ranks · level 60 (after Herdsman). Bountiful Harvest gives more. _+15% signature power per rank; materials (old Expert list)._
 - **Druid** · 1 rank · level 90 (after Scythe Sweep, Harvest Festival). Bone meal trains Farming and is not used up 25% of the time. _materials (old Master list)._
 - **Harvest Lord** · 1 rank · level 100 (after Druid). Each harvest: 2% chance for a golden carrot or a golden apple. _+15% passive, -20% ability cooldown._
 
@@ -496,3 +501,48 @@ level-100 skill earns, so every branch fills in the end.
 - **Open House** · 3 ranks · level 60 (after Ember Heart). House Proud lasts longer, and friends up to 8 blocks per rank outside the Hearth's range share it too. _+15% ability duration per rank; materials (old Expert list)._
 - **Night Watch** · 1 rank · level 90 (after Warm Welcome, Storyteller). Siege mobs in range glow for you, and you hear the siege horn an in-game hour early. _materials (old Master list)._
 - **Homeward** · 1 rank · level 100 (after Night Watch, Open House). Once per in-game day, a 10 second channel (broken by damage or moving) takes you home to the Hearth you fed most. After its bell calls you home, the channel takes 5 seconds for a minute. _+15% passive, -20% ability cooldown._
+
+## Husbandry (99 points)
+
+- **Stockman** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches, the signature move and the ability. _+5% XP per rank; materials (old Apprentice list)._
+- **Good Stock** · 5 ranks · level 10 (after Stockman). Babies you breed grow up faster and your pets are hardier. _+5% passive per rank._
+- **Gentle Hands** · 3 ranks · level 10 (after Stockman). Mounting an untamed horse, donkey, mule or llama adds 6 temper per rank (of 100), so it settles after fewer rides.
+- **Twin Luck** · 5 ranks · level 10 (after Stockman). Twins comes more often. _+10% signature chance per rank._
+- **Wool Gatherer** · 3 ranks · level 30 (after Good Stock). Shearing a sheep drops 1 more wool per rank.
+- **Apprentice Wolf** · 3 ranks · level 30 (after Gentle Hands). Your tamed wolves learn from you: each rank adds a third of your best weapon skill's damage bonus to their bites.
+- **Big Litter** · 3 ranks · level 30 (after Twin Luck). When Twins lands there is a 10% chance per rank of a third baby.
+- **Fresh Pail** · 3 ranks · level 60 (after Wool Gatherer). Milking a cow or goat: 20% chance per rank that a second empty bucket in your inventory fills too. _materials (old Journeyman list)._
+- **Shared Strength** · 3 ranks · level 60 (after Apprentice Wolf). Your tamed pets hit 10% harder per rank on a mob you hit in the last 5 seconds.
+- **Long Summer** · 3 ranks · level 60 (after Big Litter). Pasture Blessing lasts longer. _+15% ability duration per rank; materials (old Expert list)._
+- **Faithful Friend** · 1 rank · level 90 (after Fresh Pail, Shared Strength). A pet of yours that would die inside a lit Hearth's range is saved instead, at a quarter of its health. Once per 10 minutes. It never does anything for you. _materials (old Master list)._
+- **Herd Master** · 1 rank · level 100 (after Faithful Friend, Long Summer). Babies you breed are born with half of their growing already done, and Pasture Blessing gives your pets Speed too. _+15% passive, -20% ability cooldown._
+
+## Riding (99 points)
+
+- **Horsemanship** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches, the signature move and the ability. _+5% XP per rank; materials (old Apprentice list)._
+- **Good Seat** · 5 ranks · level 10 (after Horsemanship). Mounts you ride are faster and jump higher, and your elytra wears slower. _+5% passive per rank._
+- **Couched Lance** · 3 ranks · level 10 (after Horsemanship). While mounted your melee hits deal 6% more damage per rank, and 6% more again while your mount is at a full gallop (7 blocks a second).
+- **Fair Wind** · 5 ranks · level 10 (after Horsemanship). Tailwind comes more often. _+10% signature chance per rank._
+- **Barding** · 3 ranks · level 30 (after Good Seat). A mount you ride takes 8% less damage per rank.
+- **Saddle Archer** · 3 ranks · level 30 (after Couched Lance). Arrows and bolts you loose from a mount hit 8% harder per rank.
+- **Whistle** · 3 ranks · level 30 (after Fair Wind). Blowing a goat horn calls your nearest tamed horse, donkey or mule that nobody is riding or leading, from 64 blocks at rank 1, 96 at rank 2 and 128 at rank 3. Ready again after 100 seconds, 80 at rank 2 and 60 at rank 3.
+- **High Seat** · 3 ranks · level 60 (after Barding). While mounted your block and attack reach grows by half a block per rank. _materials (old Journeyman list)._
+- **Rocket Saver** · 3 ranks · level 60 (after Saddle Archer). A firework rocket you use in flight is not used up, a 15% chance per rank.
+- **Long Road** · 3 ranks · level 60 (after Whistle). Full Gallop lasts longer. _+15% ability duration per rank; materials (old Expert list)._
+- **Soft Landing** · 1 rank · level 90 (after High Seat, Rocket Saver). After you leave a mount, a boat or a minecart you take no fall damage for 4 seconds. Once every 20 seconds. _materials (old Master list)._
+- **Stampede** · 1 rank · level 100 (after Soft Landing, Long Road). A mount you ride at a full gallop tramples the hostile mobs it runs into: 3 damage, 1 more per 20 Riding levels, once a second per mob. Nobody earns XP for what it kills. _+15% passive, -20% ability cooldown._
+
+## Commerce (99 points)
+
+- **Market Stall** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches, the signature move and the ability. _+5% XP per rank; materials (old Apprentice list)._
+- **Fair Dealing** · 5 ranks · level 10 (after Market Stall). Traders ask less of you, and Hero's Welcome and Haggle build on it. _+5% passive per rank._
+- **Regulars** · 3 ranks · level 10 (after Market Stall). A villager you traded with restocks again 3 minutes after your last trade at rank 1, 2 minutes at rank 2 and 1 minute at rank 3, at most twice a day each. Never while someone is trading with it.
+- **Silver Tongue** · 5 ranks · level 10 (after Market Stall). Good Deal comes more often. _+10% signature chance per rank._
+- **Last Piece** · 3 ranks · level 30 (after Fair Dealing). A trade has a 10% chance per rank not to use up one of the offer's uses.
+- **Gold Rush** · 3 ranks · level 30 (after Regulars). A piglin you barter with has a 10% chance per rank to roll its loot a second time.
+- **Sweetener** · 3 ranks · level 30 (after Silver Tongue). A trade has an 8% chance per rank that the trader throws in something extra: a quarter more of a bulk buy, or a small gift with a single item.
+- **Old Debts** · 3 ranks · level 60 (after Last Piece). A villager you cured of zombification takes another 4% per rank off its prices, on top of what the cure already did. _materials (old Journeyman list)._
+- **Better Deals** · 3 ranks · level 60 (after Gold Rush). A Good Deal gives back more of the price. _+10% signature power per rank._
+- **Long Negotiation** · 3 ranks · level 60 (after Sweetener). Haggle lasts longer. _+15% ability duration per rank; materials (old Expert list)._
+- **Hero's Welcome** · 1 rank · level 90 (after Old Debts, Better Deals). While Hero of the Village is on you, the discount from this skill's passive is doubled. _materials (old Master list)._
+- **Guild Master** · 1 rank · level 100 (after Hero's Welcome, Long Negotiation). Haggle takes 10 points more off every price. _+15% passive, -20% ability cooldown._

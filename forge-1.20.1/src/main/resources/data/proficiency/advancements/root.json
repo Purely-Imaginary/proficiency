@@ -1,0 +1,28 @@
+{
+  "display": {
+    "icon": {
+      "item": "proficiency:foresters_compass"
+    },
+    "title": {
+      "translate": "advancement.proficiency.root.title"
+    },
+    "description": {
+      "translate": "advancement.proficiency.root.desc"
+    },
+    "background": "minecraft:textures/gui/advancements/backgrounds/adventure.png",
+    "frame": "task",
+    "show_toast": false,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "event": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "event"
+    ]
+  ]
+}

@@ -39,6 +39,11 @@ public final class AbilityContext {
         if (byItem != null) {
             return byItem;
         }
+        if (main.isEmpty() && (player.getControlledVehicle() != null || player.isFallFlying()) && ridingUnlocked(player)) {
+            // Bare hands while steering a mount, a boat or a minecart, or under elytra, with Full Gallop
+            // unlocked: the ride, not a punch. A passenger, or a rider without it, still has the fists.
+            return Skill.RIDING;
+        }
         return main.isEmpty() ? bareHanded(player) : null;
     }
 
@@ -103,6 +108,20 @@ public final class AbilityContext {
         if (item == net.minecraft.world.item.Items.SPYGLASS) {
             return Skill.TACTICIAN;
         }
+        // Husbandry has no tool of its own; a lead is what you hold to look after animals.
+        if (item == net.minecraft.world.item.Items.LEAD) {
+            return Skill.HUSBANDRY;
+        }
+        // Riding: a saddle, a stick with a carrot or a fungus on it, and the rocket you light in flight.
+        if (item == net.minecraft.world.item.Items.SADDLE || item == net.minecraft.world.item.Items.CARROT_ON_A_STICK
+                || item == net.minecraft.world.item.Items.WARPED_FUNGUS_ON_A_STICK
+                || (item == net.minecraft.world.item.Items.FIREWORK_ROCKET && player.isFallFlying())) {
+            return Skill.RIDING;
+        }
+        // Commerce: the coin you hold out to a trader or a piglin.
+        if (item == net.minecraft.world.item.Items.EMERALD || item == net.minecraft.world.item.Items.GOLD_INGOT) {
+            return Skill.COMMERCE;
+        }
         // Charger has no weapon of its own either; a banner is what you charge behind. Checked
         // before blocks, because a banner is also a block you can place. Until Charger's ability
         // is unlocked, a banner keeps meaning the building skill it meant before idea 39.
@@ -117,6 +136,12 @@ public final class AbilityContext {
             return build;
         }
         return null;
+    }
+
+    private static boolean ridingUnlocked(Player player) {
+        return dev.amman.proficiency.ProficiencyAttachments.of(player).level(Skill.RIDING)
+                >= dev.amman.proficiency.skill.ActiveService.unlockLevel()
+                && dev.amman.proficiency.ProficiencyAttachments.of(player).rootOpen(Skill.RIDING);
     }
 
     @Nullable

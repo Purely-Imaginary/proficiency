@@ -2,10 +2,10 @@
 """Validate Hearth designs.json against HEARTH-DESIGNS-SPEC.md. Usage: validate.py designs.json"""
 import json, sys
 
-STONE, WOOD = set("Ss"), set("WPw")
+STONE, WOOD = set("Ss"), set("WPwp")
 METAL = set("icgbhlauBrk")
 ROMAN = ["I", "II", "III", "IV", "V", "VI"]
-UPGRADES = {("S", "s"), ("P", "w")}
+UPGRADES = {("S", "s"), ("P", "w"), ("P", "p"), ("w", "p")}
 # stage -> (footprint min, max, height min, max); height counts layer -1 up to the top block
 SIZES = {1: (3, 5, 2, 3), 2: (5, 7, 2, 4), 3: (5, 9, 4, 5), 4: (7, 9, 5, 6), 5: (7, 9, 6, 7), 6: (9, 9, 7, 7)}
 MAX_I, MAX_VI = 20, 350
@@ -14,11 +14,11 @@ FLUID = set("vV")
 WET_OK = "SicgkOI"   # blocks that may hold water
 LAVA_OK = "SicgkO"   # blocks that may hold lava (plus bars on the same layer)
 FULL = set("SicgkvV")   # roles a fluid may be held by (full solid blocks or the same fluid)
-BURN = set("WPwNmqL")   # flammable for the lava fire rule
+BURN = set("WPwpNmqL")   # flammable for the lava fire rule
 SUPPORT = set("SsWPicgkInqYOLGx")   # roles that can carry a pot, candle, carpet or skull
 LAVA_LANES = {"forge", "demonic"}
 COSTLY = {"a": 4, "B": 4, "g": 4, "z": 4}
-PAL_KEYS = list("SsWPwGNmfC")
+PAL_KEYS = list("SsWPwpGNmfC")
 EXPECTED = ["longhouse", "forge", "shrine", "demonic", "gothic", "girly", "ruin", "frost"]
 
 def cells(layers):
@@ -139,6 +139,11 @@ def check_stage(legend, lane, st, prev):
     bad = [f"{ch}@{k} on {d.get((k[0]-1,k[1],k[2]),' ')!r}" for k, ch in d.items() if ch in "fCmz"
            and (k[0] < 0 or d.get((k[0]-1, k[1], k[2]), " ") not in SUPPORT)]
     add("pots/candles/carpets/skulls have support below", not bad, "; ".join(bad[:2]))
+    # lanterns: stand on a block with a full centre (never a w or s, drawn as a bottom slab) or hang under one
+    stand, hang = SUPPORT - set("s") | set("pbh"), SUPPORT | set("wpbh")
+    bad = [f"l@{k} on {d.get((k[0]-1,k[1],k[2]),' ')!r}" for k, ch in d.items() if ch == "l"
+           and d.get((k[0]-1, k[1], k[2]), " ") not in stand and d.get((k[0]+1, k[1], k[2]), " ") not in hang]
+    add("lanterns stand on a full centre or hang", not bad, "; ".join(bad[:2]))
     cc = {}
     for ch in d.values(): cc[ch] = cc.get(ch, 0) + 1
     bad = [f"{ch} x{cc[ch]}" for ch, mx in COSTLY.items() if cc.get(ch, 0) > mx]

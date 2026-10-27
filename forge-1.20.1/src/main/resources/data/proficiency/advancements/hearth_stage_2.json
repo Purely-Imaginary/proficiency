@@ -1,0 +1,28 @@
+{
+  "parent": "proficiency:hearth_stage_1",
+  "display": {
+    "icon": {
+      "item": "minecraft:copper_block"
+    },
+    "title": {
+      "translate": "advancement.proficiency.hearth_stage_2.title"
+    },
+    "description": {
+      "translate": "advancement.proficiency.hearth_stage_2.desc"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "event": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "event"
+    ]
+  ]
+}

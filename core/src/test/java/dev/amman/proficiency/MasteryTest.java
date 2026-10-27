@@ -378,12 +378,12 @@ class MasteryTest {
         Buffer buffer = new Buffer();
         base.write(buffer);
         // Replace the mastery block (34 skills of varint + float) with hostile values. The rested
-        // block (34 floats and varints) follows it and is kept as it was, and so is the Expertise
-        // block after it (one varint: no ranks).
+        // block (34 floats and varints) follows it and is kept as it was, and so are the Expertise
+        // block after it (one varint: no ranks) and the Motherlode charge (one float) and the Codex title (one string).
         Object[] all = buffer.queue.toArray();
         buffer.queue.clear();
         int mastery = Skill.VALUES.length * 2;
-        int rested = Skill.VALUES.length * 2 + 1;
+        int rested = Skill.VALUES.length * 2 + 1 + 1 + 1;
         for (int i = 0; i < all.length - mastery - rested; i++) {
             buffer.queue.add(all[i]);
         }

@@ -1,0 +1,28 @@
+{
+  "parent": "proficiency:level_crafting_10",
+  "display": {
+    "icon": {
+      "item": "minecraft:anvil"
+    },
+    "title": {
+      "translate": "advancement.proficiency.level_crafting_25.title"
+    },
+    "description": {
+      "translate": "advancement.proficiency.level_crafting_25.desc"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "event": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "event"
+    ]
+  ]
+}

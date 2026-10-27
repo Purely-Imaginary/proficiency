@@ -83,7 +83,7 @@ public final class ChargerGameTests {
 
         /** A survival player at relative (x, 2, z), facing +z. */
         ServerPlayer player(double x, double z) {
-            ServerPlayer player = helper.makeMockServerPlayerInLevel();
+            ServerPlayer player = MockPlayers.make(helper);
             player.setGameMode(GameType.SURVIVAL);
             player.setPos(helper.absoluteVec(new Vec3(x, 2, z)));
             player.setYRot(0f);

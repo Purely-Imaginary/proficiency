@@ -13,10 +13,14 @@
     "DamageSourcesInvoker",
     "AbstractArrowInvoker",
     "FishingHookMixin",
+    "BrushableBlockEntityMixin",
     "HearthRaiderMixin",
     "HearthFurnaceMixin",
     "HearthBrewingStandMixin",
-    "HearthFoodDataMixin"
+    "HearthFoodDataMixin",
+    "MerchantMenuMixin",
+    "MerchantResultSlotMixin",
+    "PiglinAiMixin"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -37,6 +37,15 @@
     }
   ],
 
+  "brush": [
+    {
+      "match": ["minecraft:suspicious_sand", "minecraft:suspicious_gravel"],
+      "skill": "excavation",
+      "xp": 2.0,
+      "priority": -10
+    }
+  ],
+
   "place": [
     {
       "match": ["#minecraft:crops", "#minecraft:saplings", "#proficiency:builtin/planting_block"],

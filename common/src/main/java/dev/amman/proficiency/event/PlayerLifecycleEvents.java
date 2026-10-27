@@ -67,6 +67,10 @@ public final class PlayerLifecycleEvents {
             return;
         }
         ProficiencyNetwork.sendFullSync(player);
+        // Veterans get the Codex milestones they already earned, with no toast, sound or chat line.
+        dev.amman.proficiency.skill.CodexService.backfill(player);
+        // Veterans get the advancements they already earned, silently.
+        dev.amman.proficiency.skill.ProficiencyAdvancements.backfill(player);
         // Old saves get a "last used" day; credit that piled up while a teacher was away is paid.
         dev.amman.proficiency.skill.RestedService.onLogin(player);
         // A new session has an empty journal on the client, even if the same UUID logged out a
@@ -96,12 +100,16 @@ public final class PlayerLifecycleEvents {
     public static void onServerStopping(dev.amman.proficiency.platform.event.server.ServerStoppingEvent event) {
         dev.amman.proficiency.skill.XpFeedRecorder.stopAll();
         dev.amman.proficiency.skill.TelemetryService.stop();
+        dev.amman.proficiency.skill.ExportService.stop(event.getServer());
         dev.amman.proficiency.skill.TeachingService.saveNow();
     }
 
     @SubscribeEvent
     public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
         ProficiencyNetwork.forgetVisited(event.getEntity().getUUID());
+        if (event.getEntity() instanceof ServerPlayer leaver) {
+            dev.amman.proficiency.skill.ExportService.left(leaver);
+        }
     }
 
     @SubscribeEvent
@@ -146,6 +154,7 @@ public final class PlayerLifecycleEvents {
                 ? dev.amman.proficiency.skill.RestedService.onDeath(student, fresh) : Map.of();
         if (event.getEntity() instanceof ServerPlayer dead) {
             dev.amman.proficiency.skill.TelemetryService.death(dead, fresh, lost, streakLost);
+            dev.amman.proficiency.skill.ExportService.death(dead);
         }
         // Unpaid Social XP is part of the bars a death wipes.
         dev.amman.proficiency.skill.SocialService.onDeath(event.getOriginal().getUUID());
@@ -153,6 +162,7 @@ public final class PlayerLifecycleEvents {
         if (!(event.getEntity() instanceof ServerPlayer player)) {
             return;
         }
+        dev.amman.proficiency.skill.ProficiencyAdvancements.died(player, lost.size());
         if (!lost.isEmpty()) {
             player.sendSystemMessage(Component.translatable("proficiency.death.penalty", lost.size())
                     .withStyle(ChatFormatting.RED));
@@ -214,6 +224,7 @@ public final class PlayerLifecycleEvents {
                 dev.amman.proficiency.hearth.HearthHooks.onPlayerSecond(player);
             }
             dev.amman.proficiency.skill.TelemetryService.afterPlayers(event.getServer());
+            dev.amman.proficiency.skill.ExportService.afterPlayers(event.getServer());
             dev.amman.proficiency.skill.TeachingService.saveIfDue(event.getServer());
         }
 

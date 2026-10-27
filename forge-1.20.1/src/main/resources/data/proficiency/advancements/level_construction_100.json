@@ -1,0 +1,28 @@
+{
+  "parent": "proficiency:level_construction_50",
+  "display": {
+    "icon": {
+      "item": "minecraft:bricks"
+    },
+    "title": {
+      "translate": "advancement.proficiency.level_construction_100.title"
+    },
+    "description": {
+      "translate": "advancement.proficiency.level_construction_100.desc"
+    },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "event": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "event"
+    ]
+  ]
+}

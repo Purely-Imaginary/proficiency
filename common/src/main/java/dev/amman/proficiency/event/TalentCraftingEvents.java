@@ -1,14 +1,22 @@
 package dev.amman.proficiency.event;
 
 import dev.amman.proficiency.Proficiency;
+import dev.amman.proficiency.perk.Spellforge;
 import dev.amman.proficiency.perk.TalentService;
 import dev.amman.proficiency.skill.Skill;
+import dev.amman.proficiency.skill.SkillService;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.EnchantmentTags;
 import net.minecraft.util.random.WeightedRandom;
 import net.minecraft.world.effect.MobEffect;
@@ -28,6 +36,9 @@ import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.EnchantmentInstance;
 import net.minecraft.world.item.enchantment.Enchantments;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 import dev.amman.proficiency.platform.bus.SubscribeEvent;
 import dev.amman.proficiency.platform.bus.EventBusSubscriber;
 import dev.amman.proficiency.platform.event.AnvilUpdateEvent;
@@ -110,11 +121,13 @@ public final class TalentCraftingEvents {
         }
         HolderLookup.RegistryLookup<Enchantment> registry =
                 player.level().registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
+        // Spellforged (Smithing and Spellcasting): the gifts come more often and can land above I.
+        boolean forged = TalentService.hasSynergy(player, "spellforged");
         List<Holder<Enchantment>> gifts = new ArrayList<>();
-        if (tough > 0 && player.getRandom().nextDouble() < tough * 0.15) {
+        if (tough > 0 && player.getRandom().nextDouble() < Spellforge.giftChance(tough * 0.15, forged)) {
             gifts.add(registry.getOrThrow(Enchantments.UNBREAKING));
         }
-        if (temper > 0 && player.getRandom().nextDouble() < temper * 0.10) {
+        if (temper > 0 && player.getRandom().nextDouble() < Spellforge.giftChance(temper * 0.10, forged)) {
             gifts.add(registry.getOrThrow(Enchantments.SHARPNESS));
         }
         // Sharpness decides what a weapon is: its own supported-items tag covers swords, axes and
@@ -124,12 +137,70 @@ public final class TalentCraftingEvents {
             return;
         }
         ItemStack live = craftedStack(player, result);
+        List<Component> lines = new ArrayList<>();
+        int spellcasting = SkillService.level(player, Skill.SPELLCASTING);
         for (Holder<Enchantment> gift : gifts) {
-            result.enchant(gift, 1);
+            int level = Spellforge.giftLevel(forged, spellcasting, gift.value().getMaxLevel(),
+                    player.getRandom()::nextDouble);
+            result.enchant(gift, level);
             if (live != null && live != result) {
-                live.enchant(gift, 1);
+                live.enchant(gift, level);
             }
+            lines.add(giftLine(gift.is(Enchantments.UNBREAKING) ? "whetstone" : "temper", level,
+                    Enchantment.getFullname(gift, level)));
         }
+        if (player instanceof ServerPlayer serverPlayer) {
+            giftFx(serverPlayer, lines);
+        }
+    }
+
+    /** A gift named on the action bar; one above I names Spellforged too, which put it there. */
+    private static Component giftLine(String talent, int level, Component enchantment) {
+        Component name = Component.translatable("proficiency.talent.smithing." + talent);
+        Component gift = enchantment.copy().withStyle(ChatFormatting.AQUA);
+        if (level <= 1) {
+            return Component.translatable("proficiency.smithing.gift", name, gift);
+        }
+        return Component.translatable("proficiency.spellforged.gift", name,
+                Component.translatable("proficiency.synergy.spellforged"), gift);
+    }
+
+    /**
+     * The moment a Whetstone or Temper gift lands, so it does not pass unnoticed behind the crafting
+     * screen: an enchanting whoosh and a chime everyone nearby hears, glyphs drawn into the piece in
+     * the player's hands, and the gift named on the action bar. Server-side particles and sounds, so
+     * it needs no packet of its own.
+     */
+    private static void giftFx(ServerPlayer player, List<Component> lines) {
+        MutableComponent bar = Component.empty().withStyle(ChatFormatting.LIGHT_PURPLE);
+        for (int i = 0; i < lines.size(); i++) {
+            if (i > 0) {
+                bar.append("  ");
+            }
+            bar.append(lines.get(i));
+        }
+        player.displayClientMessage(bar, true);
+        // On the bench the player is looking at, a little above its top. Spawned right in front of
+        // the eyes, the sparks filled half the screen.
+        Vec3 at;
+        HitResult hit = player.pick(player.blockInteractionRange(), 1f, false);
+        if (hit instanceof BlockHitResult block && hit.getType() == HitResult.Type.BLOCK) {
+            at = Vec3.atCenterOf(block.getBlockPos()).add(0, 0.75, 0);
+        } else {
+            Vec3 look = player.getLookAngle();
+            at = player.getEyePosition().add(look.x * 1.5, -0.5, look.z * 1.5);
+        }
+        double x = at.x;
+        double y = at.y;
+        double z = at.z;
+        // An enchant glyph starts at its position plus its speed and flies back to its position,
+        // so a speed of 1 pulls a cloud of glyphs about a block wide into the bench.
+        player.serverLevel().sendParticles(ParticleTypes.ENCHANT, x, y, z, 24, 0.1, 0.1, 0.1, 1.0);
+        player.serverLevel().sendParticles(ParticleTypes.END_ROD, x, y, z, 4, 0.25, 0.15, 0.25, 0.02);
+        player.level().playSound(null, x, y, z, SoundEvents.ENCHANTMENT_TABLE_USE, SoundSource.PLAYERS,
+                1.0f, 1.2f);
+        player.level().playSound(null, x, y, z, SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.PLAYERS,
+                0.9f, 1.5f);
     }
 
     @Nullable

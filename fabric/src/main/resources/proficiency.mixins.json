@@ -9,6 +9,7 @@
     "AnvilMenuMixin",
     "BlockMixin",
     "BoneMealItemMixin",
+    "BrushableBlockEntityMixin",
     "EntityMixin",
     "ExplosionMixin",
     "FallingBlockEntityMixin",
@@ -20,6 +21,9 @@
     "HearthFoodDataMixin",
     "HearthFurnaceMixin",
     "HearthRaiderMixin",
+    "MerchantMenuMixin",
+    "MerchantResultSlotMixin",
+    "PiglinAiMixin",
     "HearthWakeUpMixin",
     "ItemCombinerMenuAccessor",
     "ItemEntityMixin",
@@ -35,7 +39,12 @@
     "PlayerMixin",
     "ProjectileMixin",
     "ResultSlotMixin",
-    "ServerPlayerMixin"
+    "ServerPlayerMixin",
+    "TrialSpawnerDataAccessor",
+    "TrialSpawnerMixin",
+    "TrialSpawnerStateMixin",
+    "VaultServerDataInvoker",
+    "VaultServerMixin"
   ],
   "injectors": {
     "defaultRequire": 1

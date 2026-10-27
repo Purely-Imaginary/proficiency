@@ -32,7 +32,19 @@ class ProficiencyClientConfigTest {
         assertTrue(ProficiencyClientConfig.hudDeathRecap());
         assertTrue(ProficiencyClientConfig.procFxEnabled());
         assertTrue(ProficiencyClientConfig.uiSkillIcons());
+        assertTrue(ProficiencyClientConfig.uiJuicyFeedback());
+        assertEquals("", ProficiencyClientConfig.uiWaywheelPins());
         assertTrue(ProficiencyClientConfig.tooltipSkillInfo());
         assertFalse(ProficiencyClientConfig.tooltipAlwaysDetailed());
+    }
+
+    @Test
+    void styleMigrationWaitsForTheFile() {
+        // The first client tick may come before the file is loaded: the migration must not throw, must not mark
+        // itself done (it has to run once the file is there) and the style reads CLASSIC until then.
+        ProficiencyClientConfig.migrateUiStyle();
+        ProficiencyClientConfig.migrateUiStyle();
+        assertFalse(ProficiencyClientConfig.SPEC.isLoaded());
+        assertEquals(dev.amman.proficiency.client.UiStyle.CLASSIC, ProficiencyClientConfig.uiStyle());
     }
 }

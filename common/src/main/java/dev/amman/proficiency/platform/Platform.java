@@ -29,6 +29,9 @@ public interface Platform {
     /** Which loader this is, for logs. */
     String loaderName();
 
+    /** Rebuilds this player's tab-list name (the badge and Codex title) and sends it to everyone. */
+    void refreshTabListName(ServerPlayer player);
+
     /** The player's skills attachment, created empty on first use. */
     PlayerSkills skills(Player player);
 

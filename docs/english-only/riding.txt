@@ -1,0 +1,14 @@
+# Lang keys that exist in en_us only (Riding, 2026-10-26 languages override). A key whose name
+# contains one of these lines is not required in the other 11 languages; the game falls back to English.
+# One substring per line. A later translation pass deletes the line once the key is translated.
+riding
+synergy.open_country
+synergy.ferryman
+synergy.heavy_cavalry
+synergy.horse_whisperer
+synergy.horse_archer
+synergy.mounted_hunt
+synergy.rocketeer
+synergy.hard_rider
+synergy.outrider
+synergy.cavalry_shield

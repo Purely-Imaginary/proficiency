@@ -128,19 +128,24 @@ class HearthDataTest {
     @Test
     void skillsFeedThePoolsOfTheSpec() {
         HearthData d = HearthData.DEFAULTS;
-        for (Skill skill : new Skill[] {Skill.MINING, Skill.WOODCUTTING, Skill.EXCAVATION, Skill.FARMING, Skill.FISHING}) {
+        for (Skill skill : new Skill[] {Skill.MINING, Skill.WOODCUTTING, Skill.EXCAVATION, Skill.FISHING}) {
             assertEquals(HearthPool.HEARTY, d.poolFor(skill), skill.id());
         }
-        assertEquals(HearthPool.REGEN, d.poolFor(Skill.DECORATING));
-        assertEquals(HearthPool.FORTIFIED, d.poolFor(Skill.MASONRY));
+        // Regen: decorating + farming (pulled from hearty's category).
+        for (Skill skill : new Skill[] {Skill.DECORATING, Skill.FARMING}) {
+            assertEquals(HearthPool.REGEN, d.poolFor(skill), skill.id());
+        }
+        // Fortified: masonry + blocking + endurance.
+        for (Skill skill : new Skill[] {Skill.MASONRY, Skill.BLOCKING, Skill.ENDURANCE}) {
+            assertEquals(HearthPool.FORTIFIED, d.poolFor(skill), skill.id());
+        }
         for (Skill skill : new Skill[] {Skill.SMITHING, Skill.COOKING, Skill.ALCHEMY}) {
             assertEquals(HearthPool.WORKSHOP, d.poolFor(skill), skill.id());
         }
         assertEquals(HearthPool.HOMECOMING, d.poolFor(Skill.SOCIAL));
-        // Movement, Expedition, Survival, Mastery and combat feed nothing.
+        // Movement, Expedition, Survival, Mastery and remaining combat feed nothing.
         for (Skill skill : new Skill[] {Skill.RUNNING, Skill.SWIMMING, Skill.WAYFARING, Skill.SPELUNKING,
-                Skill.BEASTSLAYING, Skill.NIGHTWALKER, Skill.SPELLCASTING, Skill.ENGINEERING, Skill.SWORDS,
-                Skill.ENDURANCE}) {
+                Skill.BEASTSLAYING, Skill.NIGHTWALKER, Skill.SPELLCASTING, Skill.ENGINEERING, Skill.SWORDS}) {
             assertNull(d.poolFor(skill), skill.id());
         }
     }
@@ -150,7 +155,9 @@ class HearthDataTest {
         HearthData d = HearthDataLoader.parse("pack:hearth/p",
                 "{\"pools\": {\"workshop\": {\"feeds\": [\"#category:crafting\", \"mining\"]}}}").data();
         assertEquals(HearthPool.WORKSHOP, d.poolFor(Skill.MINING));
-        assertEquals(HearthPool.HEARTY, d.poolFor(Skill.FARMING));
+        // Farming is explicitly in REGEN in the defaults; FISHING is a plain gathering skill that stays in HEARTY.
+        assertEquals(HearthPool.REGEN, d.poolFor(Skill.FARMING));
+        assertEquals(HearthPool.HEARTY, d.poolFor(Skill.FISHING));
     }
 
     @Test

@@ -35,7 +35,17 @@ public final class SkillService {
      */
     public static float grantNoFirstTime(Player player, Skill skill, double baseAmount, @Nullable String source,
             double crit) {
-        return grantOnce(player, skill, baseAmount, source, 1.0, 0.0, crit);
+        return grantOnce(player, skill, baseAmount, source, 1.0, 0.0, crit, 1.0);
+    }
+
+    /**
+     * As {@link #grantNoFirstTime(Player, Skill, double, String, double)} for a bow or crossbow
+     * hit, with the {@code range} factor its distance pays ({@link dev.amman.proficiency.skill.RangeXp}).
+     * It shows as its own {@code range} factor in the feed and the log.
+     */
+    public static float grantNoFirstTime(Player player, Skill skill, double baseAmount, @Nullable String source,
+            double crit, double range) {
+        return grantOnce(player, skill, baseAmount, source, 1.0, 0.0, crit, range);
     }
 
     /**
@@ -49,6 +59,18 @@ public final class SkillService {
             firstTime(serverPlayer, skill, victimType);
         }
         return amount;
+    }
+
+    /**
+     * Only the first-time bonus of a kind, with no base XP of its own: the caller paid (or will pay)
+     * the base under another source. Archaeology uses it for the item a brush turned up, so each
+     * kind of find (a pottery sherd, a brick) is a discovery of its own.
+     */
+    public static void grantFirstTimeOnly(Player player, Skill skill, @Nullable String source) {
+        if (player instanceof ServerPlayer serverPlayer && !SkillTools.isFakePlayer(serverPlayer)
+                && !serverPlayer.isSpectator() && ProficiencyConfig.enabled(skill)) {
+            firstTime(serverPlayer, skill, source);
+        }
     }
 
     public static void grant(Player player, Skill skill, double baseAmount) {
@@ -140,6 +162,7 @@ public final class SkillService {
             return;
         }
         skills.markVisited(key);
+        CodexService.onKindFound(player, skill);
         // The tier goes in as a factor, not folded into the base, so the feed shows it.
         double tier = ProficiencyConfig.firstTimeTierScaling() ? FirstTimeTiers.multiplier(kind) : 1.0;
         float paid = grantOnce(player, skill, base, FirstTimeKinds.FIRST_PREFIX + kind, tier, 0.0);
@@ -150,12 +173,35 @@ public final class SkillService {
     /** @param aoeShare above 0 for an area tool's extra block: the share it pays, which also marks the grant as one */
     private static float grantOnce(Player player, Skill skill, double baseAmount,
             @Nullable String source, double tier, double aoeShare) {
-        return grantOnce(player, skill, baseAmount, source, tier, aoeShare, 1.0);
+        return grantOnce(player, skill, baseAmount, source, tier, aoeShare, 1.0, 1.0);
     }
 
-    /** @param crit the critical-hit factor of a weapon hit, 1.0 for everything else */
+    /**
+     * @param crit the critical-hit factor of a weapon hit, 1.0 for everything else
+     * @param range the distance factor of a bow or crossbow hit, 1.0 for everything else
+     */
     private static float grantOnce(Player player, Skill skill, double baseAmount,
-            @Nullable String source, double tier, double aoeShare, double crit) {
+            @Nullable String source, double tier, double aoeShare, double crit, double range) {
+        return grantOnce(player, skill, baseAmount, source, tier, aoeShare, crit, range, 1.0);
+    }
+
+    /**
+     * A grant with the {@code trial} factor of a Trial Chambers mob ({@link TrialRules}). It shows as
+     * its own {@code trial} factor in the feed and the log. {@code firstTime} also pays the first-time
+     * bonus of the source, as {@link #grant} does; false is the hit's {@link #grantNoFirstTime}.
+     */
+    public static float grantTrial(Player player, Skill skill, double baseAmount, @Nullable String source,
+            double trial, boolean firstTime) {
+        float amount = grantOnce(player, skill, baseAmount, source, 1.0, 0.0, 1.0, 1.0, trial);
+        if (firstTime && amount > 0 && player instanceof ServerPlayer serverPlayer) {
+            firstTime(serverPlayer, skill, source);
+        }
+        return amount;
+    }
+
+    /** @param trial the Trial Chambers mob factor for Courage and Charger, 1.0 for everything else */
+    private static float grantOnce(Player player, Skill skill, double baseAmount,
+            @Nullable String source, double tier, double aoeShare, double crit, double range, double trial) {
         if (!(player instanceof ServerPlayer serverPlayer) || SkillTools.isFakePlayer(serverPlayer)) {
             // A machine's fake player earns nothing, and must never be sent a packet.
             return 0f;
@@ -168,18 +214,17 @@ public final class SkillService {
         }
 
         PlayerSkills skills = ProficiencyAttachments.of(serverPlayer);
-        double rate = ProficiencyConfig.xpRate(skill) * ProficiencyConfig.xpMultiplier();
-        double perk = skills.perkModifier(skill, dev.amman.proficiency.perk.PerkEffect.XP_RATE);
-        double company = CompanyBonus.multiplier(serverPlayer, skill);
-        // Social, Nightwalker and Homebuilder are paid in 5-second lumps, so a tempo chain could never build.
         boolean aoe = aoeShare > 0.0;
-        double tempo = skill == Skill.SOCIAL || skill == Skill.NIGHTWALKER || skill == Skill.HOMEBUILDER
-                ? 1.0 : aoe ? 1.0 : Tempo.multiplier(serverPlayer, skill);
-        double overflow = overflow(serverPlayer, skill);
-        double inspired = inspiration(serverPlayer);
-        double streak = SurvivalStreak.multiplier(skills);
+        Mult mult = multipliers(serverPlayer, skills, skill, aoe, true);
+        double rate = mult.rate();
+        double perk = mult.perk();
+        double company = mult.company();
+        double tempo = mult.tempo();
+        double overflow = mult.overflow();
+        double inspired = mult.inspired();
+        double streak = mult.streak();
         float amount = (float) (baseAmount * rate * perk * company * tempo * overflow * inspired
-                * streak * tier * crit * (aoe ? aoeShare : 1.0));
+                * streak * tier * crit * range * trial * (aoe ? aoeShare : 1.0));
         if (!Float.isFinite(amount) || amount <= 0) {
             return 0f;
         }
@@ -209,6 +254,8 @@ public final class SkillService {
         XpFactors.add(factors, XpFactors.STREAK, streak);
         XpFactors.add(factors, XpFactors.TIER, tier);
         XpFactors.add(factors, XpFactors.CRIT, crit);
+        XpFactors.add(factors, XpFactors.RANGE, range);
+        XpFactors.add(factors, XpFactors.TRIAL, trial);
         if (aoe) {
             XpFactors.add(factors, XpFactors.AOE, aoeShare);
         }
@@ -255,6 +302,7 @@ public final class SkillService {
         if (gained > 0 || result.stars() > 0) {
             // A level or a star that crosses an Expertise threshold earns a point: say so once.
             dev.amman.proficiency.perk.ExpertiseService.noticeEarned(serverPlayer, expertiseBefore);
+            ProficiencyAdvancements.check(serverPlayer);
         }
         // Social's only source: a share of what company just added. It ignores its own grants.
         // It sees the grant without the rested extra: resting must not pay Social.
@@ -264,7 +312,90 @@ public final class SkillService {
         // The Hearth mirrors beforeRested (never banked: a skill with every star must still feed).
         dev.amman.proficiency.hearth.HearthHooks.onGrant(serverPlayer, skill, source, baseAmount, beforeRested,
                 amount, banked, play, aoe);
+        // After the XP is paid: the Tempo packet is cosmetic and must never cost a grant.
+        Tempo.announce(serverPlayer, skill);
         return amount;
+    }
+
+    /** The multipliers every grant is scaled by, apart from the tier, crit, range and area share. */
+    private record Mult(double rate, double perk, double company, double tempo, double overflow, double inspired,
+            double streak) {
+
+        double product() {
+            return rate * perk * company * tempo * overflow * inspired * streak;
+        }
+    }
+
+    /**
+     * @param commit true for a real grant, which takes the player's Tempo step; false to read what the next
+     *               grant would be scaled by without touching anything (the Jade tooltip)
+     */
+    private static Mult multipliers(ServerPlayer player, PlayerSkills skills, Skill skill, boolean aoe, boolean commit) {
+        return multipliers(player, skills, skill, aoe, commit, 0);
+    }
+
+    private static Mult multipliers(ServerPlayer player, PlayerSkills skills, Skill skill, boolean aoe, boolean commit,
+            int tempoLater) {
+        double rate = ProficiencyConfig.xpRate(skill) * ProficiencyConfig.xpMultiplier();
+        double perk = skills.perkModifier(skill, dev.amman.proficiency.perk.PerkEffect.XP_RATE);
+        double company = CompanyBonus.multiplier(player, skill);
+        // Social, Nightwalker and Homebuilder are paid in 5-second lumps, so a tempo chain could never build.
+        double tempo = skill == Skill.SOCIAL || skill == Skill.NIGHTWALKER || skill == Skill.HOMEBUILDER
+                ? 1.0 : aoe ? 1.0 : commit ? Tempo.multiplier(player, skill) : Tempo.preview(player, skill, tempoLater);
+        return new Mult(rate, perk, company, tempo, overflow(player, skill), inspiration(player),
+                SurvivalStreak.multiplier(skills));
+    }
+
+    /**
+     * The XP a grant of {@code baseAmount} would pay this player right now, after every multiplier except
+     * the rested extra, a crit or a range factor; 0 when nothing would be paid. Changes nothing: no Tempo
+     * step, no rested XP spent, no log line. The Jade tooltip shows it.
+     *
+     * @param tier the first-time tier, 1.0 for an ordinary grant
+     */
+    public static float preview(Player player, Skill skill, double baseAmount, double tier) {
+        return preview(player, skill, baseAmount, tier, 1.0, 0);
+    }
+
+    /**
+     * As {@link #preview(Player, Skill, double, double)} with the grant's own extra {@code factor} (a bow
+     * hit's range) and {@code tempoLater} Tempo steps ahead of the next action (a kill follows a hit).
+     */
+    public static float preview(Player player, Skill skill, double baseAmount, double tier, double factor,
+            int tempoLater) {
+        if (!(player instanceof ServerPlayer serverPlayer) || SkillTools.isFakePlayer(serverPlayer)
+                || serverPlayer.isSpectator() || !Double.isFinite(baseAmount) || baseAmount <= 0
+                || !ProficiencyConfig.enabled(skill)) {
+            return 0f;
+        }
+        Mult mult = multipliers(serverPlayer, ProficiencyAttachments.of(serverPlayer), skill, false, false,
+                tempoLater);
+        float amount = (float) (baseAmount * mult.product() * tier * factor);
+        return Float.isFinite(amount) && amount > 0 ? amount : 0f;
+    }
+
+    /**
+     * What the first-time bonus for this kind of thing would pay now, or 0 when it is already paid, would
+     * not be paid at all (a build skill's daily cap is left out: its tooltip never shows the mark), or the
+     * source is not a kind. The same gates as {@link #firstTime}, read without marking anything.
+     */
+    public static float previewFirstTime(ServerPlayer player, Skill skill, @Nullable String source) {
+        double base = ProficiencyConfig.firstTimeXp();
+        if (base <= 0 || !isKind(source) || FirstTimeKinds.isBuildSkill(skill)) {
+            return 0f;
+        }
+        String kind = FirstTimeKinds.canonical(source);
+        PlayerSkills skills = ProficiencyAttachments.of(player);
+        if (skills.hasVisited("first:" + skill.id() + ":" + kind)) {
+            return 0f;
+        }
+        for (String variant : FirstTimeKinds.legacyVariants(kind)) {
+            if (skills.hasVisited("first:" + skill.id() + ":" + variant)) {
+                return 0f;
+            }
+        }
+        double tier = ProficiencyConfig.firstTimeTierScaling() ? FirstTimeTiers.multiplier(kind) : 1.0;
+        return preview(player, skill, base, tier);
     }
 
     /** Sprinting, sneaking and swimming: the sources that pay a steady trickle. */

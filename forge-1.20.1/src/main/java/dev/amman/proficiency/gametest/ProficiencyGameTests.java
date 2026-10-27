@@ -3,6 +3,7 @@ package dev.amman.proficiency.gametest;
 import dev.amman.proficiency.Proficiency;
 import dev.amman.proficiency.ProficiencyAttachments;
 import dev.amman.proficiency.skill.PlayerSkills;
+import dev.amman.proficiency.skill.ProcService;
 import dev.amman.proficiency.skill.Skill;
 import dev.amman.proficiency.skill.SkillService;
 import dev.amman.proficiency.skill.SurvivalStreak;
@@ -17,6 +18,7 @@ import net.minecraft.world.entity.animal.Cow;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
@@ -235,6 +237,107 @@ public final class ProficiencyGameTests {
         helper.succeed();
     }
 
+    /** Seam Sense: stone charges the Motherlode, an ore spends it, and the charge stops at the capacity. */
+    @GameTest(template = "empty")
+    public static void seamSenseChargesOnStoneAndAnOreSpendsIt(GameTestHelper helper) {
+        ServerPlayer player = MockPlayers.make(helper);
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.DIAMOND_PICKAXE));
+        PlayerSkills skills = ProficiencyAttachments.of(player);
+        // 30, not 100: a mock player stays in the level after its test, and a much higher Mining
+        // level would hand a Mentor bonus to the low-level players of the tests around it.
+        skills.setLevel(Skill.MINING, 30);
+        GameTestRoots.open(player, Skill.MINING);
+        skills.setRank(dev.amman.proficiency.perk.Talents.get(Skill.MINING, "seam_sense"), 3);
+
+        BlockPos stone = new BlockPos(1, 1, 1);
+        helper.setBlock(stone, Blocks.STONE);
+        Breaks.separately(player, helper.absolutePos(stone));
+        helper.assertTrue(Math.abs(skills.lode() - 0.01) < 1e-9, "one stone at rank 3 charged " + skills.lode());
+
+        // A full charge banked: the ore takes one and leaves the rest.
+        skills.setLode(2.0);
+        BlockPos ore = new BlockPos(2, 1, 1);
+        helper.setBlock(ore, Blocks.IRON_ORE);
+        Breaks.separately(player, helper.absolutePos(ore));
+        helper.assertTrue(Math.abs(skills.lode() - 1.0) < 1e-9, "a certain Motherlode left " + skills.lode());
+
+        // A partial charge goes whole on the next ore, hit or miss.
+        skills.setLode(0.5);
+        BlockPos second = new BlockPos(3, 1, 1);
+        helper.setBlock(second, Blocks.IRON_ORE);
+        Breaks.separately(player, helper.absolutePos(second));
+        helper.assertTrue(skills.lode() == 0.0, "a partial charge survived the ore: " + skills.lode());
+
+        // Without Lodestone one full charge is the most.
+        skills.setLode(0.995);
+        BlockPos last = new BlockPos(4, 1, 1);
+        helper.setBlock(last, Blocks.STONE);
+        Breaks.separately(player, helper.absolutePos(last));
+        helper.assertTrue(Math.abs(skills.lode() - 1.0) < 1e-9, "the charge passed the capacity: " + skills.lode());
+        helper.succeed();
+    }
+
+    /** Tempering: a Motherlode mends 80% of the wear since the last one, at most 4 points. */
+    @GameTest(template = "empty")
+    public static void temperingMendsTheWearSinceTheLastMotherlode(GameTestHelper helper) {
+        ServerPlayer player = MockPlayers.make(helper);
+        ItemStack pick = new ItemStack(Items.DIAMOND_PICKAXE);
+        pick.setDamageValue(500);
+        player.setItemInHand(InteractionHand.MAIN_HAND, pick);
+        PlayerSkills skills = ProficiencyAttachments.of(player);
+        // 30, not 100: a mock player stays in the level after its test, and a much higher Mining
+        // level would hand a Mentor bonus to the low-level players of the tests around it.
+        skills.setLevel(Skill.MINING, 30);
+        GameTestRoots.open(player, Skill.MINING);
+        skills.setRank(dev.amman.proficiency.perk.Talents.get(Skill.MINING, "tempering"), 1);
+
+        // The first Motherlode only notes where the pickaxe stands: nothing worn since, nothing mended.
+        ProcService.forceNext(player, Skill.MINING);
+        BlockPos first = new BlockPos(1, 1, 1);
+        helper.setBlock(first, Blocks.STONE);
+        Breaks.separately(player, helper.absolutePos(first));
+        ItemStack held = player.getMainHandItem();
+        helper.assertTrue(held.getDamageValue() >= 500, "the first Motherlode mended " + held.getDamageValue());
+
+        // 40 points of wear later the next one mends the cap, 4.
+        int worn = held.getDamageValue() + 40;
+        held.setDamageValue(worn);
+        ProcService.forceNext(player, Skill.MINING);
+        BlockPos second = new BlockPos(2, 1, 1);
+        helper.setBlock(second, Blocks.STONE);
+        Breaks.separately(player, helper.absolutePos(second));
+        int now = player.getMainHandItem().getDamageValue();
+        helper.assertTrue(now >= worn - 4 && now <= worn - 4 + 1,
+                "Tempering took the pickaxe from " + worn + " to " + now + ", expected 4 mended");
+        helper.succeed();
+    }
+
+    /** Falling Leaf: a Timber with the talent leaves you Slow Falling, one without it does not. */
+    @GameTest(template = "empty")
+    public static void fallingLeafSlowsTheFallAfterATimber(GameTestHelper helper) {
+        long now = helper.getLevel().getGameTime();
+        BlockPos[] bases = {new BlockPos(1, 1, 1), new BlockPos(3, 1, 1)};
+        ServerPlayer[] players = new ServerPlayer[2];
+        for (int i = 0; i < 2; i++) {
+            players[i] = MockPlayers.make(helper);
+            players[i].setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.DIAMOND_AXE));
+            ProficiencyAttachments.of(players[i]).beginFrenzy(Skill.WOODCUTTING, now + 400, now + 400);
+            helper.setBlock(bases[i], Blocks.OAK_LOG);
+            helper.setBlock(bases[i].above(), Blocks.OAK_LOG);
+        }
+        ProficiencyAttachments.of(players[0]).setRank(
+                dev.amman.proficiency.perk.Talents.get(Skill.WOODCUTTING, "falling_leaf"), 1);
+
+        Breaks.separately(players[0], helper.absolutePos(bases[0]));
+        Breaks.separately(players[1], helper.absolutePos(bases[1]));
+
+        helper.assertTrue(players[0].hasEffect(MobEffects.SLOW_FALLING),
+                "a Timber with Falling Leaf gave no Slow Falling");
+        helper.assertFalse(players[1].hasEffect(MobEffects.SLOW_FALLING),
+                "a Timber without Falling Leaf gave Slow Falling");
+        helper.succeed();
+    }
+
     /**
      * The streak end to end through the real code: the XP grant multiplies by it and marks the
      * player active, the per-second tick grows it, and the respawn clone wipes it along with every
@@ -248,8 +351,9 @@ public final class ProficiencyGameTests {
         // in one of the two skills only. Alone, nobody's company reaches either grant.
         MockPlayers.isolate(player);
         PlayerSkills skills = ProficiencyAttachments.of(player);
-        skills.setLevel(Skill.MINING, 20);
-        skills.setLevel(Skill.EXCAVATION, 20);
+        // Levels > 30 so lingering level-30 players from lode/tempering tests cannot be mentors.
+        skills.setLevel(Skill.MINING, 35);
+        skills.setLevel(Skill.EXCAVATION, 35);
 
         // Two skills, one grant each, so neither has a tempo chain going. Everything else in the
         // grant applies equally to both, so the ratio is the streak alone.
@@ -271,7 +375,7 @@ public final class ProficiencyGameTests {
         ServerPlayer respawned = MockPlayers.make(helper);
         MinecraftForge.EVENT_BUS.post(new PlayerEvent.Clone(respawned, player, true));
         PlayerSkills fresh = ProficiencyAttachments.of(respawned);
-        helper.assertTrue(fresh.level(Skill.MINING) == 20 && fresh.level(Skill.EXCAVATION) == 20,
+        helper.assertTrue(fresh.level(Skill.MINING) == 35 && fresh.level(Skill.EXCAVATION) == 35,
                 "a death must never cost a level");
         helper.assertTrue(fresh.xp(Skill.MINING) == 0f && fresh.xp(Skill.EXCAVATION) == 0f,
                 "a death must wipe the progress bar");
@@ -1133,7 +1237,7 @@ public final class ProficiencyGameTests {
         helper.succeed();
     }
 
-    /** A light in either hand switches Nightwalker's darkness off. */
+    /** A light in either hand switches Nightwalker's darkness off (a worn one too, through WornLights; not testable without Accessories or Curios). */
     @GameTest(template = "empty", timeoutTicks = 200)
     public static void heldLightSwitchesNightwalkerOff(GameTestHelper helper) {
         buildNightRooms(helper);
@@ -1466,5 +1570,184 @@ public final class ProficiencyGameTests {
     public static void aVillageVariantCountsAsTheVillage(GameTestHelper helper) {
         discoverStructure(helper, "minecraft:village_taiga", "minecraft:village",
                 ProficiencyConfig.structureXp());
+    }
+
+    private static final String[] CODEX_KINDS = {"iron_ore", "gold_ore", "coal_ore", "copper_ore", "lapis_ore",
+            "redstone_ore", "diamond_ore", "emerald_ore", "stone", "granite", "andesite", "diorite"};
+
+    /**
+     * The Codex: the tenth distinct kind awards the 10 milestone once; repeating a kind adds nothing (the
+     * anti-farm rule is the first-time rule itself); a title cannot be picked before it is earned.
+     */
+    @GameTest(template = "empty")
+    public static void theCodexAwardsAtTenDistinctKindsOnly(GameTestHelper helper) {
+        ServerPlayer player = MockPlayers.make(helper);
+        PlayerSkills skills = ProficiencyAttachments.of(player);
+        for (int i = 0; i < 30; i++) {
+            dev.amman.proficiency.skill.SkillService.grant(player, Skill.MINING, 1.0, "block.minecraft." + CODEX_KINDS[0]);
+        }
+        helper.assertTrue(skills.kindsFound(Skill.MINING) == 1, "one kind repeated 30 times counted "
+                + skills.kindsFound(Skill.MINING));
+        for (int i = 1; i < 9; i++) {
+            dev.amman.proficiency.skill.SkillService.grant(player, Skill.MINING, 1.0, "block.minecraft." + CODEX_KINDS[i]);
+        }
+        helper.assertFalse(skills.codexSeen("mining:10"), "nine kinds awarded the 10 milestone");
+        helper.assertFalse(dev.amman.proficiency.skill.CodexService.pick(player, "mining:10"), "picked an unearned title");
+        dev.amman.proficiency.skill.SkillService.grant(player, Skill.MINING, 1.0, "block.minecraft." + CODEX_KINDS[9]);
+        helper.assertTrue(skills.kindsFound(Skill.MINING) == 10, "kinds " + skills.kindsFound(Skill.MINING));
+        helper.assertTrue(skills.codexSeen("mining:10"), "ten kinds did not award the 10 milestone");
+        helper.assertFalse(skills.codexSeen("mining:25"), "ten kinds awarded 25");
+        helper.assertTrue(dev.amman.proficiency.skill.CodexService.pick(player, "mining:10"), "could not pick an earned title");
+        helper.assertTrue("mining:10".equals(skills.codexTitle()), "title not stored");
+        helper.assertTrue(dev.amman.proficiency.skill.RankBadges.decorate(player, player.getName()).getString()
+                .contains(dev.amman.proficiency.skill.CodexService.titleName(
+                        new dev.amman.proficiency.skill.Codex.Title(Skill.MINING, 10)).getString()),
+                "the tab list name lacks the title");
+        // The command a player types, and the picker sends: the id has a colon, so the argument must take one.
+        var commands = helper.getLevel().getServer().getCommands();
+        commands.performPrefixedCommand(player.createCommandSourceStack(), "skills title clear");
+        helper.assertTrue(skills.codexTitle().isEmpty(), "/skills title clear did not clear");
+        commands.performPrefixedCommand(player.createCommandSourceStack(), "skills title set mining:10");
+        helper.assertTrue("mining:10".equals(skills.codexTitle()), "/skills title set mining:10 did not pick it");
+        helper.succeed();
+    }
+
+    /** A veteran's existing kinds are backfilled on login without an award: nothing is left to announce later. */
+    @GameTest(template = "empty")
+    public static void theCodexBackfillsExistingKindsSilently(GameTestHelper helper) {
+        ServerPlayer player = MockPlayers.make(helper);
+        PlayerSkills skills = ProficiencyAttachments.of(player);
+        for (int i = 0; i < 30; i++) {
+            skills.markVisited("first:" + Skill.FARMING.id() + ":block.minecraft.kind" + i);
+        }
+        dev.amman.proficiency.skill.CodexService.backfill(player);
+        helper.assertTrue(skills.codexSeen("farming:10") && skills.codexSeen("farming:25"), "backfill missed a milestone");
+        helper.assertFalse(skills.codexSeen("farming:50"), "backfill invented a milestone");
+        helper.assertTrue(skills.codexTitle().isEmpty(), "backfill picked a title");
+        helper.succeed();
+    }
+
+    /**
+     * The dashboard export: a player and a lit Hearth both reach players.json, written whole (no leftover
+     * temporary file), and a logout keeps the player as offline.
+     */
+    @GameTest(template = "empty", batch = "export_hearth")
+    public static void theDashboardExportWritesPlayersAndHearths(GameTestHelper helper) {
+        ServerPlayer player = MockPlayers.make(helper);
+        net.minecraft.server.MinecraftServer server = helper.getLevel().getServer();
+        java.nio.file.Path folder;
+        try {
+            folder = java.nio.file.Files.createTempDirectory("proficiency-export-test");
+        } catch (java.io.IOException e) {
+            helper.fail("no temp folder: " + e);
+            return;
+        }
+        dev.amman.proficiency.skill.ExportService.folderForTest = folder;
+        net.minecraft.core.BlockPos rel = new net.minecraft.core.BlockPos(1, 2, 1);
+        helper.setBlock(rel, dev.amman.proficiency.hearth.HearthBlocks.HEARTH.get().defaultBlockState());
+        ProficiencyAttachments.of(player).setLevel(Skill.MINING, 42);
+        dev.amman.proficiency.export.ExportHub.start(folder, "gametest", System.currentTimeMillis(), 300_000L);
+        try {
+            dev.amman.proficiency.skill.ExportService.writeNow(server);
+            java.nio.file.Path file = folder.resolve(dev.amman.proficiency.export.ExportHub.FILE);
+            String text = java.nio.file.Files.readString(file);
+            helper.assertTrue(text.contains("\"name\": \"" + player.getGameProfile().getName() + "\""), "the player is not in the file");
+            helper.assertTrue(text.contains("\"level\": 42"), "the Mining level is not in the file");
+            helper.assertTrue(text.contains("\"loaded\": true"), "the Hearth is not in the file");
+            helper.assertFalse(java.nio.file.Files.exists(folder.resolve("players.json.tmp")), "a temporary file is left");
+            dev.amman.proficiency.skill.ExportService.left(player);
+            boolean offline = false;
+            for (com.google.gson.JsonElement row : com.google.gson.JsonParser.parseString(java.nio.file.Files.readString(file))
+                    .getAsJsonObject().getAsJsonArray("players")) {
+                com.google.gson.JsonObject o = row.getAsJsonObject();
+                if (o.get("uuid").getAsString().equals(player.getUUID().toString())) {
+                    offline = !o.get("online").getAsBoolean();
+                }
+            }
+            helper.assertTrue(offline, "the player who left is not marked offline");
+        } catch (java.io.IOException e) {
+            helper.fail("export file unreadable: " + e);
+            return;
+        } finally {
+            dev.amman.proficiency.export.ExportHub.stop();
+            dev.amman.proficiency.skill.ExportService.folderForTest = null;
+            try (java.util.stream.Stream<java.nio.file.Path> files = java.nio.file.Files.list(folder)) {
+                for (java.nio.file.Path f : (Iterable<java.nio.file.Path>) files::iterator) {
+                    java.nio.file.Files.deleteIfExists(f);
+                }
+                java.nio.file.Files.deleteIfExists(folder);
+            } catch (java.io.IOException ignored) {
+                // A temp folder left behind is harmless.
+            }
+            helper.setBlock(rel, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState());
+        }
+        helper.succeed();
+    }
+
+    /**
+     * The dashboard export lists a player who is not online: their saved player file (written the way the game
+     * writes one, with this loader's attachment tag in it) is found in the world's playerdata folder, marked
+     * offline, with the uuid as the name when the profile cache has none.
+     */
+    @GameTest(template = "empty", batch = "export_hearth")
+    public static void theDashboardExportListsAPlayerWhoIsNotOnline(GameTestHelper helper) {
+        ServerPlayer player = MockPlayers.make(helper);
+        net.minecraft.server.MinecraftServer server = helper.getLevel().getServer();
+        java.nio.file.Path folder;
+        java.nio.file.Path playerdata;
+        java.util.UUID gone = java.util.UUID.randomUUID();
+        try {
+            folder = java.nio.file.Files.createTempDirectory("proficiency-export-test");
+            playerdata = java.nio.file.Files.createTempDirectory("proficiency-playerdata-test");
+            ProficiencyAttachments.of(player).setLevel(Skill.FISHING, 33);
+            net.minecraft.nbt.CompoundTag saved = player.saveWithoutId(new net.minecraft.nbt.CompoundTag());
+            ProficiencyAttachments.of(player).setLevel(Skill.FISHING, 1);
+            net.minecraft.nbt.NbtIo.writeCompressed(saved, playerdata.resolve(gone + ".dat").toFile());
+        } catch (java.io.IOException e) {
+            helper.fail("no temp folder or player file: " + e);
+            return;
+        }
+        dev.amman.proficiency.skill.ExportService.folderForTest = folder;
+        dev.amman.proficiency.skill.ExportService.playerdataForTest = playerdata;
+        dev.amman.proficiency.export.ExportHub.start(folder, "gametest", System.currentTimeMillis(), 300_000L);
+        try {
+            dev.amman.proficiency.skill.ExportService.writeNow(server);
+            boolean found = false;
+            boolean onlineStillThere = false;
+            for (com.google.gson.JsonElement row : com.google.gson.JsonParser.parseString(
+                    java.nio.file.Files.readString(folder.resolve(dev.amman.proficiency.export.ExportHub.FILE)))
+                    .getAsJsonObject().getAsJsonArray("players")) {
+                com.google.gson.JsonObject o = row.getAsJsonObject();
+                if (o.get("uuid").getAsString().equals(gone.toString())) {
+                    found = true;
+                    helper.assertFalse(o.get("online").getAsBoolean(), "the logged-out player is marked online");
+                    helper.assertTrue(o.get("name").getAsString().equals(gone.toString()), "no profile: the uuid should be the name");
+                    helper.assertTrue(o.getAsJsonObject("skills").getAsJsonObject("fishing").get("level").getAsInt() == 33,
+                            "the saved Fishing level is not in the file");
+                } else if (o.get("uuid").getAsString().equals(player.getUUID().toString())) {
+                    onlineStillThere = o.get("online").getAsBoolean();
+                }
+            }
+            helper.assertTrue(found, "the offline player with saved data is not in the file");
+            helper.assertTrue(onlineStillThere, "the online player lost its online flag");
+        } catch (java.io.IOException e) {
+            helper.fail("export file unreadable: " + e);
+            return;
+        } finally {
+            dev.amman.proficiency.export.ExportHub.stop();
+            dev.amman.proficiency.skill.ExportService.folderForTest = null;
+            dev.amman.proficiency.skill.ExportService.playerdataForTest = null;
+            for (java.nio.file.Path dir : new java.nio.file.Path[] {folder, playerdata}) {
+                try (java.util.stream.Stream<java.nio.file.Path> files = java.nio.file.Files.list(dir)) {
+                    for (java.nio.file.Path f : (Iterable<java.nio.file.Path>) files::iterator) {
+                        java.nio.file.Files.deleteIfExists(f);
+                    }
+                    java.nio.file.Files.deleteIfExists(dir);
+                } catch (java.io.IOException ignored) {
+                    // A temp folder left behind is harmless.
+                }
+            }
+        }
+        helper.succeed();
     }
 }

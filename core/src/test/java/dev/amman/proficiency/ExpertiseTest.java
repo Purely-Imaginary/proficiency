@@ -33,11 +33,11 @@ class ExpertiseTest {
         assertEquals(1, Expertise.points(100, 0));
         assertEquals(1, Expertise.points(0, 5));
         assertEquals(12 + 3, Expertise.points(1234, 17));
-        assertEquals(35, Expertise.pointsFromLevels(3500));
-        assertEquals(35, Expertise.pointsFromLevels(99_999));
-        assertEquals(35, Expertise.pointsFromStars(175));
-        assertEquals(Expertise.MAX_POINTS, Expertise.points(3500, 175));
-        assertEquals(70, Expertise.MAX_POINTS);
+        assertEquals(38, Expertise.pointsFromLevels(3800));
+        assertEquals(38, Expertise.pointsFromLevels(99_999));
+        assertEquals(38, Expertise.pointsFromStars(190));
+        assertEquals(Expertise.MAX_POINTS, Expertise.points(3800, 190));
+        assertEquals(76, Expertise.MAX_POINTS);
         assertEquals(Skill.VALUES.length, Expertise.MAX_FROM_LEVELS, "one level point per skill at 100");
     }
 

@@ -8,9 +8,9 @@ and the points), `ExpertiseNode.java`, `PlayerSkills` (ranks, checks, the modifi
 
 ## Points
 
-- 1 point per 100 skill levels, all skills added up. At most 35 (35 skills at level 100).
-- 1 point per 5 Mastery stars, all skills added up. At most 35 (35 skills at five stars).
-- So 70 at most. The points are computed from the levels and stars every time. No counter is
+- 1 point per 100 skill levels, all skills added up. At most 38 (38 skills at level 100).
+- 1 point per 5 Mastery stars, all skills added up. At most 38 (38 skills at five stars).
+- So 76 at most. The points are computed from the levels and stars every time. No counter is
   stored, so nothing can drift. An op who lowers a level lowers the points; spent points above
   the new total stay spent, and the free count reads 0.
 - A grant that crosses a threshold (a level-up or a star) sends one chat line and a chime:

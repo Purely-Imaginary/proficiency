@@ -226,7 +226,10 @@ public final class GatheringEvents {
         }
         SkillService.grant(player, skill, xp, state.getBlock().getDescriptionId());
 
-        boolean procced = ProcService.fire(player, skill, pos);
+        // Motherlode goes through Seam Sense, which turns a roll on plain stone into a charge.
+        boolean procced = skill == Skill.MINING
+                ? TalentGatheringEvents.motherlode(player, state, pos)
+                : ProcService.fire(player, skill, pos);
         CURRENT_BREAK.set(new BreakContext(pos.immutable(), skill, procced));
 
         if (!(event.getLevel() instanceof ServerLevel level)) {
@@ -235,14 +238,19 @@ public final class GatheringEvents {
         if (procced) {
             switch (skill) {
                 case WOODCUTTING -> {
+                    // Before the felling, and with Falling Tree too: whoever takes the tree, the
+                    // branch you stood on may go with it.
+                    TalentGatheringEvents.fallingLeaf(player);
                     // Falling Tree already took the whole tree; doubling up would fight it for blocks.
                     if (!dev.amman.proficiency.ModCompat.fallingTreeHandlesTrees()) {
                         timber(level, player, pos);
                     }
                 }
                 case EXCAVATION -> landslide(level, player, pos);
+                // The copies come through the drops; Tempering mends the pickaxe here.
+                case MINING -> TalentGatheringEvents.tempering(player);
                 default -> {
-                    // Mining, Farming and the rest express their proc through the drops instead.
+                    // Farming and the rest express their proc through the drops instead.
                 }
             }
         }

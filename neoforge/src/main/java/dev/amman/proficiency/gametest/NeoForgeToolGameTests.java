@@ -61,7 +61,7 @@ public final class NeoForgeToolGameTests {
         helper.assertTrue(SkillTools.isHoe(hoe), "hoe classification");
         helper.assertTrue(SkillTools.meleeSkill(pick) == null, "a pickaxe became a weapon");
 
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         player.setGameMode(GameType.SURVIVAL);
         player.getAbilities().instabuild = false;
         player.setItemInHand(InteractionHand.MAIN_HAND, shovel);

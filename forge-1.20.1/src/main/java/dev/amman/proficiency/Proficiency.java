@@ -45,6 +45,10 @@ public class Proficiency {
         dev.amman.proficiency.event.TacticianEvents.init();
         // The Hearth: every lane registers its listeners (docs/HEARTH-FORGE-CONTRACT.md).
         dev.amman.proficiency.hearth.Hearth.init();
+        // The advancement tab listens for the Hearth's milestones.
+        dev.amman.proficiency.skill.ProficiencyAdvancements.init();
+        // Spellcasting pays on Ars Nouveau's real casts, not on every click with a spell book.
+        dev.amman.proficiency.compat.ArsCastHook.register();
         container.registerConfig(ModConfig.Type.SERVER, ProficiencyConfig.SPEC);
         // A pack's own material lists (config/proficiency-materials.json), before any tree is shown.
         dev.amman.proficiency.perk.MaterialOverrides.load(FMLPaths.CONFIGDIR.get());

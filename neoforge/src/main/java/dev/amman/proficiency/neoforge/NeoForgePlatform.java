@@ -109,6 +109,11 @@ public final class NeoForgePlatform implements Platform {
     }
 
     @Override
+    public void refreshTabListName(ServerPlayer player) {
+        player.refreshTabListName();
+    }
+
+    @Override
     public void sendToPlayer(ServerPlayer player, CustomPacketPayload payload) {
         PacketDistributor.sendToPlayer(player, payload);
     }

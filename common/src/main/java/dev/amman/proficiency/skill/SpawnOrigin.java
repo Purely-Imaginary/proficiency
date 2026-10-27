@@ -19,6 +19,11 @@ public final class SpawnOrigin {
     /** A Hearth siege's mob (docs/HEARTH-SPEC.md, "The siege itself"): full combat XP, and it may feed the Hearth. */
     public static final String SIEGE = "siege";
 
+    /** On a mob from a trial spawner that no player placed: 1 for a normal trial, 2 for an ominous one. */
+    static final String TRIAL_TAG = "proficiency_trial";
+    /** On that mob: the packed position of its spawner, so its kills count toward that spawner's wave. */
+    static final String TRIAL_POS_TAG = "proficiency_trial_pos";
+
     private SpawnOrigin() {
     }
 
@@ -37,6 +42,48 @@ public final class SpawnOrigin {
         if (kind != null) {
             data(mob).putString(TAG, kind);
         }
+    }
+
+    /**
+     * Marks a mob a trial spawner made. A spawner a player placed makes artificial mobs (no XP, no
+     * trial factor); any other pays the spawner share and counts as a trial mob. Trial spawners
+     * often skip the finalize-spawn event (a full entity tag), so the spawner share is set here too.
+     */
+    public static void tagTrial(Mob mob, boolean ominous, boolean playerPlaced, long spawnerPos) {
+        CompoundTag data = data(mob);
+        if (playerPlaced) {
+            data.putString(TAG, ARTIFICIAL);
+            return;
+        }
+        if (!data.contains(TAG)) {
+            data.putString(TAG, SPAWNER);
+        }
+        data.putInt(TRIAL_TAG, ominous ? 2 : 1);
+        data.putLong(TRIAL_POS_TAG, spawnerPos);
+    }
+
+    /** Whether a trial spawner made this mob and no player placed that spawner. */
+    public static boolean isTrial(Entity entity) {
+        return entity instanceof Mob && data(entity).getInt(TRIAL_TAG) > 0;
+    }
+
+    /** Whether this trial mob came from an ominous trial. */
+    public static boolean isOminousTrial(Entity entity) {
+        return entity instanceof Mob && data(entity).getInt(TRIAL_TAG) == 2;
+    }
+
+    /** The packed position of the spawner of a trial mob. Check {@link #isTrial} first. */
+    public static long trialSpawnerPos(Entity entity) {
+        return data(entity).getLong(TRIAL_POS_TAG);
+    }
+
+    /** The factor a trial mob's Courage and Charger XP is multiplied by: 1.0 for any other mob. */
+    public static double trialFactor(Entity entity) {
+        if (!isTrial(entity)) {
+            return 1.0;
+        }
+        return TrialRules.mobFactor(true, isOminousTrial(entity), ProficiencyConfig.trialMobFactor(),
+                ProficiencyConfig.trialOminousMobFactor());
     }
 
     /** Marks a mob the Sieges lane spawned for a siege. */

@@ -1,0 +1,28 @@
+{
+  "parent": "proficiency:hearth_stage_4",
+  "display": {
+    "icon": {
+      "item": "minecraft:diamond_block"
+    },
+    "title": {
+      "translate": "advancement.proficiency.hearth_stage_5.title"
+    },
+    "description": {
+      "translate": "advancement.proficiency.hearth_stage_5.desc"
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "event": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "event"
+    ]
+  ]
+}

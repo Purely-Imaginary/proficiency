@@ -40,7 +40,7 @@ public final class HearthDesigns {
     public static final int MAX_LANES = 8;
 
     /** The roles of the legend, in legend order (without the air {@code '.'}, the fire and the blank). */
-    public static final String ROLES = "SsWPwNicgbhlauBrkvVfxCmGzInqYOL";
+    public static final String ROLES = "SsWPwpNicgbhlauBrkvVfxCmGzInqYOL";
 
     /** Role letters of the legend with their default block: what the guide draws, what a test builds. */
     private static final Map<Character, String> DEFAULTS = Map.ofEntries(
@@ -51,6 +51,7 @@ public final class HearthDesigns {
             Map.entry('W', "minecraft:oak_log"),
             Map.entry('P', "minecraft:oak_planks"),
             Map.entry('w', "minecraft:oak_slab"),
+            Map.entry('p', "minecraft:oak_fence"),
             Map.entry('N', "minecraft:white_banner"),
             Map.entry('i', "minecraft:iron_block"),
             Map.entry('c', "minecraft:copper_block"),

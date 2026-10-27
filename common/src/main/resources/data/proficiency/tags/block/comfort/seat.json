@@ -1,6 +1,11 @@
 {
-  "_comment": "Comfort kind: somewhere to sit. A stair is the vanilla chair; packs add chairs, benches, sofas and stools.",
+  "_comment": "Comfort kind: somewhere to sit. A stair is the vanilla chair, Macaw's Stairs count too (optional); packs add chairs, benches, sofas and stools.",
   "values": [
-    "#minecraft:stairs"
+    "#minecraft:stairs",
+    { "id": "#mcwstairs:compact_stairs", "required": false },
+    { "id": "#mcwstairs:bulk_stairs", "required": false },
+    { "id": "#mcwstairs:loft_stairs", "required": false },
+    { "id": "#mcwstairs:skyline_stairs", "required": false },
+    { "id": "#mcwstairs:terrace_stairs", "required": false }
   ]
 }

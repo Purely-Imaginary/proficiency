@@ -37,6 +37,68 @@ public final class SkillToasts {
         minecraft.getToasts().addToast(new SkillToast(skill, level));
     }
 
+    /**
+     * A Codex title earned: the same frame as the level toast, in the skill's colour, the title's name
+     * under a "Codex milestone" line. One per title, so a 100 right after a 50 does not replace it.
+     */
+    public static void codex(Skill skill, int kinds) {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.player == null) {
+            return;
+        }
+        minecraft.getToasts().addToast(new CodexToast(skill, kinds));
+        minecraft.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
+                net.minecraft.sounds.SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f));
+    }
+
+    static final class CodexToast implements Toast {
+
+        private static final ResourceLocation BACKGROUND =
+                ResourceLocation.withDefaultNamespace("toast/advancement");
+        private static final long DURATION_MS = 6000L;
+
+        private final Skill skill;
+        private final int kinds;
+        private final Component title;
+        private final Component line;
+
+        private CodexToast(Skill skill, int kinds) {
+            this.skill = skill;
+            this.kinds = kinds;
+            this.title = Component.translatable("proficiency.codex.toast.title");
+            this.line = Component.translatable("proficiency.codex.toast.line",
+                    dev.amman.proficiency.skill.CodexService.titleName(
+                            new dev.amman.proficiency.skill.Codex.Title(skill, kinds)), kinds);
+        }
+
+        @Override
+        public int width() {
+            Minecraft minecraft = Minecraft.getInstance();
+            int text = Math.max(minecraft.font.width(title), minecraft.font.width(line));
+            int allowed = Math.max(160, minecraft.getWindow().getGuiScaledWidth() - 8);
+            return Math.min(Math.max(160, text + 20), allowed);
+        }
+
+        @Override
+        public Toast.Visibility render(GuiGraphics graphics, ToastComponent parent, long shownFor) {
+            int w = width();
+            graphics.blitSprite(BACKGROUND, 0, 0, w, height());
+            Minecraft minecraft = Minecraft.getInstance();
+            int room = w - 20;
+            graphics.drawString(minecraft.font, TextFit.clip(minecraft.font, title.getString(), room), 10, 7,
+                    SkillPalette.accent(skill.category()), false);
+            graphics.drawString(minecraft.font, TextFit.clip(minecraft.font, line.getString(), room), 10, 18,
+                    0xFFF2D98A, false);
+            ClickFx.toastBurst(graphics, w, height(), shownFor, skill.ordinal(), 2, 0xF2D98A);
+            return shownFor >= DURATION_MS ? Visibility.HIDE : Visibility.SHOW;
+        }
+
+        @Override
+        public Object getToken() {
+            return skill.id() + ":" + kinds;
+        }
+    }
+
     static final class SkillToast implements Toast {
 
         private static final ResourceLocation BACKGROUND =
@@ -86,6 +148,8 @@ public final class SkillToasts {
             String line = TextFit.clip(minecraft.font, lineText().getString(), room);
             graphics.drawString(minecraft.font, title, 10, 7, SkillPalette.accent(skill.category()), false);
             graphics.drawString(minecraft.font, line, 10, 18, 0xFFFFFFFF, false);
+            ClickFx.toastBurst(graphics, w, height(), shownFor - lastChanged, skill.ordinal() + level,
+                    level % 25 == 0 ? 2 : 1, SkillPalette.accent(skill.category()));
 
             return shownFor - lastChanged >= DURATION_MS ? Visibility.HIDE : Visibility.SHOW;
         }

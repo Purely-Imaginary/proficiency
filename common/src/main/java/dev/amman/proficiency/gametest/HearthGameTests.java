@@ -67,7 +67,7 @@ public final class HearthGameTests {
     }
 
     private static ServerPlayer survivor(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         player.setGameMode(GameType.SURVIVAL);
         return player;
     }

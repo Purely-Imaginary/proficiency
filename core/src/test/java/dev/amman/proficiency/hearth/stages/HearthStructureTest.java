@@ -210,8 +210,9 @@ class HearthStructureTest {
                     if (before == null || before.role() == cell.role() || cell.role() == 'k') {
                         continue;
                     }
-                    assertTrue(before.role() == 'S' && cell.role() == 's' || before.role() == 'P' && cell.role() == 'w',
-                            "only S to s and P to w reshape: " + before + " to " + cell);
+                    assertTrue(before.role() == 'S' && cell.role() == 's' || before.role() == 'P' && cell.role() == 'w'
+                                    || (before.role() == 'P' || before.role() == 'w') && cell.role() == 'p',
+                            "only S to s, P to w and P or w to p reshape: " + before + " to " + cell);
                     World world = build(lane, stage);
                     assertEquals(stage, HearthStructure.check(world).built(), lane.id() + " " + stage);
                 }
@@ -297,6 +298,30 @@ class HearthStructureTest {
 
     // ---- The shipped file against tools/hearth_designs/validate.py ----------------------------------
 
+    /**
+     * A lantern stands on a block with a full centre or hangs under one: never on a {@code w} or {@code s}, which
+     * the guide draws as a bottom slab (the lantern pops off it). A wood shape under a lantern is a {@code p}.
+     */
+    @Test
+    void everyLanternStandsOnAFullCentreOrHangs() {
+        String stands = "SWPpicgkInqYOLGxbh";
+        String hangs = stands + "sw";
+        for (Lane lane : DESIGNS.lanes()) {
+            for (var stage : lane.stages()) {
+                for (Cell cell : stage.cells()) {
+                    if (cell.role() != 'l') {
+                        continue;
+                    }
+                    Cell below = stage.cellAt(cell.dx(), cell.dy() - 1, cell.dz());
+                    Cell above = stage.cellAt(cell.dx(), cell.dy() + 1, cell.dz());
+                    boolean stood = below != null && stands.indexOf(below.role()) >= 0;
+                    boolean hung = above != null && hangs.indexOf(above.role()) >= 0;
+                    assertTrue(stood || hung, lane.id() + " " + stage.stage() + " lantern " + cell + " on " + below);
+                }
+            }
+        }
+    }
+
     private static final String METALS = "icgbhlauBrk";
 
     @Test
@@ -320,7 +345,7 @@ class HearthStructureTest {
                         assertTrue(cell.dx() == 0 && cell.dy() == 0 && cell.dz() == 0, name + " fire position " + cell);
                     }
                     stone |= cell.role() == 'S' || cell.role() == 's';
-                    wood |= cell.role() == 'W' || cell.role() == 'P' || cell.role() == 'w';
+                    wood |= cell.role() == 'W' || cell.role() == 'P' || cell.role() == 'w' || cell.role() == 'p';
                     metal |= METALS.indexOf(cell.role()) >= 0;
                 }
                 assertEquals(1, fires, name + " has one fire");
@@ -337,14 +362,15 @@ class HearthStructureTest {
                 }
                 // Under the fire: stone, and the lodestone at VI.
                 assertEquals(stage.stage() == 6 ? 'k' : 'S', (char) now.get(World.key(0, -1, 0)), name + " under the fire");
-                // A superset of the stage before, but for S to s, P to w and S to k under the fire.
+                // A superset of the stage before, but for S to s, P to w, P or w to p and S to k under the fire.
                 if (previous != null) {
                     for (var entry : previous.entrySet()) {
                         Character was = entry.getValue();
                         Character is = now.get(entry.getKey());
                         boolean fine = was.equals(is)
                                 || was == 'S' && is != null && (is == 's' || is == 'k' && entry.getKey().equals("0,-1,0"))
-                                || was == 'P' && is != null && is == 'w';
+                                || was == 'P' && is != null && is == 'w'
+                                || (was == 'P' || was == 'w') && is != null && is == 'p';
                         assertTrue(fine, name + " drops or changes " + entry.getKey() + " " + was + " to " + is);
                     }
                 }

@@ -10,6 +10,7 @@ java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
 repositories {
     maven { name = 'Fuzs'; url = 'https://raw.githubusercontent.com/Fuzss/modresources/main/maven/' }
+    maven { name = 'Modrinth'; url = 'https://api.modrinth.com/maven'; content { includeGroup 'maven.modrinth' } }
 }
 
 neoForge {
@@ -24,6 +25,9 @@ dependencies {
     compileOnly 'io.github.llamalad7:mixinextras-common:0.4.1'
     // NeoForge's ModConfigSpec without NeoForge: the class both loaders provide at runtime.
     compileOnly "fuzs.forgeconfigapiport:forgeconfigapiport-common-neoforgeapi:${fcap_common_version}"
+    // Jade's API, for the optional plugin in dev/amman/proficiency/jade. Compile-only and never bundled: the
+    // mod loads and every test passes without Jade (nothing outside that package names a Jade class).
+    compileOnly "maven.modrinth:jade:${jade_neoforge_version}"
 
     testImplementation "fuzs.forgeconfigapiport:forgeconfigapiport-common-neoforgeapi:${fcap_common_version}"
     testRuntimeOnly 'com.electronwill.night-config:core:3.8.0'

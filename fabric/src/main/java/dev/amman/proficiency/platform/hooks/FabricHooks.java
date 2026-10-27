@@ -18,6 +18,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
+import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.resources.ResourceLocation;
@@ -97,6 +98,13 @@ public final class FabricHooks {
         UseBlockCallback.EVENT.addPhaseOrdering(Event.DEFAULT_PHASE, LATE);
         UseBlockCallback.EVENT.register(LATE, (player, level, hand, hit) ->
                 rightClickBlock(player, hand, hit, ONLY_LOWEST, true));
+        // Observed only (Husbandry): the shared bus sees the click, vanilla and other mods still answer it.
+        UseEntityCallback.EVENT.register((player, level, hand, entity, hit) -> {
+            if (!player.isSpectator() && !level.isClientSide()) {
+                NeoForge.EVENT_BUS.post(new PlayerInteractEvent.EntityInteract(player, hand, entity));
+            }
+            return InteractionResult.PASS;
+        });
         PlayerBlockBreakEvents.BEFORE.register((level, player, pos, state, blockEntity) ->
                 !NeoForge.EVENT_BUS.post(new BlockEvent.BreakEvent((Level) level, pos, state, player)).isCanceled());
         // Before vanilla's own checks (NeoForge asks after them); null lets vanilla decide.

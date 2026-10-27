@@ -3,6 +3,7 @@ package dev.amman.proficiency.gametest;
 import dev.amman.proficiency.Proficiency;
 import dev.amman.proficiency.ProficiencyAttachments;
 import dev.amman.proficiency.skill.PlayerSkills;
+import dev.amman.proficiency.skill.ProcService;
 import dev.amman.proficiency.skill.Skill;
 import dev.amman.proficiency.skill.SkillService;
 import dev.amman.proficiency.skill.SurvivalStreak;
@@ -17,6 +18,7 @@ import net.minecraft.world.entity.animal.Cow;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
@@ -40,7 +42,7 @@ public final class ProficiencyGameTests {
 
     @GameTest(template = "proficiency:empty")
     public static void miningStoneWithAPickaxeTrainsMining(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.DIAMOND_PICKAXE));
         helper.setBlock(TARGET, Blocks.STONE);
 
@@ -54,7 +56,7 @@ public final class ProficiencyGameTests {
 
     @GameTest(template = "proficiency:empty")
     public static void choppingALogWithAnAxeTrainsWoodcutting(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.DIAMOND_AXE));
         helper.setBlock(TARGET, Blocks.OAK_LOG);
 
@@ -68,7 +70,7 @@ public final class ProficiencyGameTests {
 
     @GameTest(template = "proficiency:empty")
     public static void diggingDirtWithAShovelTrainsExcavation(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.DIAMOND_SHOVEL));
         helper.setBlock(TARGET, Blocks.DIRT);
 
@@ -82,7 +84,7 @@ public final class ProficiencyGameTests {
     /** Punching stone is not mining. Without the tool check, every skill would train at once. */
     @GameTest(template = "proficiency:empty")
     public static void punchingStoneTrainsNothing(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
         helper.setBlock(TARGET, Blocks.STONE);
 
@@ -95,7 +97,7 @@ public final class ProficiencyGameTests {
 
     @GameTest(template = "proficiency:empty")
     public static void aTrainedSwordHitsHarderAndKeepsTraining(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.DIAMOND_SWORD));
         ProficiencyAttachments.of(player).setLevel(Skill.SWORDS, 50);
 
@@ -115,7 +117,7 @@ public final class ProficiencyGameTests {
 
     @GameTest(template = "proficiency:empty")
     public static void anEmptyHandTrainsUnarmed(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
 
         Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, new BlockPos(3, 1, 3));
@@ -134,7 +136,7 @@ public final class ProficiencyGameTests {
      */
     @GameTest(template = "proficiency:empty")
     public static void masterMiningBringsOreUpSmelted(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         // A creative player drops nothing at all, which would make this test pass or fail for the
         // wrong reason.
         player.setGameMode(GameType.SURVIVAL);
@@ -163,7 +165,7 @@ public final class ProficiencyGameTests {
     /** Mountain King: what you mine goes to the inventory, and nothing is left on the ground. */
     @GameTest(template = "proficiency:empty")
     public static void mountainKingPutsTheOreInYourBag(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         player.setGameMode(GameType.SURVIVAL);
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.DIAMOND_PICKAXE));
         ProficiencyAttachments.of(player).fillTree(Skill.MINING);
@@ -187,7 +189,7 @@ public final class ProficiencyGameTests {
      */
     @GameTest(template = "proficiency:empty")
     public static void prospectorsForgePaysSmithingForMinedOre(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         player.setGameMode(GameType.SURVIVAL);
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.DIAMOND_PICKAXE));
         PlayerSkills skills = ProficiencyAttachments.of(player);
@@ -211,7 +213,7 @@ public final class ProficiencyGameTests {
      */
     @GameTest(template = "proficiency:empty")
     public static void timberFellsTheWholeTrunk(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.DIAMOND_AXE));
 
         // A frenzy makes the proc certain, so the test is about the cascade and not about luck.
@@ -232,6 +234,107 @@ public final class ProficiencyGameTests {
         helper.succeed();
     }
 
+    /** Seam Sense: stone charges the Motherlode, an ore spends it, and the charge stops at the capacity. */
+    @GameTest(template = "proficiency:empty")
+    public static void seamSenseChargesOnStoneAndAnOreSpendsIt(GameTestHelper helper) {
+        ServerPlayer player = MockPlayers.make(helper);
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.DIAMOND_PICKAXE));
+        PlayerSkills skills = ProficiencyAttachments.of(player);
+        // 30, not 100: a mock player stays in the level after its test, and a much higher Mining
+        // level would hand a Mentor bonus to the low-level players of the tests around it.
+        skills.setLevel(Skill.MINING, 30);
+        GameTestRoots.open(player, Skill.MINING);
+        skills.setRank(dev.amman.proficiency.perk.Talents.get(Skill.MINING, "seam_sense"), 3);
+
+        BlockPos stone = new BlockPos(1, 1, 1);
+        helper.setBlock(stone, Blocks.STONE);
+        Breaks.separately(player, helper.absolutePos(stone));
+        helper.assertTrue(Math.abs(skills.lode() - 0.01) < 1e-9, "one stone at rank 3 charged " + skills.lode());
+
+        // A full charge banked: the ore takes one and leaves the rest.
+        skills.setLode(2.0);
+        BlockPos ore = new BlockPos(2, 1, 1);
+        helper.setBlock(ore, Blocks.IRON_ORE);
+        Breaks.separately(player, helper.absolutePos(ore));
+        helper.assertTrue(Math.abs(skills.lode() - 1.0) < 1e-9, "a certain Motherlode left " + skills.lode());
+
+        // A partial charge goes whole on the next ore, hit or miss.
+        skills.setLode(0.5);
+        BlockPos second = new BlockPos(3, 1, 1);
+        helper.setBlock(second, Blocks.IRON_ORE);
+        Breaks.separately(player, helper.absolutePos(second));
+        helper.assertTrue(skills.lode() == 0.0, "a partial charge survived the ore: " + skills.lode());
+
+        // Without Lodestone one full charge is the most.
+        skills.setLode(0.995);
+        BlockPos last = new BlockPos(4, 1, 1);
+        helper.setBlock(last, Blocks.STONE);
+        Breaks.separately(player, helper.absolutePos(last));
+        helper.assertTrue(Math.abs(skills.lode() - 1.0) < 1e-9, "the charge passed the capacity: " + skills.lode());
+        helper.succeed();
+    }
+
+    /** Tempering: a Motherlode mends 80% of the wear since the last one, at most 4 points. */
+    @GameTest(template = "proficiency:empty")
+    public static void temperingMendsTheWearSinceTheLastMotherlode(GameTestHelper helper) {
+        ServerPlayer player = MockPlayers.make(helper);
+        ItemStack pick = new ItemStack(Items.DIAMOND_PICKAXE);
+        pick.setDamageValue(500);
+        player.setItemInHand(InteractionHand.MAIN_HAND, pick);
+        PlayerSkills skills = ProficiencyAttachments.of(player);
+        // 30, not 100: a mock player stays in the level after its test, and a much higher Mining
+        // level would hand a Mentor bonus to the low-level players of the tests around it.
+        skills.setLevel(Skill.MINING, 30);
+        GameTestRoots.open(player, Skill.MINING);
+        skills.setRank(dev.amman.proficiency.perk.Talents.get(Skill.MINING, "tempering"), 1);
+
+        // The first Motherlode only notes where the pickaxe stands: nothing worn since, nothing mended.
+        ProcService.forceNext(player, Skill.MINING);
+        BlockPos first = new BlockPos(1, 1, 1);
+        helper.setBlock(first, Blocks.STONE);
+        Breaks.separately(player, helper.absolutePos(first));
+        ItemStack held = player.getMainHandItem();
+        helper.assertTrue(held.getDamageValue() >= 500, "the first Motherlode mended " + held.getDamageValue());
+
+        // 40 points of wear later the next one mends the cap, 4.
+        int worn = held.getDamageValue() + 40;
+        held.setDamageValue(worn);
+        ProcService.forceNext(player, Skill.MINING);
+        BlockPos second = new BlockPos(2, 1, 1);
+        helper.setBlock(second, Blocks.STONE);
+        Breaks.separately(player, helper.absolutePos(second));
+        int now = player.getMainHandItem().getDamageValue();
+        helper.assertTrue(now >= worn - 4 && now <= worn - 4 + 1,
+                "Tempering took the pickaxe from " + worn + " to " + now + ", expected 4 mended");
+        helper.succeed();
+    }
+
+    /** Falling Leaf: a Timber with the talent leaves you Slow Falling, one without it does not. */
+    @GameTest(template = "proficiency:empty")
+    public static void fallingLeafSlowsTheFallAfterATimber(GameTestHelper helper) {
+        long now = helper.getLevel().getGameTime();
+        BlockPos[] bases = {new BlockPos(1, 1, 1), new BlockPos(3, 1, 1)};
+        ServerPlayer[] players = new ServerPlayer[2];
+        for (int i = 0; i < 2; i++) {
+            players[i] = MockPlayers.make(helper);
+            players[i].setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.DIAMOND_AXE));
+            ProficiencyAttachments.of(players[i]).beginFrenzy(Skill.WOODCUTTING, now + 400, now + 400);
+            helper.setBlock(bases[i], Blocks.OAK_LOG);
+            helper.setBlock(bases[i].above(), Blocks.OAK_LOG);
+        }
+        ProficiencyAttachments.of(players[0]).setRank(
+                dev.amman.proficiency.perk.Talents.get(Skill.WOODCUTTING, "falling_leaf"), 1);
+
+        Breaks.separately(players[0], helper.absolutePos(bases[0]));
+        Breaks.separately(players[1], helper.absolutePos(bases[1]));
+
+        helper.assertTrue(players[0].hasEffect(MobEffects.SLOW_FALLING),
+                "a Timber with Falling Leaf gave no Slow Falling");
+        helper.assertFalse(players[1].hasEffect(MobEffects.SLOW_FALLING),
+                "a Timber without Falling Leaf gave Slow Falling");
+        helper.succeed();
+    }
+
     /**
      * The streak end to end through the real code: the XP grant multiplies by it and marks the
      * player active, the per-second tick grows it, and the respawn clone wipes it along with every
@@ -240,10 +343,11 @@ public final class ProficiencyGameTests {
      */
     @GameTest(template = "proficiency:empty")
     public static void theStreakPaysAndADeathTakesItAndTheBarButNoLevel(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         PlayerSkills skills = ProficiencyAttachments.of(player);
-        skills.setLevel(Skill.MINING, 20);
-        skills.setLevel(Skill.EXCAVATION, 20);
+        // Levels > 30 so lingering level-30 players from lode/tempering tests cannot be mentors.
+        skills.setLevel(Skill.MINING, 35);
+        skills.setLevel(Skill.EXCAVATION, 35);
 
         // Two skills, one grant each, so neither has a tempo chain going. Everything else in the
         // grant applies equally to both, so the ratio is the streak alone.
@@ -262,10 +366,10 @@ public final class ProficiencyGameTests {
         helper.assertTrue(SurvivalStreak.stacks(skills) == 3,
                 "the tick should have reached 3 stacks, got " + SurvivalStreak.stacks(skills));
 
-        ServerPlayer respawned = helper.makeMockServerPlayerInLevel();
+        ServerPlayer respawned = MockPlayers.make(helper);
         NeoForge.EVENT_BUS.post(new PlayerEvent.Clone(respawned, player, true));
         PlayerSkills fresh = ProficiencyAttachments.of(respawned);
-        helper.assertTrue(fresh.level(Skill.MINING) == 20 && fresh.level(Skill.EXCAVATION) == 20,
+        helper.assertTrue(fresh.level(Skill.MINING) == 35 && fresh.level(Skill.EXCAVATION) == 35,
                 "a death must never cost a level");
         helper.assertTrue(fresh.xp(Skill.MINING) == 0f && fresh.xp(Skill.EXCAVATION) == 0f,
                 "a death must wipe the progress bar");
@@ -280,7 +384,7 @@ public final class ProficiencyGameTests {
      */
     @GameTest(template = "proficiency:empty")
     public static void takingAMobHitTrainsEnduranceAndLevelsRaiseMaxHealth(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         player.setGameMode(GameType.SURVIVAL);
         clearSpawnProtection(player);
         PlayerSkills skills = ProficiencyAttachments.of(player);
@@ -323,7 +427,7 @@ public final class ProficiencyGameTests {
      */
     @GameTest(template = "proficiency:empty")
     public static void environmentalEnduranceXpIsCapped(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         player.setGameMode(GameType.SURVIVAL);
         clearSpawnProtection(player);
         PlayerSkills skills = ProficiencyAttachments.of(player);
@@ -364,8 +468,8 @@ public final class ProficiencyGameTests {
     /** Right-clicking a player registers them, and the server keeps the needle on their position. */
     @GameTest(template = "proficiency:empty")
     public static void theFriendCompassRegistersAFriendAndFollowsThem(GameTestHelper helper) {
-        ServerPlayer owner = helper.makeMockServerPlayerInLevel();
-        ServerPlayer friend = helper.makeMockServerPlayerInLevel();
+        ServerPlayer owner = MockPlayers.make(helper);
+        ServerPlayer friend = MockPlayers.make(helper);
         ItemStack compass = new ItemStack(dev.amman.proficiency.item.ProficiencyItems.FRIEND_COMPASS.get());
         owner.setItemInHand(InteractionHand.MAIN_HAND, compass);
         compass.getItem().interactLivingEntity(compass, owner, friend, InteractionHand.MAIN_HAND);
@@ -382,7 +486,7 @@ public final class ProficiencyGameTests {
     /** Idea 33: a furnace shift-click pays Cooking for the real stack, and only once. */
     @GameTest(template = "proficiency:empty")
     public static void shiftClickingCookedFoodPaysCookingOnce(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         net.minecraft.world.inventory.FurnaceMenu menu =
                 new net.minecraft.world.inventory.FurnaceMenu(0, player.getInventory());
         player.containerMenu = menu;
@@ -404,7 +508,7 @@ public final class ProficiencyGameTests {
      * the spawn and from each other, so "alone" really is alone.
      */
     private static ServerPlayer socialPlayer(GameTestHelper helper, int spot) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         BlockPos base = helper.absolutePos(TARGET);
         player.setPos(base.getX() + 20_000.5 + spot * 1_000, base.getY(), base.getZ() + 20_000.5);
         dev.amman.proficiency.skill.CompanyBonus.forget(player.getUUID());
@@ -513,7 +617,7 @@ public final class ProficiencyGameTests {
         helper.assertTrue(dev.amman.proficiency.skill.SocialService.pending(player) > 0.0,
                 "the company grant filled no Social pot");
 
-        ServerPlayer respawned = helper.makeMockServerPlayerInLevel();
+        ServerPlayer respawned = MockPlayers.make(helper);
         NeoForge.EVENT_BUS.post(new PlayerEvent.Clone(respawned, player, true));
         helper.assertTrue(dev.amman.proficiency.skill.SocialService.pending(player) == 0.0,
                 "a death left unpaid Social XP in the pot");
@@ -629,7 +733,7 @@ public final class ProficiencyGameTests {
     }
 
     private static ServerPlayer nightPlayer(GameTestHelper helper, BlockPos room) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         player.setPos(helper.absolutePos(room).getBottomCenter());
         dev.amman.proficiency.skill.NightwalkerService.forget(player.getUUID());
         return player;
@@ -731,7 +835,7 @@ public final class ProficiencyGameTests {
                     "the dark grant filled no pot");
             helper.assertTrue(dev.amman.proficiency.skill.NightwalkerService.trickleSeconds(player) > 0,
                     "the walk counted no seconds");
-            ServerPlayer respawned = helper.makeMockServerPlayerInLevel();
+            ServerPlayer respawned = MockPlayers.make(helper);
             NeoForge.EVENT_BUS.post(new PlayerEvent.Clone(respawned, player, true));
             helper.assertTrue(dev.amman.proficiency.skill.NightwalkerService.pending(player) == 0.0,
                     "a death left unpaid Nightwalker XP");
@@ -790,8 +894,8 @@ public final class ProficiencyGameTests {
     public static void eclipseMakesFarMobsInTheDarkLoseYou(GameTestHelper helper) {
         buildNightRooms(helper);
         var zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, DARK_ROOM);
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
-        ServerPlayer plain = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
+        ServerPlayer plain = MockPlayers.make(helper);
         helper.runAfterDelay(40, () -> {
             helper.assertTrue(dev.amman.proficiency.skill.NightwalkerService.isDark(zombie),
                     "the zombie's room is not dark");
@@ -821,8 +925,8 @@ public final class ProficiencyGameTests {
     /** Darkborn Bane hits harder on a mob marked as spawned in the dark; Deep Calm shortens Darkness. */
     @GameTest(template = "proficiency:empty")
     public static void darkbornBaneAndDeepCalm(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
-        ServerPlayer plain = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
+        ServerPlayer plain = MockPlayers.make(helper);
         PlayerSkills skills = ProficiencyAttachments.of(player);
         skills.setLevel(Skill.NIGHTWALKER, 100);
         skills.fillTree(Skill.NIGHTWALKER);
@@ -856,7 +960,7 @@ public final class ProficiencyGameTests {
     /** Sanctuary covers 16 blocks around the respawn point of a player who has it, and nothing else. */
     @GameTest(template = "proficiency:empty")
     public static void sanctuaryGuardsTheRespawnPoint(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         net.minecraft.server.level.ServerLevel level = helper.getLevel();
         BlockPos home = helper.absolutePos(new BlockPos(2, 1, 2)).offset(0, 0, 40_000);
         player.setRespawnPosition(level.dimension(), home, 0f, true, false);
@@ -903,7 +1007,7 @@ public final class ProficiencyGameTests {
     /** A cook who learned Camp Kitchen stirs the cauldron: stew out, ingredients and a level of water gone. */
     @GameTest(template = "proficiency:empty")
     public static void aLadleOnACauldronCooksAKnownRecipe(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         player.setGameMode(GameType.SURVIVAL);
         ItemStack ladle = new ItemStack(dev.amman.proficiency.item.ProficiencyItems.LADLE.get());
         player.setItemInHand(InteractionHand.MAIN_HAND, ladle);
@@ -927,7 +1031,7 @@ public final class ProficiencyGameTests {
     /** The same pot, a player who never learned it: nothing is made and nothing is used up. */
     @GameTest(template = "proficiency:empty")
     public static void anUnknownRecipeMakesNothing(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         ItemStack ladle = new ItemStack(dev.amman.proficiency.item.ProficiencyItems.LADLE.get());
         dropStew(helper);
 
@@ -943,7 +1047,7 @@ public final class ProficiencyGameTests {
     /** A hammer on a bare anvil is left to vanilla, so the anvil screen still opens. */
     @GameTest(template = "proficiency:empty")
     public static void aHammerOnABareAnvilIsAnOrdinaryClick(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         helper.setBlock(TARGET, Blocks.ANVIL);
         var result = dev.amman.proficiency.recipe.StationEvents.use(player, helper.getLevel(),
                 helper.absolutePos(TARGET), InteractionHand.MAIN_HAND,
@@ -955,7 +1059,7 @@ public final class ProficiencyGameTests {
     /** Runescribe: reagents on the table, a book on it, and the book comes back as Magnetism. */
     @GameTest(template = "proficiency:empty")
     public static void aBookOnTheTableWritesAKnownEnchantment(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         player.setGameMode(GameType.SURVIVAL);
         ProficiencyAttachments.of(player).setRank(
                 dev.amman.proficiency.perk.Talents.get(Skill.ALCHEMY, "runescribe"), 1);
@@ -1025,7 +1129,7 @@ public final class ProficiencyGameTests {
      */
     @GameTest(template = "proficiency:empty")
     public static void aRealBreakPaysTheFirstTimeBonusOncePerFamily(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         player.setGameMode(GameType.SURVIVAL);
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.DIAMOND_PICKAXE));
         PlayerSkills skills = ProficiencyAttachments.of(player);
@@ -1064,7 +1168,7 @@ public final class ProficiencyGameTests {
      */
     @GameTest(template = "proficiency:empty")
     public static void unharvestableOresPayNothing(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         player.setGameMode(GameType.SURVIVAL);
         // The mock player may keep the creative ability after setGameMode; this test needs the survival rule.
         player.getAbilities().instabuild = false;
@@ -1101,7 +1205,7 @@ public final class ProficiencyGameTests {
      */
     @GameTest(template = "proficiency:empty")
     public static void plantingPaysFarmingNotMasonry(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         player.setGameMode(GameType.SURVIVAL);
         BlockPos wheat = helper.absolutePos(new BlockPos(1, 2, 1));
         BlockPos sapling = helper.absolutePos(new BlockPos(2, 2, 1));
@@ -1136,7 +1240,7 @@ public final class ProficiencyGameTests {
         helper.succeed();
     }
 
-    /** A light in either hand switches Nightwalker's darkness off. */
+    /** A light in either hand switches Nightwalker's darkness off (a worn one too, through WornLights; not testable without Accessories or Curios). */
     @GameTest(template = "proficiency:empty", timeoutTicks = 200)
     public static void heldLightSwitchesNightwalkerOff(GameTestHelper helper) {
         buildNightRooms(helper);
@@ -1162,7 +1266,7 @@ public final class ProficiencyGameTests {
     /** A block a player placed pays Masonry on placing and nothing on breaking; natural stone pays Mining. */
     @GameTest(template = "proficiency:empty", timeoutTicks = 200)
     public static void placedBlocksPayNoGatheringXp(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.DIAMOND_PICKAXE));
         net.minecraft.server.level.ServerLevel level = helper.getLevel();
         BlockPos placedRel = new BlockPos(1, 1, 1);
@@ -1187,7 +1291,7 @@ public final class ProficiencyGameTests {
     /** A planted crop pays on a ripe harvest and nothing while unripe. */
     @GameTest(template = "proficiency:empty")
     public static void plantedCropPaysOnlyWhenRipe(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.IRON_HOE));
         net.minecraft.server.level.ServerLevel level = helper.getLevel();
         BlockPos unripe = new BlockPos(1, 1, 1);
@@ -1210,7 +1314,7 @@ public final class ProficiencyGameTests {
     /** A piston carries the placed mark with the block it pushes. */
     @GameTest(template = "proficiency:empty", timeoutTicks = 200)
     public static void pistonCarriesThePlacedMark(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.DIAMOND_PICKAXE));
         net.minecraft.server.level.ServerLevel level = helper.getLevel();
         // The empty template is tiny, so other tests leave blocks around; use a clean row.
@@ -1245,7 +1349,7 @@ public final class ProficiencyGameTests {
                 net.minecraft.world.entity.MobSpawnType.SPAWNER, false, false);
         float[] paid = new float[3];
         for (int i = 0; i < 3; i++) {
-            ServerPlayer player = helper.makeMockServerPlayerInLevel();
+            ServerPlayer player = MockPlayers.make(helper);
             player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.DIAMOND_SWORD));
             mobs[i].setNoAi(true);
             mobs[i].hurt(player.damageSources().playerAttack(player), 2.0f);
@@ -1264,7 +1368,7 @@ public final class ProficiencyGameTests {
     /** Masonry vs Decorating: full cubes build, stairs split, fences, glass and panes decorate. */
     @GameTest(template = "proficiency:empty")
     public static void blocksSplitBetweenMasonryAndDecorating(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         player.setGameMode(GameType.SURVIVAL);
         Object[][] cases = {
                 {Blocks.STONE, 1, 0}, {Blocks.OAK_STAIRS, 2, 2}, {Blocks.OAK_FENCE, 0, 1},
@@ -1303,7 +1407,7 @@ public final class ProficiencyGameTests {
     /** Breaking an unripe crop pays no Farming XP; a ripe one pays 1.0. */
     @GameTest(template = "proficiency:empty")
     public static void unripeCropPaysNothingOnBreak(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         player.setGameMode(GameType.SURVIVAL);
         BlockPos rel = new BlockPos(1, 2, 1);
         helper.setBlock(rel, Blocks.WHEAT);
@@ -1336,7 +1440,7 @@ public final class ProficiencyGameTests {
      */
     @GameTest(template = "proficiency:empty")
     public static void masonryFirstTimeBonusStopsAtTheDailyCap(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         player.setGameMode(GameType.SURVIVAL);
         PlayerSkills skills = ProficiencyAttachments.of(player);
         int cap = ProficiencyConfig.firstTimeBuildPerDay();
@@ -1371,7 +1475,7 @@ public final class ProficiencyGameTests {
     /** A fresh player's first check records the dimension and biome and pays nothing. */
     @GameTest(template = "proficiency:empty")
     public static void theSpawnPlaceIsRecordedAndPaysNothing(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         PlayerSkills skills = ProficiencyAttachments.of(player);
         helper.assertFalse(skills.hasAnyPlace(), "a fresh player already had a place");
 
@@ -1410,7 +1514,7 @@ public final class ProficiencyGameTests {
     }
 
     private static void discoverStructure(GameTestHelper helper, String id, String canonical, int baseXp) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         player.setPos(helper.absolutePos(new BlockPos(2, 2, 2)).getCenter());
         PlayerSkills skills = ProficiencyAttachments.of(player);
         // The first check is the spawn rule; it records the place silently.
@@ -1450,5 +1554,184 @@ public final class ProficiencyGameTests {
     public static void aVillageVariantCountsAsTheVillage(GameTestHelper helper) {
         discoverStructure(helper, "minecraft:village_taiga", "minecraft:village",
                 ProficiencyConfig.structureXp());
+    }
+
+    private static final String[] CODEX_KINDS = {"iron_ore", "gold_ore", "coal_ore", "copper_ore", "lapis_ore",
+            "redstone_ore", "diamond_ore", "emerald_ore", "stone", "granite", "andesite", "diorite"};
+
+    /**
+     * The Codex: the tenth distinct kind awards the 10 milestone once; repeating a kind adds nothing (the
+     * anti-farm rule is the first-time rule itself); a title cannot be picked before it is earned.
+     */
+    @GameTest(template = "proficiency:empty")
+    public static void theCodexAwardsAtTenDistinctKindsOnly(GameTestHelper helper) {
+        ServerPlayer player = MockPlayers.make(helper);
+        PlayerSkills skills = ProficiencyAttachments.of(player);
+        for (int i = 0; i < 30; i++) {
+            dev.amman.proficiency.skill.SkillService.grant(player, Skill.MINING, 1.0, "block.minecraft." + CODEX_KINDS[0]);
+        }
+        helper.assertTrue(skills.kindsFound(Skill.MINING) == 1, "one kind repeated 30 times counted "
+                + skills.kindsFound(Skill.MINING));
+        for (int i = 1; i < 9; i++) {
+            dev.amman.proficiency.skill.SkillService.grant(player, Skill.MINING, 1.0, "block.minecraft." + CODEX_KINDS[i]);
+        }
+        helper.assertFalse(skills.codexSeen("mining:10"), "nine kinds awarded the 10 milestone");
+        helper.assertFalse(dev.amman.proficiency.skill.CodexService.pick(player, "mining:10"), "picked an unearned title");
+        dev.amman.proficiency.skill.SkillService.grant(player, Skill.MINING, 1.0, "block.minecraft." + CODEX_KINDS[9]);
+        helper.assertTrue(skills.kindsFound(Skill.MINING) == 10, "kinds " + skills.kindsFound(Skill.MINING));
+        helper.assertTrue(skills.codexSeen("mining:10"), "ten kinds did not award the 10 milestone");
+        helper.assertFalse(skills.codexSeen("mining:25"), "ten kinds awarded 25");
+        helper.assertTrue(dev.amman.proficiency.skill.CodexService.pick(player, "mining:10"), "could not pick an earned title");
+        helper.assertTrue("mining:10".equals(skills.codexTitle()), "title not stored");
+        helper.assertTrue(dev.amman.proficiency.skill.RankBadges.decorate(player, player.getName()).getString()
+                .contains(dev.amman.proficiency.skill.CodexService.titleName(
+                        new dev.amman.proficiency.skill.Codex.Title(Skill.MINING, 10)).getString()),
+                "the tab list name lacks the title");
+        // The command a player types, and the picker sends: the id has a colon, so the argument must take one.
+        var commands = helper.getLevel().getServer().getCommands();
+        commands.performPrefixedCommand(player.createCommandSourceStack(), "skills title clear");
+        helper.assertTrue(skills.codexTitle().isEmpty(), "/skills title clear did not clear");
+        commands.performPrefixedCommand(player.createCommandSourceStack(), "skills title set mining:10");
+        helper.assertTrue("mining:10".equals(skills.codexTitle()), "/skills title set mining:10 did not pick it");
+        helper.succeed();
+    }
+
+    /** A veteran's existing kinds are backfilled on login without an award: nothing is left to announce later. */
+    @GameTest(template = "proficiency:empty")
+    public static void theCodexBackfillsExistingKindsSilently(GameTestHelper helper) {
+        ServerPlayer player = MockPlayers.make(helper);
+        PlayerSkills skills = ProficiencyAttachments.of(player);
+        for (int i = 0; i < 30; i++) {
+            skills.markVisited("first:" + Skill.FARMING.id() + ":block.minecraft.kind" + i);
+        }
+        dev.amman.proficiency.skill.CodexService.backfill(player);
+        helper.assertTrue(skills.codexSeen("farming:10") && skills.codexSeen("farming:25"), "backfill missed a milestone");
+        helper.assertFalse(skills.codexSeen("farming:50"), "backfill invented a milestone");
+        helper.assertTrue(skills.codexTitle().isEmpty(), "backfill picked a title");
+        helper.succeed();
+    }
+
+    /**
+     * The dashboard export: a player and a lit Hearth both reach players.json, written whole (no leftover
+     * temporary file), and a logout keeps the player as offline.
+     */
+    @GameTest(template = "proficiency:empty", batch = "export_hearth")
+    public static void theDashboardExportWritesPlayersAndHearths(GameTestHelper helper) {
+        ServerPlayer player = MockPlayers.make(helper);
+        net.minecraft.server.MinecraftServer server = helper.getLevel().getServer();
+        java.nio.file.Path folder;
+        try {
+            folder = java.nio.file.Files.createTempDirectory("proficiency-export-test");
+        } catch (java.io.IOException e) {
+            helper.fail("no temp folder: " + e);
+            return;
+        }
+        dev.amman.proficiency.skill.ExportService.folderForTest = folder;
+        net.minecraft.core.BlockPos rel = new net.minecraft.core.BlockPos(1, 2, 1);
+        helper.setBlock(rel, dev.amman.proficiency.hearth.HearthBlocks.HEARTH.get().defaultBlockState());
+        ProficiencyAttachments.of(player).setLevel(Skill.MINING, 42);
+        dev.amman.proficiency.export.ExportHub.start(folder, "gametest", System.currentTimeMillis(), 300_000L);
+        try {
+            dev.amman.proficiency.skill.ExportService.writeNow(server);
+            java.nio.file.Path file = folder.resolve(dev.amman.proficiency.export.ExportHub.FILE);
+            String text = java.nio.file.Files.readString(file);
+            helper.assertTrue(text.contains("\"name\": \"" + player.getGameProfile().getName() + "\""), "the player is not in the file");
+            helper.assertTrue(text.contains("\"level\": 42"), "the Mining level is not in the file");
+            helper.assertTrue(text.contains("\"loaded\": true"), "the Hearth is not in the file");
+            helper.assertFalse(java.nio.file.Files.exists(folder.resolve("players.json.tmp")), "a temporary file is left");
+            dev.amman.proficiency.skill.ExportService.left(player);
+            boolean offline = false;
+            for (com.google.gson.JsonElement row : com.google.gson.JsonParser.parseString(java.nio.file.Files.readString(file))
+                    .getAsJsonObject().getAsJsonArray("players")) {
+                com.google.gson.JsonObject o = row.getAsJsonObject();
+                if (o.get("uuid").getAsString().equals(player.getUUID().toString())) {
+                    offline = !o.get("online").getAsBoolean();
+                }
+            }
+            helper.assertTrue(offline, "the player who left is not marked offline");
+        } catch (java.io.IOException e) {
+            helper.fail("export file unreadable: " + e);
+            return;
+        } finally {
+            dev.amman.proficiency.export.ExportHub.stop();
+            dev.amman.proficiency.skill.ExportService.folderForTest = null;
+            try (java.util.stream.Stream<java.nio.file.Path> files = java.nio.file.Files.list(folder)) {
+                for (java.nio.file.Path f : (Iterable<java.nio.file.Path>) files::iterator) {
+                    java.nio.file.Files.deleteIfExists(f);
+                }
+                java.nio.file.Files.deleteIfExists(folder);
+            } catch (java.io.IOException ignored) {
+                // A temp folder left behind is harmless.
+            }
+            helper.setBlock(rel, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState());
+        }
+        helper.succeed();
+    }
+
+    /**
+     * The dashboard export lists a player who is not online: their saved player file (written the way the game
+     * writes one, with this loader's attachment tag in it) is found in the world's playerdata folder, marked
+     * offline, with the uuid as the name when the profile cache has none.
+     */
+    @GameTest(template = "proficiency:empty", batch = "export_hearth")
+    public static void theDashboardExportListsAPlayerWhoIsNotOnline(GameTestHelper helper) {
+        ServerPlayer player = MockPlayers.make(helper);
+        net.minecraft.server.MinecraftServer server = helper.getLevel().getServer();
+        java.nio.file.Path folder;
+        java.nio.file.Path playerdata;
+        java.util.UUID gone = java.util.UUID.randomUUID();
+        try {
+            folder = java.nio.file.Files.createTempDirectory("proficiency-export-test");
+            playerdata = java.nio.file.Files.createTempDirectory("proficiency-playerdata-test");
+            ProficiencyAttachments.of(player).setLevel(Skill.FISHING, 33);
+            net.minecraft.nbt.CompoundTag saved = player.saveWithoutId(new net.minecraft.nbt.CompoundTag());
+            ProficiencyAttachments.of(player).setLevel(Skill.FISHING, 1);
+            net.minecraft.nbt.NbtIo.writeCompressed(saved, playerdata.resolve(gone + ".dat"));
+        } catch (java.io.IOException e) {
+            helper.fail("no temp folder or player file: " + e);
+            return;
+        }
+        dev.amman.proficiency.skill.ExportService.folderForTest = folder;
+        dev.amman.proficiency.skill.ExportService.playerdataForTest = playerdata;
+        dev.amman.proficiency.export.ExportHub.start(folder, "gametest", System.currentTimeMillis(), 300_000L);
+        try {
+            dev.amman.proficiency.skill.ExportService.writeNow(server);
+            boolean found = false;
+            boolean onlineStillThere = false;
+            for (com.google.gson.JsonElement row : com.google.gson.JsonParser.parseString(
+                    java.nio.file.Files.readString(folder.resolve(dev.amman.proficiency.export.ExportHub.FILE)))
+                    .getAsJsonObject().getAsJsonArray("players")) {
+                com.google.gson.JsonObject o = row.getAsJsonObject();
+                if (o.get("uuid").getAsString().equals(gone.toString())) {
+                    found = true;
+                    helper.assertFalse(o.get("online").getAsBoolean(), "the logged-out player is marked online");
+                    helper.assertTrue(o.get("name").getAsString().equals(gone.toString()), "no profile: the uuid should be the name");
+                    helper.assertTrue(o.getAsJsonObject("skills").getAsJsonObject("fishing").get("level").getAsInt() == 33,
+                            "the saved Fishing level is not in the file");
+                } else if (o.get("uuid").getAsString().equals(player.getUUID().toString())) {
+                    onlineStillThere = o.get("online").getAsBoolean();
+                }
+            }
+            helper.assertTrue(found, "the offline player with saved data is not in the file");
+            helper.assertTrue(onlineStillThere, "the online player lost its online flag");
+        } catch (java.io.IOException e) {
+            helper.fail("export file unreadable: " + e);
+            return;
+        } finally {
+            dev.amman.proficiency.export.ExportHub.stop();
+            dev.amman.proficiency.skill.ExportService.folderForTest = null;
+            dev.amman.proficiency.skill.ExportService.playerdataForTest = null;
+            for (java.nio.file.Path dir : new java.nio.file.Path[] {folder, playerdata}) {
+                try (java.util.stream.Stream<java.nio.file.Path> files = java.nio.file.Files.list(dir)) {
+                    for (java.nio.file.Path f : (Iterable<java.nio.file.Path>) files::iterator) {
+                        java.nio.file.Files.deleteIfExists(f);
+                    }
+                    java.nio.file.Files.deleteIfExists(dir);
+                } catch (java.io.IOException ignored) {
+                    // A temp folder left behind is harmless.
+                }
+            }
+        }
+        helper.succeed();
     }
 }

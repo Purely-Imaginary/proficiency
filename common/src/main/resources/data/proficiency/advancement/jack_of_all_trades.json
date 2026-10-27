@@ -1,0 +1,28 @@
+{
+  "parent": "proficiency:five_stars",
+  "display": {
+    "icon": {
+      "id": "minecraft:crafting_table"
+    },
+    "title": {
+      "translate": "advancement.proficiency.jack_of_all_trades.title"
+    },
+    "description": {
+      "translate": "advancement.proficiency.jack_of_all_trades.desc"
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "event": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "event"
+    ]
+  ]
+}

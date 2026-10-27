@@ -71,7 +71,7 @@ public final class GuardianGameTests {
 
         /** A survival player at relative (x, 2, z). The empty template's floor is at y 1. */
         ServerPlayer player(double x, double z) {
-            ServerPlayer player = helper.makeMockServerPlayerInLevel();
+            ServerPlayer player = MockPlayers.make(helper);
             player.setGameMode(GameType.SURVIVAL);
             player.setPos(helper.absoluteVec(new Vec3(x, 2, z)));
             clearSpawnProtection(player);

@@ -2,9 +2,9 @@
   "_comment": "The Hearth's numbers (docs/HEARTH-SPEC.md, Data). Merged like xp_sources: a datapack file at data/<ns>/proficiency/hearth/<name>.json loads after this one and overrides key by key; \"replace\": true drops everything before it. HearthDataGoldenTest holds this file to HearthData.DEFAULTS.",
   "pools": {
     "hearty":     { "feeds": ["#category:gathering"], "boon": "hunger_slow", "values": [0.08, 0.15, 0.22, 0.28, 0.34, 0.40] },
-    "regen":      { "feeds": ["decorating"], "hold": 600, "boon": "regen_out_of_combat", "values": [14, 12, 10, 8, 6, 4],
+    "regen":      { "feeds": ["decorating", "farming"], "hold": 600, "boon": "regen_out_of_combat", "values": [14, 12, 10, 8, 6, 4],
                     "absorptionPerTier": 0.10, "comfortCap": "half" },
-    "fortified":  { "feeds": ["masonry"], "hold": 600, "boon": "mob_damage_reduction", "values": [0.04, 0.07, 0.10, 0.13, 0.16, 0.20] },
+    "fortified":  { "feeds": ["masonry", "blocking", "endurance"], "hold": 600, "boon": "mob_damage_reduction", "values": [0.04, 0.07, 0.10, 0.13, 0.16, 0.20] },
     "workshop":   { "feeds": ["#category:crafting"], "boon": "station_speed", "values": [0.08, 0.15, 0.22, 0.28, 0.34, 0.40],
                     "refund": [0.02, 0.03, 0.04, 0.05, 0.06, 0.08] },
     "homecoming": { "feeds": ["social", "#tales"], "boon": "readiness", "warmthSeconds": [55, 50, 45, 40, 35, 30],

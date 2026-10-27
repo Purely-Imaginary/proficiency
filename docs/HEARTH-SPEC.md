@@ -358,7 +358,7 @@ structure's own blocks never count.
 | Kind (block tag `proficiency:comfort/<kind>`) | Vanilla members (packs add theirs) |
 |---|---|
 | `bed` | #minecraft:beds |
-| `seat` | #minecraft:stairs (the vanilla chair), modded chairs, benches, sofas |
+| `seat` | #minecraft:stairs (the vanilla chair), Macaw's Stairs (`#mcwstairs:*_stairs`, optional), modded chairs, benches, sofas |
 | `carpet` | #minecraft:wool_carpets, moss carpet |
 | `banner` | #minecraft:banners (not the Hearth's own pillar banners) |
 | `fire` | campfire, soul campfire, a fireplace of `#proficiency:comfort/fireplace` (a lit furnace does not count) |
@@ -367,7 +367,7 @@ structure's own blocks never count.
 | `art` | paintings, item frames holding an item (entities) |
 | `books` | bookshelf, chiseled bookshelf, lectern |
 | `music` | jukebox, note block |
-| `storage` | barrel, chest, decorated pot |
+| `storage` | barrel, chest, decorated pot, modded chests and barrels (`#c:chests`, `#c:barrels`; `#forge:` on 1.20.1; optional) |
 | `trophy` | mob heads and skulls, an armour stand wearing armour (entity), Siege Trophies |
 
 12 kinds, all reachable on vanilla: the HUD and tooltip show **Comfort n/12** with the missing kinds

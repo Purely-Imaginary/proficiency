@@ -146,10 +146,13 @@ public final class CombatEvents {
         if (!SPLASHING.get()) {
             // Spawn-egg and command mobs pay nothing, spawner mobs a share (SpawnOrigin).
             // Hits pay their XP but never the first-time bonus; that waits for the kill.
+            // A bow or crossbow hit pays more the longer the shot, logarithmically (RangeXp).
             SkillService.grantNoFirstTime(player, skill,
                     dev.amman.proficiency.skill.SpawnOrigin.xpFactor(target),
                     target.getType().getDescriptionId(),
-                    dev.amman.proficiency.skill.CritRules.xpFactor(skill, crit));
+                    dev.amman.proficiency.skill.CritRules.xpFactor(skill, crit),
+                    dev.amman.proficiency.skill.RangeXp.factor(skill, player.distanceTo(target),
+                            dev.amman.proficiency.config.ProficiencyConfig.rangedXpPerDoubling()));
         }
         KillCredit.record(target, player, skill);
     }
@@ -189,6 +192,7 @@ public final class CombatEvents {
         if (skill == null) {
             return;
         }
+        TrialEvents.noteKill(victim, player, skill);
         double base = killBonus(victim) * dev.amman.proficiency.skill.SpawnOrigin.xpFactor(victim);
         if (base > 0) {
             SkillService.grantKill(player, skill, base, victim.getType().getDescriptionId());

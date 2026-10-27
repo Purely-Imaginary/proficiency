@@ -62,6 +62,9 @@ public final class TalentTreeScreen extends Screen {
 
     /** Unlock animation timing; fed the real ranks each frame. See {@link UnlockFx}. */
     private final UnlockFx fx;
+    /** Click feedback: the "no" wiggle, the shake while a click waits, the pop and sparks on success. */
+    private final ClickFx click = new ClickFx();
+    private final int[] seenRank = new int[COLUMNS * ROWS];
 
     /** Node size, column step and row step, biggest first; the first that fits the window is used. */
     private static final int[][] GEOMETRIES = {{24, 46, 34}, {22, 42, 30}, {20, 38, 26}, {18, 36, 24}};
@@ -112,6 +115,8 @@ public final class TalentTreeScreen extends Screen {
     }
 
     private List<HLine> headerLines = List.of();
+    /** The Mastery rider line of the header (empty below level 100), and its place for the hover. */
+    private String riderText = "";
     private List<String> footerLines = List.of();
     private String layoutKey = "";
     /** Mastery stars drawn after the title (0 below level 100), and where, for the hover. */
@@ -135,6 +140,7 @@ public final class TalentTreeScreen extends Screen {
         this.parent = parent;
         this.synergies = Synergies.involving(skill);
         this.fx = new UnlockFx(COLUMNS * ROWS, synergies.size());
+        java.util.Arrays.fill(seenRank, -1);
     }
 
     private static int idx(Talent talent) {
@@ -217,9 +223,10 @@ public final class TalentTreeScreen extends Screen {
         String summary = summaryLine(skills).getString();
         String proc = procLine().getString();
         String numbers = SkillNumbers.line(skills, skill).getString();
-        String footer = Component.translatable("proficiency.tree.footer", skill.id()).getString();
+        String footer = Component.translatable("proficiency.tree.footer").getString();
         treeStars = MasteryStars.shown(skills, skill);
-        String key = treeStars + title + '\n' + summary + '\n' + proc + '\n' + numbers + '\n' + footer;
+        riderText = MasteryStars.riderLine(skills, skill);
+        String key = treeStars + riderText + title + '\n' + summary + '\n' + proc + '\n' + numbers + '\n' + footer;
         if (key.equals(layoutKey) && layoutWidth == this.width && layoutHeight == this.height) {
             return;
         }
@@ -282,6 +289,11 @@ public final class TalentTreeScreen extends Screen {
         }
         for (String line : TextFit.pack(this.font, numbers, width, 2, cut, TextFit.DOT_RE, TextFit.DOT)) {
             lines.add(new HLine(line, SkillPalette.TEXT, 3));
+        }
+        if (!riderText.isEmpty()) {
+            for (String line : TextFit.pack(this.font, riderText, width, 1, cut, TextFit.DOT_RE, TextFit.DOT)) {
+                lines.add(new HLine(line, MasteryStars.GOLD | 0xFF000000, 4));
+            }
         }
         if (cut[0]) {
             TextFit.note("tree.header");
@@ -386,6 +398,7 @@ public final class TalentTreeScreen extends Screen {
         graphics.pose().scale(uiScale, uiScale, 1f);
         renderPanel(graphics, skills, mx, my);
         graphics.pose().popPose();
+        click.render(graphics, System.currentTimeMillis(), uiScale);
         if (!pendingTip.isEmpty()) {
             TextFit.tooltip(graphics, this.font, pendingTip, mouseX, mouseY, Math.min(300, this.width - 16));
         }
@@ -423,6 +436,8 @@ public final class TalentTreeScreen extends Screen {
         int procBottom = -1;
         int statsTop = -1;
         int statsBottom = -1;
+        int riderTop = -1;
+        int riderBottom = -1;
         for (HLine line : headerLines) {
             int x = panelX + PADDING;
             if (line.block() == 0 || (line.block() == 1 && firstSummary && icon == SkillIcons.LARGE)) {
@@ -438,6 +453,10 @@ public final class TalentTreeScreen extends Screen {
                 statsTop = statsTop < 0 ? y : statsTop;
                 statsBottom = y + HEADER_LINE;
             }
+            if (line.block() == 4) {
+                riderTop = riderTop < 0 ? y : riderTop;
+                riderBottom = y + HEADER_LINE;
+            }
             graphics.drawString(this.font, line.text(), x, y, line.colour(), false);
             if (line.block() == 0 && treeStars > 0) {
                 starsX = x + this.font.width(line.text()) + 4;
@@ -448,6 +467,8 @@ public final class TalentTreeScreen extends Screen {
         }
         boolean procHovered = procTop >= 0 && inside(mouseX, mouseY, panelX + PADDING, procTop, innerW,
                 procBottom - procTop);
+        boolean riderHovered = riderTop >= 0 && inside(mouseX, mouseY, panelX + PADDING, riderTop, innerW,
+                riderBottom - riderTop);
         boolean statsHovered = statsTop >= 0 && inside(mouseX, mouseY, panelX + PADDING, statsTop, innerW,
                 statsBottom - statsTop);
 
@@ -455,6 +476,7 @@ public final class TalentTreeScreen extends Screen {
         long now = System.currentTimeMillis();
         boolean fxOn = ProficiencyClientConfig.screensUnlockFx();
         for (Talent talent : tree) {
+            watchRank(talent, skills.rank(talent), now);
             if (fxOn) {
                 fx.observe(idx(talent), skills.rank(talent), talent.maxRank(), now);
             } else {
@@ -493,10 +515,8 @@ public final class TalentTreeScreen extends Screen {
         // The hint line spans the panel under the grid and the side column, wrapped by whole
         // pieces, so it never runs under another element.
         int footY = panelY + panelH - padV - footerH + 1;
-        for (String line : footerLines) {
-            graphics.drawString(this.font, line, panelX + PADDING, footY, SkillPalette.TEXT_DIM, false);
-            footY += HEADER_LINE;
-        }
+        boolean footerHovered = FooterHint.draw(graphics, this.font, footerLines, panelX + PADDING, footY,
+                panelW - PADDING * 2, HEADER_LINE, footerH, mouseX, mouseY);
 
         boolean starsHovered = treeStars > 0 && inside(mouseX, mouseY, starsX, starsY,
                 MasteryStars.width(treeStars), 9);
@@ -506,6 +526,8 @@ public final class TalentTreeScreen extends Screen {
         } else if (starsHovered && hovered == null) {
             pendingTip = new ArrayList<>(MasteryStars.tooltip(skills, skill));
             pendingTip.add(0, Component.translatable(skill.translationKey()).withStyle(st -> st.withColor(accent())));
+        } else if (riderHovered && hovered == null) {
+            pendingTip = TooltipDetail.withHint(new ArrayList<>(MasteryStars.riderTooltip(skills, skill)), true);
         } else if (statsHovered && hovered == null) {
             pendingTip = TooltipDetail.withHint(new ArrayList<>(SkillNumbers.tooltip(skills, skill, TooltipDetail.detailed())), true);
         } else if (procHovered && hovered == null) {
@@ -518,6 +540,10 @@ public final class TalentTreeScreen extends Screen {
             pendingTip = moreTooltip();
         } else if (hoveredLog != null) {
             pendingTip = logTooltip(hoveredLog);
+        } else if (footerHovered) {
+            // The respec command lives behind the hint line, not in it.
+            pendingTip = FooterHint.tip("proficiency.tree.respec.title", accent(),
+                    Component.translatable("proficiency.tree.respec.tip", skill.id()));
         }
     }
 
@@ -596,7 +622,55 @@ public final class TalentTreeScreen extends Screen {
         graphics.fill(hx - 1, hy - 1, hx + 2, hy + 2, 0xFFFFFFFF);
     }
 
+    /** A rank that rose since the last frame is a success: pop, sparks, chime, and the nodes it opens light up in turn. */
+    private void watchRank(Talent talent, int rank, long now) {
+        int id = idx(talent);
+        int before = seenRank[id];
+        seenRank[id] = rank;
+        if (before < 0 || rank <= before || !ClickFx.on()) {
+            return;
+        }
+        celebrate(talent, rank, now);
+    }
+
+    /** The success of a rank: pop, sparks, chime, and (when the node is full) its neighbours lighting in turn. */
+    private void celebrate(Talent talent, int rank, long now) {
+        int id = idx(talent);
+        boolean full = rank >= talent.maxRank();
+        boolean big = talent.kind() == Talent.Kind.KEYSTONE || talent.kind() == Talent.Kind.CAPSTONE;
+        int x = nodeX(talent);
+        int y = nodeY(talent);
+        click.success(id, x, y, node, node, accent(), full ? (big ? 2 : 1) : 0, rank / (float) talent.maxRank(), now);
+        if (!full) {
+            return;
+        }
+        for (Talent child : Talents.of(skill)) {
+            if (isChild(child, talent)) {
+                float dist = (float) Math.hypot(nodeX(child) - x, nodeY(child) - y);
+                click.ripple(idx(child), nodeX(child), nodeY(child), node, node, accent(), now,
+                        ClickFxMath.MIN_CHARGE_MS + ClickFxMath.rippleDelay(dist));
+            }
+        }
+    }
+
+    private boolean isChild(Talent child, Talent parent) {
+        for (String parentId : child.parents()) {
+            if (Talents.get(skill, parentId) == parent) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private void drawNode(GuiGraphics graphics, Talent talent, PlayerSkills skills, long now, boolean fxOn) {
+        int nodeBoxX = nodeX(talent);
+        int nodeBoxY = nodeY(talent);
+        click.begin(graphics, idx(talent), nodeBoxX, nodeBoxY, node, node, now);
+        drawNodeBody(graphics, talent, skills, now, fxOn);
+        click.end(graphics, idx(talent), nodeBoxX, nodeBoxY, node, node, now);
+    }
+
+    private void drawNodeBody(GuiGraphics graphics, Talent talent, PlayerSkills skills, long now, boolean fxOn) {
         int x = nodeX(talent);
         int y = nodeY(talent);
         // While a rank is still sweeping in, the node shows the rank it had before it.
@@ -922,7 +996,7 @@ public final class TalentTreeScreen extends Screen {
      * and movement lines are this mod's. Anything unknown still reads as words: the last part of
      * the key, underscores to spaces, first letter up.
      */
-    static String sourceName(String key) {
+    public static String sourceName(String key) {
         // The first-time bonus line: "first|<kind key>", shown as "First time · Iron Ore".
         if (key.startsWith("first|")) {
             return Component.translatable("proficiency.xplog.source.first_time",
@@ -943,7 +1017,7 @@ public final class TalentTreeScreen extends Screen {
 
     private static final Object[] NO_ARGS = {"", "", "", ""};
 
-    private static String ago(long millis) {
+    public static String ago(long millis) {
         long seconds = millis / 1000L;
         if (seconds < 1) {
             return Component.translatable("proficiency.tree.xp_log.now").getString();
@@ -1143,10 +1217,15 @@ public final class TalentTreeScreen extends Screen {
                 for (int i = 0; i < Math.max(1, clicks); i++) {
                     ClientPacketDistributor.sendToServer(new UnlockPerkPayload(talent.key()));
                 }
-                if (this.minecraft != null) {
-                    this.minecraft.getSoundManager().play(
-                            SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0f));
+                TalentOutcome outcome = skills.check(talent);
+                long now = System.currentTimeMillis();
+                if (outcome == TalentOutcome.OK || outcome == TalentOutcome.MISSING_MATERIALS) {
+                    // The server decides; the node shakes until it answers, and wiggles "no" if it never does.
+                    click.charge(idx(talent), nodeX(talent), nodeY(talent), node, node, accent(), now);
+                } else {
+                    click.no(idx(talent), nodeX(talent), nodeY(talent), node, node, now);
                 }
+                ClickFx.clickIfOff();
                 return true;
             }
         }

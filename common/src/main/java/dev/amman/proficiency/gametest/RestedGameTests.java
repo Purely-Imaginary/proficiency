@@ -36,7 +36,7 @@ public final class RestedGameTests {
     }
 
     private static ServerPlayer player(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         player.setGameMode(GameType.SURVIVAL);
         return player;
     }

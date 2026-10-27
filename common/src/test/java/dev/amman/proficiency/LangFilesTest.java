@@ -93,7 +93,7 @@ class LangFilesTest {
                     lang = com.google.gson.JsonParser.parseReader(reader).getAsJsonObject();
                 }
                 for (String key : wanted) {
-                    if (!lang.has(key)) {
+                    if (!lang.has(key) && !EnglishOnly.is(key)) {
                         missing.add(file.getFileName() + ": " + key);
                     }
                 }

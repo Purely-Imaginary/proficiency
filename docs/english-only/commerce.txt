@@ -1,0 +1,14 @@
+# Lang keys that exist in en_us only (Commerce, 2026-10-26 languages override). A key whose name
+# contains one of these lines is not required in the other 11 languages; the game falls back to English.
+# One substring per line. A later translation pass deletes the line once the key is translated.
+commerce
+synergy.market_day
+synergy.fresh_stock
+synergy.book_deal
+synergy.pantry_account
+synergy.apothecary_trade
+synergy.stone_contract
+synergy.good_furnishings
+synergy.dig_for_gold
+synergy.trade_tools
+synergy.fletchers_stall

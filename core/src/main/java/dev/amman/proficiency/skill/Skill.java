@@ -6,7 +6,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * The thirty-five skills. Order here is the order they appear in the panel, inside each category.
+ * The thirty-eight skills. Order here is the order they appear in the panel, inside each category.
  *
  * <p>New skills go at the END. The sync packet and the XP log send skills by ordinal, so a skill
  * added in the middle would shift every later one. Saves are keyed by id and do not care.
@@ -107,7 +107,26 @@ public enum Skill {
     // never pays twice for a block Masonry or Decorating already paid. The passive works only at
     // home: 0.20 is +20% speed, +2 blocks reach and, with Tidy Home, a 6-block item magnet at level
     // 100. Hearthglow rolls at most once per 10 s on a grant that fed the Hearth.
-    HOMEBUILDER("homebuilder", SkillCategory.CONSTRUCTION, 0.20, 0.20);
+    HOMEBUILDER("homebuilder", SkillCategory.CONSTRUCTION, 0.20, 0.20),
+
+    // Gathering, added last so no ordinal moves (docs/batch-log/husbandry.md). Animals: breeding,
+    // taming, shearing, milking, brushing an armadillo, feeding a baby, honey. The passive is
+    // faster growing for the babies you breed and hardier pets: 0.50 is +50% growth speed and
+    // +50% pet health at level 100. Twins only rolls on a breeding you caused.
+    HUSBANDRY("husbandry", SkillCategory.GATHERING, 0.50, 0.25),
+
+    // Movement, added last so no ordinal moves (docs/batch-log/riding.md). Metres ridden: horses,
+    // donkeys, camels, pigs, striders, boats, minecarts, any modded mount, and elytra flight. The
+    // movement skills pay nothing while riding, so this fills that gap. The passive is a faster
+    // mount: 0.30 is +30% mount speed, +15% jump and a 45% chance an elytra wear point is spared at
+    // level 100. Tailwind rolls once per whole point of ride XP.
+    RIDING("riding", SkillCategory.MOVEMENT, 0.30, 0.20),
+
+    // Social, added last so no ordinal moves (docs/batch-log/commerce.md). Villager and wandering
+    // trader trades (and any modded trader that uses the vanilla merchant screen) and piglin
+    // bartering. The passive is a price discount: 0.40 is a 10% discount at level 100 (a quarter of
+    // the passive, before perks). Good Deal rolls once per paid trade.
+    COMMERCE("commerce", SkillCategory.SOCIAL, 0.40, 0.20);
 
     public static final Skill[] VALUES = values();
 

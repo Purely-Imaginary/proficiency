@@ -1,0 +1,28 @@
+{
+  "parent": "proficiency:level_mastery_25",
+  "display": {
+    "icon": {
+      "item": "minecraft:enchanted_book"
+    },
+    "title": {
+      "translate": "advancement.proficiency.level_mastery_50.title"
+    },
+    "description": {
+      "translate": "advancement.proficiency.level_mastery_50.desc"
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "event": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "event"
+    ]
+  ]
+}

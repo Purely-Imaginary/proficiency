@@ -200,6 +200,15 @@ public final class SkillPassives {
                 of("first_blood_damage", Format.MULT, Skill.CHARGER, bonus -> ChargerMath.firstBloodMultiplier(bonus, 0))));
         TABLE.put(Skill.TACTICIAN, List.of(
                 of("tactician_damage", Format.MULT, Skill.TACTICIAN, TacticianMath::passiveMultiplier)));
+        TABLE.put(Skill.HUSBANDRY, List.of(
+                of("husbandry_growth", Format.MULT, Skill.HUSBANDRY, HusbandryMath::growthMultiplier),
+                of("husbandry_pet_health", Format.MULT, Skill.HUSBANDRY, HusbandryMath::petHealthMultiplier)));
+        TABLE.put(Skill.RIDING, List.of(
+                of("riding_speed", Format.MULT, Skill.RIDING, RidingMath::speedMultiplier),
+                of("riding_jump", Format.MULT, Skill.RIDING, RidingMath::jumpMultiplier),
+                of("riding_elytra", Format.PERCENT, Skill.RIDING, RidingMath::elytraSpared)));
+        TABLE.put(Skill.COMMERCE, List.of(
+                of("commerce_discount", Format.PERCENT, Skill.COMMERCE, CommerceMath::discount)));
 
         TABLE.put(Skill.MINING, List.of(
                 of("break_speed", Format.MULT, Skill.MINING, SkillPassives::more),

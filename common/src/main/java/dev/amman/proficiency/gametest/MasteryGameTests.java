@@ -31,7 +31,7 @@ public final class MasteryGameTests {
 
     @GameTest(template = "proficiency:empty")
     public static void xpPastLevelOneHundredEarnsAStar(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         PlayerSkills skills = maxed(player, Skill.MINING);
 
         // A small grant only moves the bar.
@@ -50,14 +50,14 @@ public final class MasteryGameTests {
     /** Telemetry counts what Mastery kept: XP thrown away past the last star is not "earned". */
     @GameTest(template = "proficiency:empty")
     public static void cappedXpIsNotCountedByTelemetry(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         maxed(player, Skill.SWORDS);
         SkillService.grant(player, Skill.SWORDS, Mastery.totalCost(Mastery.MAX_STARS) * 2.0, "block.minecraft.stone");
         dev.amman.proficiency.telemetry.TelemetryHub.data().drain(0L, "");
         SkillService.grant(player, Skill.SWORDS, 1000.0, "block.minecraft.stone");
         java.util.List<String> lines = dev.amman.proficiency.telemetry.TelemetryHub.data().drain(1L, "");
         boolean counted = lines.stream().anyMatch(l -> l.contains("\"type\":\"xp\"") && l.contains("\"skill\":\"swords\"")
-                && !l.contains("\"xp\":0}"));
+                && !l.contains("\"xp\":0}") && !l.contains("\"xp\":0,"));
         helper.assertTrue(!counted, "a grant at five stars was counted as earned XP: " + lines);
         helper.succeed();
     }
@@ -65,7 +65,7 @@ public final class MasteryGameTests {
     /** An operator's addxp is not play: it must not make the player look active for the survival streak. */
     @GameTest(template = "proficiency:empty")
     public static void aCommandGrantDoesNotMarkThePlayerActive(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         PlayerSkills skills = ProficiencyAttachments.of(player);
         long now = player.level().getGameTime();
         SkillService.grant(player, Skill.MINING, 10.0, "proficiency.xplog.source.command");
@@ -77,7 +77,7 @@ public final class MasteryGameTests {
 
     @GameTest(template = "proficiency:empty")
     public static void starsStopAtFiveAndTheBarStaysEmpty(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         PlayerSkills skills = maxed(player, Skill.SWORDS);
 
         SkillService.grant(player, Skill.SWORDS, Mastery.totalCost(Mastery.MAX_STARS) * 2.0);
@@ -92,13 +92,13 @@ public final class MasteryGameTests {
 
     @GameTest(template = "proficiency:empty")
     public static void aDeathKeepsEveryStarAndWipesTheBar(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         PlayerSkills skills = maxed(player, Skill.AXES);
         skills.setStars(Skill.AXES, 3);
         skills.addXpMastery(Skill.AXES, 200f);
         helper.assertTrue(skills.overflow(Skill.AXES) > 0f, "setup: the bar should hold some XP");
 
-        ServerPlayer respawned = helper.makeMockServerPlayerInLevel();
+        ServerPlayer respawned = MockPlayers.make(helper);
         NeoForge.EVENT_BUS.post(new PlayerEvent.Clone(respawned, player, true));
         PlayerSkills fresh = ProficiencyAttachments.of(respawned);
         helper.assertTrue(fresh.stars(Skill.AXES) == 3, "a death must never take a star");
@@ -109,7 +109,7 @@ public final class MasteryGameTests {
 
     @GameTest(template = "proficiency:empty")
     public static void theSyncAndLevelUpPacketsCarryStars(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         PlayerSkills skills = maxed(player, Skill.ARCHERY);
         skills.setStars(Skill.ARCHERY, 4);
         skills.addXpMastery(Skill.ARCHERY, 321f);

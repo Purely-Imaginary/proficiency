@@ -390,10 +390,12 @@ public record HearthData(
         pools.put(HearthPool.HEARTY, new PoolSpec(HearthPool.HEARTY, List.of(Feed.category("gathering")),
                 BoonType.HUNGER_SLOW, list(0.08, 0.15, 0.22, 0.28, 0.34, 0.40), 0, 0.0, ComfortCap.TIERS,
                 List.of(), List.of(), List.of()));
-        pools.put(HearthPool.REGEN, new PoolSpec(HearthPool.REGEN, List.of(Feed.skill("decorating")),
+        pools.put(HearthPool.REGEN, new PoolSpec(HearthPool.REGEN,
+                List.of(Feed.skill("decorating"), Feed.skill("farming")),
                 BoonType.REGEN_OUT_OF_COMBAT, list(14, 12, 10, 8, 6, 4), 600, 0.10, ComfortCap.HALF,
                 List.of(), List.of(), List.of()));
-        pools.put(HearthPool.FORTIFIED, new PoolSpec(HearthPool.FORTIFIED, List.of(Feed.skill("masonry")),
+        pools.put(HearthPool.FORTIFIED, new PoolSpec(HearthPool.FORTIFIED,
+                List.of(Feed.skill("masonry"), Feed.skill("blocking"), Feed.skill("endurance")),
                 BoonType.MOB_DAMAGE_REDUCTION, list(0.04, 0.07, 0.10, 0.13, 0.16, 0.20), 600, 0.0,
                 ComfortCap.TIERS, List.of(), List.of(), List.of()));
         pools.put(HearthPool.WORKSHOP, new PoolSpec(HearthPool.WORKSHOP, List.of(Feed.category("crafting")),

@@ -1,0 +1,28 @@
+{
+  "parent": "proficiency:hearth_stage_5",
+  "display": {
+    "icon": {
+      "id": "minecraft:heart_of_the_sea"
+    },
+    "title": {
+      "translate": "advancement.proficiency.hearth_stage_6.title"
+    },
+    "description": {
+      "translate": "advancement.proficiency.hearth_stage_6.desc"
+    },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "event": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "event"
+    ]
+  ]
+}

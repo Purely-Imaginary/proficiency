@@ -26,6 +26,8 @@ public final class FabricHearthClientNetwork {
                 (payload, context) -> HearthClients.get().onGains(payload));
         ClientPlayNetworking.registerGlobalReceiver(HearthLedgerPayload.TYPE,
                 (payload, context) -> HearthClients.get().onLedger(payload));
+        ClientPlayNetworking.registerGlobalReceiver(dev.amman.proficiency.hearth.net.HearthBuildPlanPayload.TYPE,
+                (payload, context) -> HearthClients.get().onBuildPlan(payload));
         ClientPlayNetworking.registerGlobalReceiver(SiegePanelPayload.TYPE,
                 (payload, context) -> HearthClients.get().onSiegePanel(payload));
         ClientPlayNetworking.registerGlobalReceiver(HearthPingPayload.TYPE,

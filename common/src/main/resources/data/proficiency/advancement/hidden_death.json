@@ -1,0 +1,28 @@
+{
+  "parent": "proficiency:master_of_all",
+  "display": {
+    "icon": {
+      "id": "minecraft:totem_of_undying"
+    },
+    "title": {
+      "translate": "advancement.proficiency.hidden_death.title"
+    },
+    "description": {
+      "translate": "advancement.proficiency.hidden_death.desc"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": true
+  },
+  "criteria": {
+    "event": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "event"
+    ]
+  ]
+}

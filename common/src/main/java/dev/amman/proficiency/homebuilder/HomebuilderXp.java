@@ -196,7 +196,9 @@ public final class HomebuilderXp {
         float paid = SkillService.grant(player, Skill.HOMEBUILDER, xp, source);
         if (paid > 0) {
             // The Discovery journal's Skills tab lists it with the other skills' first times.
-            ProficiencyAttachments.of(player).markVisited("first:" + Skill.HOMEBUILDER.id() + ":" + source);
+            if (ProficiencyAttachments.of(player).markVisited("first:" + Skill.HOMEBUILDER.id() + ":" + source)) {
+                dev.amman.proficiency.skill.CodexService.onKindFound(player, Skill.HOMEBUILDER);
+            }
         }
         if (banner && paid > 0) {
             // The first-time banner: "First time · Homebuilder / Stage III sealed / +450 Homebuilder XP".

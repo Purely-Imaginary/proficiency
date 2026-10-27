@@ -11,10 +11,12 @@ The language decides how long a text is, so nothing is cut at a fixed pixel coun
 | Talent tree footer hint | whole panel width | wraps by its 3-space pieces, up to 3 lines |
 | Talent tree side column | 120 to 230 px, as wide as the longest synergy asks | ellipsis on a name, hover has it whole; the discipline line wraps |
 | Talent tree grid | window | the roomiest of four grids that fits; below that the whole screen shrinks |
+| Skills panel folded group | column width | the "best N" summary is dropped when it would not fit beside the name; LayoutDemo `panel-folded` |
 | Skills panel columns | widest skill name | wider panel; one scrolling column when two do not fit; whole rows only above the footer |
 | Skills panel footer | panel width | a text pair that does not fit side by side goes on two lines |
 | Death recap | longest name, up to 60% of the screen | wider panel, wrapped lines (the survival line and the rested XP line each up to 3), fewer rows plus "+N more" when the window is short |
 | Hearth tales panel (a homecoming, a page set down, a tale retold) | longest line, up to 60% of the screen | wider panel at the death recap's top (30%, clear of a top-right minimap); the title and each line wrap to 2 lines, the last ends in an ellipsis; on a short window the place rows fold away first (`tales.rows_folded`), never the amount; it steps under a discovery banner that would cover it (the first Tales at a Hearth come with Homebuilder's first-time banner); the Hearth tracker steps under it where there is room, as under the death recap (`client.RightEdge`) |
+| Tempo fire on the HUD skill bar | the bar, 7 rows above it, and the multiplier past its right end | no text to fit: the label rises 5 rows while the fire burns so no flame reaches the name or the level; the multiplier is a 3x5 pixel font, at most 22 px past the bar's end (LayoutDemo group `tempo`: low, flare, mid, high, cap, sinking, smoke) |
 | XP feed | to the right edge | the source is cut, the numbers are not; the factor line wraps to 2 |
 | Banner | window | kicker and XP line wrap; a title shrinks to 1.4x, then goes on two lines |
 | Ability wheel | the disc | each centre line is cut to the chord at its height; slots shrink on a crowded ring |
@@ -46,7 +48,7 @@ punctuation. `TextBreakTest` covers it.
 3. `python3 tools/layout/make_sheets.py <dir>/shots <dir>/sheets 640` makes contact sheets, six languages each.
 
 The demo (client/LayoutDemo) is on all three lines (shared code since the monorepo; Forge 1.20.1 keeps its own copy). It needs a private X display (Xvfb) and a throwaway instance. Do not use the real desktop.
-GUI sizes below 320 x 240 do not exist in the game, so the smallest setup is 960 x 720 at scale 3.
+GUI sizes below 320 x 240 do not exist in the game, so the smallest setup is 960 x 720 at scale 3. (1.34.0 adds 1280 x 720 at GUI 4, which Minecraft caps to 427 x 240, and a forced scale-4 setup, 320 x 180, that no player can reach, for the one-column Skillstone Face. `PROFICIENCY_LAYOUT_ONLY=stoneface` runs just the Face scenes; each prints a `FACE ... oneColumn= content= view= scroll=` line.)
 
 Forge 1.20.1 run of the Hearth sites (2026-10-10, groups `hearth`, `panel`, `hud`, `tales`, `wheel`, en_us
 and pl_pl, all five setups, the lean throwaway instance HearthF): the same clips as the 1.21.1 run and
@@ -58,4 +60,4 @@ Forge 1.20.1 run in the full Reclamation pack (2026-10-10, polish-forge, instanc
 of the HearthF run and nothing new for the Hearth, plus `feed.line` (the debug XP feed's source cut at
 320 x 240 in Polish, as designed: the numbers are kept). `tales.rows_folded` came from the rule that kept the
 panel above the tracker; the tracker now steps aside instead (since its code review, under the panel where
-there is room: LayoutDemo's `hearth-tales` shot).
+there is room: LayoutDemo's `hearth-tales` shot). Sheets are kept off-repo.

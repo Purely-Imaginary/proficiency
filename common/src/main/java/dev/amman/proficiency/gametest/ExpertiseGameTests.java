@@ -33,7 +33,7 @@ public final class ExpertiseGameTests {
 
     @GameTest(template = "proficiency:empty")
     public static void investingThroughTheServiceRaisesThePerkModifier(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         PlayerSkills skills = fivePoints(player);
         helper.assertTrue(skills.expertisePoints() == 5, "five skills at 100 should give 5 points, got "
                 + skills.expertisePoints());
@@ -66,7 +66,7 @@ public final class ExpertiseGameTests {
 
     @GameTest(template = "proficiency:empty")
     public static void aRespecRefundsEveryPoint(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         PlayerSkills skills = fivePoints(player);
         player.setExperienceLevels(10);
         ExpertiseNode root = Expertise.byId("breadth");
@@ -83,7 +83,7 @@ public final class ExpertiseGameTests {
 
     @GameTest(template = "proficiency:empty")
     public static void aLevelUpThatCrossesAHundredEarnsAPoint(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         PlayerSkills skills = ProficiencyAttachments.of(player);
         skills.setLevel(Skill.MINING, 99);
         helper.assertTrue(skills.expertisePoints() == 0, "99 levels give no point yet");

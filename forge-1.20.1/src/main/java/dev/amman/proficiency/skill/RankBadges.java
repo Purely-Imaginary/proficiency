@@ -3,6 +3,7 @@ package dev.amman.proficiency.skill;
 import dev.amman.proficiency.ProficiencyAttachments;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.world.entity.player.Player;
 import org.jetbrains.annotations.Nullable;
 
@@ -72,10 +73,18 @@ public final class RankBadges {
 
     public static Component decorate(Player player, Component original) {
         Component badge = badgeFor(player);
-        if (badge == null) {
+        // The picked Codex title sits between the badge and the name, and shows without a badge too.
+        Component title = CodexService.pickedName(ProficiencyAttachments.of(player));
+        if (badge == null && title == null) {
             return original;
         }
-        return Component.empty().append(badge).append(original.copy()
-                .withStyle(ChatFormatting.RESET));
+        MutableComponent out = Component.empty();
+        if (badge != null) {
+            out.append(badge);
+        }
+        if (title != null) {
+            out.append(Component.translatable("proficiency.codex.tag", title).withStyle(ChatFormatting.AQUA));
+        }
+        return out.append(original.copy().withStyle(ChatFormatting.RESET));
     }
 }

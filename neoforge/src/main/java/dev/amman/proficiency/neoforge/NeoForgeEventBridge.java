@@ -144,6 +144,8 @@ public final class NeoForgeEventBridge {
                 PlayerInteractEvent.RightClickItem.class, RightClickItem::new);
         relay(net.neoforged.neoforge.event.entity.player.PlayerInteractEvent.RightClickBlock.class,
                 PlayerInteractEvent.RightClickBlock.class, RightClickBlock::new);
+        relay(net.neoforged.neoforge.event.entity.player.PlayerInteractEvent.EntityInteract.class,
+                PlayerInteractEvent.EntityInteract.class, EntityInteract::new);
         relay(net.neoforged.neoforge.event.entity.player.AnvilRepairEvent.class, AnvilRepairEvent.class,
                 AnvilRepair::new);
         relay(net.neoforged.neoforge.event.entity.player.ItemFishedEvent.class, ItemFishedEvent.class,
@@ -404,6 +406,35 @@ public final class NeoForgeEventBridge {
         @Override
         public BlockPos getPos() {
             return neo.getPos();
+        }
+
+        @Override
+        public Level getLevel() {
+            return neo.getLevel();
+        }
+
+        @Override
+        public ItemStack getItemStack() {
+            return neo.getItemStack();
+        }
+
+        @Override
+        public boolean isCanceled() {
+            return neo.isCanceled();
+        }
+
+        @Override
+        public void setCanceled(boolean canceled) {
+            neo.setCanceled(canceled);
+        }
+    }
+
+    static final class EntityInteract extends PlayerInteractEvent.EntityInteract {
+        private final net.neoforged.neoforge.event.entity.player.PlayerInteractEvent.EntityInteract neo;
+
+        EntityInteract(net.neoforged.neoforge.event.entity.player.PlayerInteractEvent.EntityInteract neo) {
+            super(neo.getEntity(), neo.getHand(), neo.getTarget());
+            this.neo = neo;
         }
 
         @Override

@@ -4,6 +4,7 @@ import dev.amman.proficiency.platform.bus.ICancellableEvent;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -61,6 +62,25 @@ public abstract class PlayerInteractEvent extends PlayerEvent {
 
         public void setCancellationResult(InteractionResult result) {
             this.cancellationResult = result;
+        }
+    }
+
+    /**
+     * A right click on an entity, before the entity's own {@code interact} (NeoForge's
+     * {@code EntityInteract}; Fabric's {@code UseEntityCallback}). Husbandry only watches it, to see
+     * what the click was about and what became of it a tick later.
+     */
+    public static class EntityInteract extends PlayerInteractEvent implements ICancellableEvent {
+
+        private final Entity target;
+
+        public EntityInteract(Player player, InteractionHand hand, Entity target) {
+            super(player, hand, target.blockPosition());
+            this.target = target;
+        }
+
+        public Entity getTarget() {
+            return target;
         }
     }
 }

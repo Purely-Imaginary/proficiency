@@ -45,9 +45,13 @@ public final class ProficiencyNetwork {
      * Homebuilder's (homebuilder, homebuilder_action), appended after the older ones, plus the Hearth's
      * block, block entity and items. Version 8: Expertise (the sync packet carries its ranks; the
      * expertise payload, appended last). Version 9: the crit talents and the Leaping Blade synergy
-     * in the shared talent table. A mismatched pair must fail at negotiation, not in readUtf.
+     * in the shared talent table. Version 10: the sync packet carries Seam Sense's Motherlode charge.
+     * Version 13: the Jade plugin's look request and reply (this line only: Jade 11 has no server data for
+     * a block without a block entity). Version 14: the tempo packet (the HUD's Tempo indicator), appended last.
+     * Version 15: the sync packet ends with the picked Codex title (a string, "" for none).
+     * A mismatched pair must fail at negotiation, not in readUtf.
      */
-    public static final String PROTOCOL = "9";
+    public static final String PROTOCOL = "15";
 
     /**
      * Accepts a peer without the channel. Do not read this as "the mod is optional on the
@@ -82,6 +86,20 @@ public final class ProficiencyNetwork {
         registerHearth();
         // Protocol 8, Expertise. Appended after the Hearth's, so every older payload keeps its index.
         toServer(ExpertisePayload.class, ExpertisePayload.STREAM_CODEC, ProficiencyNetwork::onExpertise);
+        // Protocol 13, the optional Jade plugin's block question and its answer. Appended last.
+        toServer(LookRequestPayload.class, LookRequestPayload.STREAM_CODEC, (payload, context) -> {
+            ServerPlayer player = context.getSender();
+            context.enqueueWork(() -> {
+                if (player != null) {
+                    dev.amman.proficiency.look.LookServer.onRequest(player, payload);
+                }
+            });
+        });
+        toClient(LookReplyPayload.class, LookReplyPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> dev.amman.proficiency.jade.LookClient.accept(payload)));
+        // Protocol 14, the Tempo indicator. Appended last.
+        toClient(TempoPayload.class, TempoPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> dev.amman.proficiency.client.TempoBadge.accept(payload)));
     }
 
     /**
@@ -99,6 +117,9 @@ public final class ProficiencyNetwork {
                 (payload, context) -> context.enqueueWork(() -> HearthClients.get().onGains(payload)));
         toClient(HearthLedgerPayload.class, HearthLedgerPayload.STREAM_CODEC,
                 (payload, context) -> context.enqueueWork(() -> HearthClients.get().onLedger(payload)));
+        toClient(dev.amman.proficiency.hearth.net.HearthBuildPlanPayload.class,
+                dev.amman.proficiency.hearth.net.HearthBuildPlanPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> HearthClients.get().onBuildPlan(payload)));
         toClient(SiegePanelPayload.class, SiegePanelPayload.STREAM_CODEC,
                 (payload, context) -> context.enqueueWork(() -> HearthClients.get().onSiegePanel(payload)));
         toClient(HearthPingPayload.class, HearthPingPayload.STREAM_CODEC,
@@ -176,7 +197,17 @@ public final class ProficiencyNetwork {
 
     private static void onDiscovery(DiscoveryPayload payload, NetworkEvent.Context context) {
         // Client-only class, touched only inside the lambda, like the toast above.
-        context.enqueueWork(() -> dev.amman.proficiency.client.DiscoveryBanner.show(payload));
+        context.enqueueWork(() -> {
+            if (payload.kind() == DiscoveryPayload.CODEX) {
+                int index = payload.skill();
+                if (index >= 0 && index < dev.amman.proficiency.skill.Skill.VALUES.length) {
+                    dev.amman.proficiency.client.SkillToasts.codex(
+                            dev.amman.proficiency.skill.Skill.VALUES[index], Math.round(payload.xp()));
+                }
+                return;
+            }
+            dev.amman.proficiency.client.DiscoveryBanner.show(payload);
+        });
     }
 
     private static void onVisited(VisitedPayload payload, NetworkEvent.Context context) {
@@ -304,6 +335,15 @@ public final class ProficiencyNetwork {
             return;
         }
         send(player, new SyncSkillsPayload(ProficiencyAttachments.of(player)));
+    }
+
+    /** The Tempo chain of the skill the last action fed; the caller decides when ({@code TempoSync}). */
+    public static void sendTempo(ServerPlayer player, Skill skill, int steps, int maxSteps, int permille,
+            int windowTicks) {
+        if (!canReceive(player)) {
+            return;
+        }
+        send(player, new TempoPayload(skill.ordinal(), steps, maxSteps, permille, windowTicks));
     }
 
     public static void sendLevelUp(ServerPlayer player, Skill skill, int level) {

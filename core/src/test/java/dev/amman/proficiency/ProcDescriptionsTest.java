@@ -25,6 +25,9 @@ class ProcDescriptionsTest {
             JsonObject lang = lang(file);
             for (Skill skill : Skill.values()) {
                 String key = skill.procDescKey();
+                if (!file.equals("en_us.json") && EnglishOnly.is(key)) {
+                    continue; // English only on purpose (docs/english-only)
+                }
                 assertTrue(lang.has(key), file + " is missing " + key);
                 assertFalse(lang.get(key).getAsString().isBlank(), file + " has an empty " + key);
                 assertTrue(lang.has(skill.procKey()), file + " is missing " + skill.procKey());

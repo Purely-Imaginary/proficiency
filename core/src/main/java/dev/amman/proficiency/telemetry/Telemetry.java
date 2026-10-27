@@ -158,6 +158,8 @@ public final class Telemetry {
         long grants;
         double base;
         double fin;
+        long firstMs = Long.MIN_VALUE;
+        long lastMs;
     }
 
     private static final class SkillAgg {
@@ -281,6 +283,8 @@ public final class Telemetry {
         bucket.grants++;
         bucket.base += base;
         bucket.fin += finalXp;
+        if (bucket.firstMs == Long.MIN_VALUE) bucket.firstMs = nowMs;
+        bucket.lastMs = nowMs;
         agg.level = level;
         // An operator's /skills addxp is not play: it must not open the "in use" window.
         if (!KIND_COMMAND.equals(kind)) {
@@ -475,9 +479,11 @@ public final class Telemetry {
                 }
                 for (Map.Entry<String, KindAgg> kind : s.kinds.entrySet()) {
                     KindAgg k = kind.getValue();
+                    String span = k.firstMs != Long.MIN_VALUE
+                            ? ",\"span_s\":" + num((k.lastMs - k.firstMs) / 1000.0) : "";
                     lines.add(head + ",\"type\":\"xp\",\"skill\":\"" + skill.id() + "\",\"kind\":\""
                             + kind.getKey() + "\",\"n\":" + k.grants + ",\"base\":" + num(k.base)
-                            + ",\"xp\":" + num(k.fin) + "}");
+                            + ",\"xp\":" + num(k.fin) + span + "}");
                 }
                 // A window that saw no grant has no level to report; the report keeps the last known one.
                 String levelFields = "";

@@ -13,6 +13,7 @@ import dev.amman.proficiency.ProficiencyAttachments;
 import dev.amman.proficiency.net.ProficiencyNetwork;
 import dev.amman.proficiency.skill.Mastery;
 import dev.amman.proficiency.skill.PlayerSkills;
+import dev.amman.proficiency.skill.CodexService;
 import dev.amman.proficiency.skill.Skill;
 import dev.amman.proficiency.skill.SkillMath;
 import dev.amman.proficiency.skill.ActiveService;
@@ -148,6 +149,11 @@ public final class SkillCommand {
                                 .executes(context -> procFx(context, false))
                                 .then(Commands.literal("next")
                                         .executes(context -> procFx(context, true)))))
+                .then(Commands.literal("rider")
+                        .requires(source -> source.hasPermission(2))
+                        .then(Commands.argument("skill", StringArgumentType.word())
+                                .suggests(SKILL_SUGGESTIONS)
+                                .executes(SkillCommand::rider)))
                 .then(Commands.literal("streak")
                         .executes(context -> streak(context, context.getSource().getPlayerOrException()))
                         .then(Commands.argument("player", EntityArgument.player())
@@ -157,6 +163,7 @@ public final class SkillCommand {
                                 .then(Commands.argument("stacks", IntegerArgumentType.integer(0, 1000))
                                         .executes(SkillCommand::setStreak))))
                 .then(xpFeedCommand())
+                .then(CodexCommand.node())
                 .then(ExpertiseCommand.node())
                 .then(dev.amman.proficiency.xp.XpCommand.node())
                 .then(dev.amman.proficiency.xp.XpCommand.auditNode())
@@ -168,6 +175,7 @@ public final class SkillCommand {
         event.getDispatcher().register(root);
         event.getDispatcher().register(Commands.literal("skills")
                 .executes(context -> list(context, context.getSource().getPlayerOrException()))
+                .then(CodexCommand.node())
                 .then(xpFeedCommand()));
     }
 
@@ -189,6 +197,20 @@ public final class SkillCommand {
         net.minecraft.core.BlockPos pos = hit instanceof net.minecraft.world.phys.BlockHitResult block
                 && hit.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK ? block.getBlockPos() : null;
         dev.amman.proficiency.skill.ProcFxSender.send(player, skill, null, pos);
+        return 1;
+    }
+
+    /**
+     * Op test tool. Performs a skill's Mastery rider now, as if its proc had landed, for the stars you
+     * have (nothing without level 100 and a star): the block you look at is the proc's spot.
+     */
+    private static int rider(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        Skill skill = requireSkill(context);
+        var hit = player.pick(12.0, 0.0f, false);
+        net.minecraft.core.BlockPos pos = hit instanceof net.minecraft.world.phys.BlockHitResult block
+                && hit.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK ? block.getBlockPos() : null;
+        dev.amman.proficiency.skill.MasteryRiders.onProc(player, skill, null, pos);
         return 1;
     }
 
@@ -634,6 +656,7 @@ public final class SkillCommand {
         ServerPlayer target = EntityArgument.getPlayer(context, "player");
         ProficiencyAttachments.of(target).reset();
         ProficiencyNetwork.sendFullSync(target);
+        CodexService.refreshTabList(target);
         context.getSource().sendSuccess(() -> Component.translatable("proficiency.command.reset",
                 target.getDisplayName()), true);
         return 1;

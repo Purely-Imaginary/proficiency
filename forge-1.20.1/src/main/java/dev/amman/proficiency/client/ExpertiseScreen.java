@@ -14,10 +14,8 @@ import dev.amman.proficiency.skill.SkillCategory;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.entity.player.Player;
 import org.jetbrains.annotations.Nullable;
 
@@ -65,6 +63,14 @@ public final class ExpertiseScreen extends Screen {
     private int headerH;
     private int footerH;
     private float uiScale = 1f;
+    private final ClickFx click = new ClickFx();
+    private final int[] seenRank = new int[COLUMNS * ROWS];
+
+    {
+        java.util.Arrays.fill(seenRank, -1);
+    }
+
+    private static final String RESPEC_KEY = "respec";
     private int panelX;
     private int panelY;
     private List<String> headerLines = List.of();
@@ -79,6 +85,8 @@ public final class ExpertiseScreen extends Screen {
     private int buttonY;
     private int buttonW;
     private long confirmUntil;
+    /** Points spent when the respec was sent; -1 when none is waiting for its answer. */
+    private int respecSpentBefore = -1;
     /** The pointer is on a side list that had to cut something; its tooltip shows it whole. */
     private boolean sideHovered;
 
@@ -101,13 +109,13 @@ public final class ExpertiseScreen extends Screen {
     }
 
     /** "Expertise 12 / 70 · spent 8 · 4 free". */
-    private static Component pointsLine(PlayerSkills skills) {
+    public static Component pointsLine(PlayerSkills skills) {
         return Component.translatable("proficiency.expertise.points", skills.expertisePoints(), Expertise.MAX_POINTS,
                 skills.expertiseSpent(), skills.expertiseAvailable());
     }
 
     /** "Levels 1,234: 12/35 · Stars 17: 3/35". */
-    private static Component sourcesLine(PlayerSkills skills) {
+    public static Component sourcesLine(PlayerSkills skills) {
         return Component.translatable("proficiency.expertise.sources",
                 skills.totalLevels(), Expertise.pointsFromLevels(skills.totalLevels()), Expertise.MAX_FROM_LEVELS,
                 skills.totalStars(), Expertise.pointsFromStars(skills.totalStars()), Expertise.MAX_FROM_STARS);
@@ -211,7 +219,7 @@ public final class ExpertiseScreen extends Screen {
     }
 
     /** The colour of a node: its branch's category accent, gold for every-skill nodes. */
-    static int accent(ExpertiseNode n) {
+    public static int accent(ExpertiseNode n) {
         return switch (Expertise.branch(n)) {
             case "martial" -> SkillPalette.accent(SkillCategory.COMBAT);
             case "craft" -> SkillPalette.accent(SkillCategory.GATHERING);
@@ -230,6 +238,10 @@ public final class ExpertiseScreen extends Screen {
             return;
         }
         layout(skills);
+        if (respecSpentBefore >= 0 && skills.expertiseSpent() < respecSpentBefore) {
+            respecSpentBefore = -1;
+            click.success(RESPEC_KEY, buttonX, buttonY, buttonW, BUTTON_H, 0xE0A050, 1, 0.3f, System.currentTimeMillis());
+        }
         pendingTip = List.of();
         int mx = Math.round(mouseX / uiScale);
         int my = Math.round(mouseY / uiScale);
@@ -237,6 +249,7 @@ public final class ExpertiseScreen extends Screen {
         graphics.pose().scale(uiScale, uiScale, 1f);
         renderPanel(graphics, skills, mx, my);
         graphics.pose().popPose();
+        click.render(graphics, System.currentTimeMillis(), uiScale);
         if (!pendingTip.isEmpty()) {
             TextFit.tooltip(graphics, this.font, pendingTip, mouseX, mouseY, Math.min(300, this.width - 16));
         }
@@ -258,6 +271,7 @@ public final class ExpertiseScreen extends Screen {
         boolean fxOn = ProficiencyClientConfig.screensUnlockFx();
         List<ExpertiseNode> nodes = Expertise.nodes();
         for (ExpertiseNode n : nodes) {
+            watchRank(n, skills.expertiseRank(n), now);
             if (fxOn) {
                 fx.observe(idx(n), skills.expertiseRank(n), n.maxRank(), now);
             } else {
@@ -288,10 +302,8 @@ public final class ExpertiseScreen extends Screen {
         boolean buttonHovered = drawSide(graphics, skills, mouseX, mouseY, now);
 
         int footY = panelY + panelH - PADDING - footerH + 1;
-        for (String line : footerLines) {
-            graphics.drawString(this.font, line, panelX + PADDING, footY, SkillPalette.TEXT_DIM, false);
-            footY += HEADER_LINE;
-        }
+        boolean footerHovered = FooterHint.draw(graphics, this.font, footerLines, panelX + PADDING, footY,
+                panelW - PADDING * 2, HEADER_LINE, footerH, mouseX, mouseY);
 
         if (hovered != null) {
             pendingTip = nodeTooltip(hovered, skills, fxOn ? fx.shownRank(idx(hovered), now) : skills.expertiseRank(hovered));
@@ -306,6 +318,9 @@ public final class ExpertiseScreen extends Screen {
             pendingTip = respecTooltip(skills);
         } else if (headerHovered) {
             pendingTip = headerTooltip(skills);
+        } else if (footerHovered) {
+            pendingTip = FooterHint.tip("proficiency.expertise.command.title", ALL_ACCENT,
+                    Component.translatable("proficiency.expertise.command.tip"));
         }
     }
 
@@ -362,11 +377,13 @@ public final class ExpertiseScreen extends Screen {
         boolean enabled = spent > 0;
         boolean hover = inside(mouseX, mouseY, buttonX, buttonY, buttonW, BUTTON_H);
         int edge = !enabled ? SkillPalette.TRACK : now < confirmUntil ? 0xFFE08F8F : hover ? SkillPalette.MAXED : ALL_ACCENT;
+        click.begin(graphics, RESPEC_KEY, buttonX, buttonY, buttonW, BUTTON_H, now);
         graphics.fill(buttonX, buttonY, buttonX + buttonW, buttonY + BUTTON_H,
                 hover && enabled ? (ALL_ACCENT & 0x00FFFFFF) | 0x40000000 : 0xFF181B20);
         border(graphics, buttonX, buttonY, buttonW, BUTTON_H, edge);
         TextFit.draw(graphics, this.font, "expertise.respec", label, buttonX + 6, buttonY + 3, buttonW - 10,
                 enabled ? (hover ? SkillPalette.MAXED : SkillPalette.TEXT) : SkillPalette.TEXT_DIM, false);
+        click.end(graphics, RESPEC_KEY, buttonX, buttonY, buttonW, BUTTON_H, now);
         return hover;
     }
 
@@ -383,14 +400,14 @@ public final class ExpertiseScreen extends Screen {
     }
 
     /** One line of the side column: a heading ("In every skill:") or a bonus, maybe indented under it. */
-    record SideLine(String text, int indent, boolean heading) {
+    public record SideLine(String text, int indent, boolean heading) {
     }
 
     /**
      * What the tree gives, in tree order: the every-skill bonuses under one heading ("+7% XP"), then
      * one line per effect and branch ("+6% passive (Martial)").
      */
-    static List<SideLine> bonusTexts(Map<String, Integer> ranks) {
+    public static List<SideLine> bonusTexts(Map<String, Integer> ranks) {
         Map<String, Double> sums = new LinkedHashMap<>();
         for (ExpertiseNode n : Expertise.nodes()) {
             int rank = ranks.getOrDefault(n.id(), 0);
@@ -466,7 +483,40 @@ public final class ExpertiseScreen extends Screen {
         graphics.fill(hx - 1, hy - 1, hx + 2, hy + 2, 0xFFFFFFFF);
     }
 
+    /** A rank that rose since the last frame is a success; see {@link ClickFx}. */
+    private void watchRank(ExpertiseNode n, int rank, long now) {
+        int id = idx(n);
+        int before = seenRank[id];
+        seenRank[id] = rank;
+        if (before < 0 || rank <= before || !ClickFx.on()) {
+            return;
+        }
+        boolean full = rank >= n.maxRank();
+        int x = nodeX(n);
+        int y = nodeY(n);
+        click.success(id, x, y, node, node, accent(n), full ? (n.kind() == Talent.Kind.CAPSTONE ? 2 : 1) : 0,
+                rank / (float) n.maxRank(), now);
+        if (!full) {
+            return;
+        }
+        for (ExpertiseNode child : Expertise.nodes()) {
+            for (String parentId : child.parents()) {
+                if (Expertise.byId(parentId) == n) {
+                    float dist = (float) Math.hypot(nodeX(child) - x, nodeY(child) - y);
+                    click.ripple(idx(child), nodeX(child), nodeY(child), node, node, accent(n), now,
+                            ClickFxMath.MIN_CHARGE_MS + ClickFxMath.rippleDelay(dist));
+                }
+            }
+        }
+    }
+
     private void drawNode(GuiGraphics graphics, ExpertiseNode n, PlayerSkills skills, long now, boolean fxOn) {
+        click.begin(graphics, idx(n), nodeX(n), nodeY(n), node, node, now);
+        drawNodeBody(graphics, n, skills, now, fxOn);
+        click.end(graphics, idx(n), nodeX(n), nodeY(n), node, node, now);
+    }
+
+    private void drawNodeBody(GuiGraphics graphics, ExpertiseNode n, PlayerSkills skills, long now, boolean fxOn) {
         int x = nodeX(n);
         int y = nodeY(n);
         int rank = fxOn ? fx.shownRank(idx(n), now) : skills.expertiseRank(n);
@@ -544,7 +594,7 @@ public final class ExpertiseScreen extends Screen {
      * Detailed (Shift): the kind, the description, every effect per rank and now, the categories it
      * reaches, the rank and cost.
      */
-    private List<Component> nodeTooltip(ExpertiseNode n, PlayerSkills skills, int rank) {
+    public static List<Component> nodeTooltip(ExpertiseNode n, PlayerSkills skills, int rank) {
         List<Component> lines = new ArrayList<>();
         TalentOutcome outcome = skills.checkExpertise(n);
         int accent = accent(n);
@@ -585,7 +635,7 @@ public final class ExpertiseScreen extends Screen {
                 .withStyle(outcome == TalentOutcome.MAXED ? ChatFormatting.GOLD : ChatFormatting.RED);
     }
 
-    private List<Component> respecTooltip(PlayerSkills skills) {
+    public static List<Component> respecTooltip(PlayerSkills skills) {
         List<Component> lines = new ArrayList<>();
         lines.add(Component.translatable("proficiency.expertise.respec.title").withStyle(style -> style.withColor(ALL_ACCENT)));
         lines.add(Component.translatable("proficiency.expertise.respec.tip",
@@ -593,7 +643,7 @@ public final class ExpertiseScreen extends Screen {
         return lines;
     }
 
-    private List<Component> headerTooltip(PlayerSkills skills) {
+    public static List<Component> headerTooltip(PlayerSkills skills) {
         List<Component> lines = new ArrayList<>();
         lines.add(Component.translatable("proficiency.expertise.title").withStyle(style -> style.withColor(SkillPalette.MAXED)));
         lines.add(Component.translatable("proficiency.expertise.how", Expertise.LEVELS_PER_POINT,
@@ -621,15 +671,22 @@ public final class ExpertiseScreen extends Screen {
         if (button == 0 && skills != null) {
             double px = mouseX / uiScale;
             double py = mouseY / uiScale;
-            if (inside(px, py, buttonX, buttonY, buttonW, BUTTON_H) && skills.expertiseSpent() > 0) {
+            if (inside(px, py, buttonX, buttonY, buttonW, BUTTON_H)) {
                 long now = System.currentTimeMillis();
+                if (skills.expertiseSpent() <= 0) {
+                    click.no(RESPEC_KEY, buttonX, buttonY, buttonW, BUTTON_H, now);
+                    return true;
+                }
                 if (now < confirmUntil) {
                     confirmUntil = 0L;
                     send(new ExpertisePayload(ExpertisePayload.RESPEC, ""));
+                    respecSpentBefore = skills.expertiseSpent();
+                    click.charge(RESPEC_KEY, buttonX, buttonY, buttonW, BUTTON_H, 0xE0A050, now);
                 } else {
                     confirmUntil = now + CONFIRM_MS;
+                    click.arm(RESPEC_KEY, buttonX, buttonY, buttonW, BUTTON_H, 0xE08F8F, now);
                 }
-                click();
+                ClickFx.clickIfOff();
                 return true;
             }
             for (ExpertiseNode n : Expertise.nodes()) {
@@ -640,7 +697,13 @@ public final class ExpertiseScreen extends Screen {
                 for (int i = 0; i < Math.max(1, clicks); i++) {
                     send(new ExpertisePayload(ExpertisePayload.INVEST, n.id()));
                 }
-                click();
+                long now = System.currentTimeMillis();
+                if (skills.checkExpertise(n) == TalentOutcome.OK) {
+                    click.charge(idx(n), nodeX(n), nodeY(n), node, node, accent(n), now);
+                } else {
+                    click.no(idx(n), nodeX(n), nodeY(n), node, node, now);
+                }
+                ClickFx.clickIfOff();
                 return true;
             }
         }
@@ -649,12 +712,6 @@ public final class ExpertiseScreen extends Screen {
 
     private static void send(ExpertisePayload payload) {
         dev.amman.proficiency.net.ProficiencyNetwork.sendToServer(payload);
-    }
-
-    private void click() {
-        if (this.minecraft != null) {
-            this.minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0f));
-        }
     }
 
     @Override

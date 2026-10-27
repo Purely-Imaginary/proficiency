@@ -262,7 +262,8 @@ public final class CourageEvents {
         }
         EntityData.of(target).putFloat(PAID_TAG, (float) (paid + counted));
         // A hit, so no first-time bonus; the kill pays it.
-        return SkillService.grantNoFirstTime(player, Skill.COURAGE, xp, target.getType().getDescriptionId());
+        return SkillService.grantTrial(player, Skill.COURAGE, xp, target.getType().getDescriptionId(),
+                dev.amman.proficiency.skill.SpawnOrigin.trialFactor(target), false);
     }
 
     // ---- Kills: XP, Rally, Lionheart, Spoils of Valor ------------------------------------------
@@ -313,7 +314,8 @@ public final class CourageEvents {
         double xp = CourageMath.killXp(CourageMath.odds(fight), ProficiencyConfig.courageKillXp())
                 * dev.amman.proficiency.skill.SpawnOrigin.xpFactor(victim);
         if (xp > 0) {
-            SkillService.grant(player, Skill.COURAGE, xp, victim.getType().getDescriptionId());
+            SkillService.grantTrial(player, Skill.COURAGE, xp, victim.getType().getDescriptionId(),
+                    dev.amman.proficiency.skill.SpawnOrigin.trialFactor(victim), true);
         }
     }
 

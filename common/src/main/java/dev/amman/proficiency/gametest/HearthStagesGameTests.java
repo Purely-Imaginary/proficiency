@@ -89,7 +89,7 @@ public final class HearthStagesGameTests {
     }
 
     private static ServerPlayer player(GameTestHelper helper, List<ServerPlayer> cast, double x, double z) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         player.setGameMode(GameType.SURVIVAL);
         player.setPos(helper.absoluteVec(new Vec3(x, 2, z)));
         cast.add(player);
@@ -551,7 +551,7 @@ public final class HearthStagesGameTests {
         BlockPos abs = helper.absolutePos(FIRE);
         Said said = new Said();
         ServerPlayer amman = player(helper, cast, 4.5, 2.5);
-        ServerPlayer second = player(helper, cast, 2.5, 4.5);
+        ServerPlayer rowan = player(helper, cast, 2.5, 4.5);
         ServerPlayer stranger = player(helper, cast, 0.5, 0.5);
         int top = level.getMaxBuildHeight();
         Runnable cleanup = () -> {
@@ -564,7 +564,7 @@ public final class HearthStagesGameTests {
             build(helper, FIRE, 1);
             HearthBlockEntity hearth = withSpacing(10, () -> light(helper, amman, FIRE));
             // Rowan fed it (the charge lane writes the ledger); the stranger never did.
-            hearth.state().ledger().add(second.getUUID(), "Rowan", HearthPool.HEARTY, "mining", 40, 1);
+            hearth.state().ledger().add(rowan.getUUID(), "Rowan", HearthPool.HEARTY, "mining", 40, 1);
         } catch (RuntimeException e) {
             cleanup.run();
             throw e;
@@ -620,7 +620,7 @@ public final class HearthStagesGameTests {
                         List<ItemEntity> drops = level.getEntitiesOfClass(ItemEntity.class, new AABB(abs).inflate(2.0),
                                 item -> item.getItem().is(Items.CAMPFIRE));
                         helper.assertTrue(drops.size() == 1 && drops.get(0).getItem().getCount() == 1, "it drops one plain campfire: " + drops);
-                        Line told = said.find(second, "put_out");
+                        Line told = said.find(rowan, "put_out");
                         helper.assertTrue(told != null && told.args()[0] instanceof Component name
                                 && name.getString().equals(amman.getDisplayName().getString()), "the feeder is told who put it out");
                         helper.assertFalse(said.has(stranger, "put_out"), "who never fed it is not told");
@@ -1037,19 +1037,19 @@ public final class HearthStagesGameTests {
             leave(cast);
         };
         ServerPlayer amman;
-        ServerPlayer second;
+        ServerPlayer rowan;
         try {
             amman = player(helper, cast, 4.5, 2.5);
-            second = player(helper, cast, 2.5, 4.5);
+            rowan = player(helper, cast, 2.5, 4.5);
             build(helper, FIRE, 1);
             HearthBlockEntity hearth = withSpacing(10, () -> light(helper, amman, FIRE));
-            hearth.state().ledger().add(second.getUUID(), "Rowan", HearthPool.HEARTY, "mining", 40, 1);
+            hearth.state().ledger().add(rowan.getUUID(), "Rowan", HearthPool.HEARTY, "mining", 40, 1);
         } catch (RuntimeException e) {
             cleanup.run();
             throw e;
         }
         ServerPlayer breaker = amman;
-        ServerPlayer feeder = second;
+        ServerPlayer feeder = rowan;
         helper.runAfterDelay(25, () -> {
             try {
                 String dimension = level.dimension().location().toString();

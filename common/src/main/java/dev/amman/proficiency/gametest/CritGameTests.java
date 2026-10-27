@@ -41,7 +41,7 @@ public final class CritGameTests {
     // ---- Helpers --------------------------------------------------------------------------------
 
     private static ServerPlayer player(GameTestHelper helper, double x, double z, ItemStack held) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = MockPlayers.make(helper);
         player.setGameMode(GameType.SURVIVAL);
         player.setPos(helper.absoluteVec(new Vec3(x, 2, z)));
         player.setYRot(0f);

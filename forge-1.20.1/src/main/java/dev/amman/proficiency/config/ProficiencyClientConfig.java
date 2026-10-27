@@ -46,11 +46,16 @@ public final class ProficiencyClientConfig {
     private static final ForgeConfigSpec.BooleanValue HUD_LEVEL_UP_FX;
     private static final ForgeConfigSpec.BooleanValue HUD_ABILITY_FX;
     private static final ForgeConfigSpec.BooleanValue HUD_STREAK_FX;
+    private static final ForgeConfigSpec.BooleanValue HUD_SHOW_TEMPO;
     private static final ForgeConfigSpec.BooleanValue HUD_DEATH_RECAP;
     private static final ForgeConfigSpec.BooleanValue SCREENS_UNLOCK_FX;
     private static final ForgeConfigSpec.BooleanValue SCREENS_ACTIVITY;
     private static final ForgeConfigSpec.BooleanValue PROC_FX_ENABLED;
     private static final ForgeConfigSpec.BooleanValue UI_SKILL_ICONS;
+    private static final ForgeConfigSpec.EnumValue<dev.amman.proficiency.client.UiStyle> UI_STYLE;
+    private static final ForgeConfigSpec.BooleanValue UI_STYLE_MIGRATED;
+    private static final ForgeConfigSpec.ConfigValue<String> UI_WAYWHEEL_PINS;
+    private static final ForgeConfigSpec.BooleanValue UI_JUICY_FEEDBACK;
     private static final ForgeConfigSpec.BooleanValue HEARTH_TRACKER;
     private static final ForgeConfigSpec.DoubleValue HEARTH_TRACKER_Y;
     private static final ForgeConfigSpec.BooleanValue HEARTH_SHOW_RANGE;
@@ -120,6 +125,9 @@ public final class ProficiencyClientConfig {
         HUD_STREAK_FX = b.comment("The streak badge fills towards the next +1%, flares at +10, +25 "
                 + "and +50%, and breaks apart when a death takes the streak.")
                 .translation(LANG + "hud.streakFx").define("streakFx", true);
+        HUD_SHOW_TEMPO = b.comment("Flames on the skill bar and the multiplier at its end show your Tempo chain: "
+                + "they grow hotter with it, flare on a step up and die down to smoke when the window lapses.")
+                .translation(LANG + "hud.showTempo").define("showTempo", true);
         HUD_DEATH_RECAP = b.comment("After a respawn, a small panel shows the XP bars the death wiped "
                 + "and the streak it took.")
                 .translation(LANG + "hud.deathRecap").define("deathRecap", true);
@@ -161,6 +169,23 @@ public final class ProficiencyClientConfig {
                 + "the skills panel, the tree header, the XP feed, the banners, the death recap and "
                 + "the ability wheel. Off: names only, and the wheel shows items.")
                 .translation(LANG + "ui.skillIcons").define("skillIcons", true);
+        UI_JUICY_FEEDBACK = b.comment("Click feedback in the screens: a node you cannot take wiggles left and "
+                + "right with a red flash and a dull thunk, a click being answered shakes with a rising tick, "
+                + "and a success pops, bursts into pixel sparks, rings and chimes. GUI only, no world "
+                + "particles. Off: the plain click sound. Also quiet when the Distortion Effects video "
+                + "setting is 0%.")
+                .translation(LANG + "ui.juicyFeedback").define("juicyFeedback", true);
+        UI_STYLE = b.comment("The look of the skills screens. CLASSIC: the panels as they were. MODERN: the "
+                + "Skillstone, a carved slab with nine category runes around a fire well, each lit by your "
+                + "progress, and a stone face per skill. Switch it here or from the slab's corner rune; no "
+                + "restart. Pages not yet carved open their classic screen.")
+                .translation(LANG + "ui.style").defineEnum("style", dev.amman.proficiency.client.UiStyle.MODERN);
+        UI_STYLE_MIGRATED = b.comment("Internal. Set once the 1.33.0 change of the default style to MODERN has been applied "
+                + "to an older file; after that your own choice of ui.style is kept.")
+                .define("styleMigrated", false);
+        UI_WAYWHEEL_PINS = b.comment("Skills pinned beside the hotbar under the MODERN style, as a comma list of skill "
+                + "ids (at most 3, for example mining,swords). Right-click a skill on the Waywheel to pin or unpin it.")
+                .translation(LANG + "ui.waywheelPins").define("waywheelPins", "");
         b.pop();
 
         b.comment("The Hearth on your screen: the tracker, the range ring and the siege panel.")
@@ -217,6 +242,7 @@ public final class ProficiencyClientConfig {
                 new Entry("hud", "hud.levelUpFx", HUD_LEVEL_UP_FX, 0, 0),
                 new Entry("hud", "hud.abilityFx", HUD_ABILITY_FX, 0, 0),
                 new Entry("hud", "hud.streakFx", HUD_STREAK_FX, 0, 0),
+                new Entry("hud", "hud.showTempo", HUD_SHOW_TEMPO, 0, 0),
                 new Entry("hud", "hud.deathRecap", HUD_DEATH_RECAP, 0, 0),
                 new Entry("tooltip", "tooltip.skillInfo", TOOLTIP_SKILL_INFO, 0, 0),
                 new Entry("tooltip", "tooltip.alwaysDetailed", TOOLTIP_ALWAYS_DETAILED, 0, 0),
@@ -224,6 +250,8 @@ public final class ProficiencyClientConfig {
                 new Entry("screens", "screens.activity", SCREENS_ACTIVITY, 0, 0),
                 new Entry("procFx", "procFx.enabled", PROC_FX_ENABLED, 0, 0),
                 new Entry("ui", "ui.skillIcons", UI_SKILL_ICONS, 0, 0),
+                new Entry("ui", "ui.juicyFeedback", UI_JUICY_FEEDBACK, 0, 0),
+                new Entry("ui", "ui.style", UI_STYLE, 0, 0),
                 new Entry("hearth", "hearth.tracker", HEARTH_TRACKER, 0, 0),
                 new Entry("hearth", "hearth.trackerY", HEARTH_TRACKER_Y, 0.1, 0.9),
                 new Entry("hearth", "hearth.showRange", HEARTH_SHOW_RANGE, 0, 0),
@@ -315,6 +343,10 @@ public final class ProficiencyClientConfig {
         return flag(HUD_ABILITY_FX, true);
     }
 
+    public static boolean hudShowTempo() {
+        return flag(HUD_SHOW_TEMPO, true);
+    }
+
     public static boolean hudStreakFx() {
         return flag(HUD_STREAK_FX, true);
     }
@@ -333,6 +365,84 @@ public final class ProficiencyClientConfig {
 
     public static boolean procFxEnabled() {
         return flag(PROC_FX_ENABLED, true);
+    }
+
+    public static boolean uiJuicyFeedback() {
+        return flag(UI_JUICY_FEEDBACK, true);
+    }
+
+    public static dev.amman.proficiency.client.UiStyle uiStyle() {
+        if (!SPEC.isLoaded()) {
+            return dev.amman.proficiency.client.UiStyle.CLASSIC;
+        }
+        migrateUiStyle();
+        return UI_STYLE.get();
+    }
+
+    /**
+     * One time: a file written before MODERN became the default holds CLASSIC as the old default, so it moves to
+     * MODERN. Run from the first client tick (the title screen), before any config screen can write
+     * {@code ui.style}: a stock config screen sets the value without {@code styleMigrated}, and a CLASSIC picked
+     * there must not be moved by a migration that runs later. No-op once done or while the file is not loaded.
+     */
+    public static void migrateUiStyle() {
+        if (styleChecked || !SPEC.isLoaded()) {
+            return;
+        }
+        styleChecked = true;
+        if (!UI_STYLE_MIGRATED.get()) {
+            UI_STYLE_MIGRATED.set(true);
+            UI_STYLE.set(dev.amman.proficiency.client.UiStyle.MODERN);
+            try {
+                SPEC.save();
+            } catch (RuntimeException e) {
+                org.slf4j.LoggerFactory.getLogger("proficiency").warn("Could not save ui.style migration", e);
+            }
+        }
+    }
+
+    /** True once {@link #migrateUiStyle} has looked at the loaded file this session. */
+    private static boolean styleChecked;
+
+    /** Sets {@code ui.style} and writes the file: the slab's toggle rune. */
+    public static void setUiStyle(dev.amman.proficiency.client.UiStyle style) {
+        if (SPEC.isLoaded()) {
+            UI_STYLE.set(style);
+            // A hand pick is never a default left in an old file: the one-time migration must not touch it.
+            UI_STYLE_MIGRATED.set(true);
+            try {
+                SPEC.save();
+            } catch (RuntimeException e) {
+                // A read-only or locked config file: the style still switches for this session.
+                org.slf4j.LoggerFactory.getLogger("proficiency").warn("Could not save ui.style", e);
+            }
+        }
+    }
+
+    /** The Waywheel's pinned skills, a comma list of skill ids (WaywheelMath.pins cleans it). */
+    public static String uiWaywheelPins() {
+        if (!SPEC.isLoaded()) {
+            return sessionPins;
+        }
+        String value = UI_WAYWHEEL_PINS.get();
+        return value == null ? "" : value;
+    }
+
+    /** Pins only for this session when the file is not loaded (tests, an early frame). */
+    private static String sessionPins = "";
+
+    /** Sets {@code ui.waywheelPins} and writes the file: a right-click on the Waywheel. */
+    public static void setUiWaywheelPins(String csv) {
+        if (!SPEC.isLoaded()) {
+            sessionPins = csv;
+            return;
+        }
+        UI_WAYWHEEL_PINS.set(csv);
+        try {
+            SPEC.save();
+        } catch (RuntimeException e) {
+            org.slf4j.LoggerFactory.getLogger("proficiency").warn("Could not save ui.waywheelPins", e);
+        }
     }
 
     public static boolean uiSkillIcons() {

@@ -1,0 +1,28 @@
+{
+  "parent": "proficiency:jack_of_all_trades",
+  "display": {
+    "icon": {
+      "id": "minecraft:dragon_egg"
+    },
+    "title": {
+      "translate": "advancement.proficiency.master_of_all.title"
+    },
+    "description": {
+      "translate": "advancement.proficiency.master_of_all.desc"
+    },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "event": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "event"
+    ]
+  ]
+}

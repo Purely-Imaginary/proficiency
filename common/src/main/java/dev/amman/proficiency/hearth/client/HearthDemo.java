@@ -106,7 +106,7 @@ public final class HearthDemo {
     }
 
     /** True while the ledger on show for this Hearth is a demo's fake one (the panel then asks nobody). */
-    static boolean fakeLedgerAt(long hearth) {
+    public static boolean fakeLedgerAt(long hearth) {
         HearthLedgerPayload shown = HearthView.ledger();
         return shown != null && shown == fakeLedger && shown.pos() == hearth;
     }
@@ -361,8 +361,15 @@ public final class HearthDemo {
         double scale = mc.getWindow().getGuiScale();
         try {
             // The window has no focus on a bare X server: call the handler GLFW would have called.
-            java.lang.reflect.Method move = net.minecraft.client.MouseHandler.class.getDeclaredMethod("onMove",
-                    long.class, double.class, double.class);
+            // onMove is method_1600 in a Fabric (intermediary) runtime.
+            java.lang.reflect.Method move;
+            try {
+                move = net.minecraft.client.MouseHandler.class.getDeclaredMethod("onMove", long.class, double.class,
+                        double.class);
+            } catch (NoSuchMethodException e) {
+                move = net.minecraft.client.MouseHandler.class.getDeclaredMethod("method_1600", long.class,
+                        double.class, double.class);
+            }
             move.setAccessible(true);
             move.invoke(mc.mouseHandler, mc.getWindow().getWindow(), point[0] * scale, point[1] * scale);
         } catch (ReflectiveOperationException | RuntimeException e) {

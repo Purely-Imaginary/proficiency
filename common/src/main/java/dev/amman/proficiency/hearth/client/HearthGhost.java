@@ -130,6 +130,9 @@ public final class HearthGhost {
     /** The next lane (wraps), for the panel's button. */
     public static void cycleLane() {
         int count = HearthDesigns.shipped().lanes().size();
+        if (count == 0) {
+            return;
+        }
         lane = (lane + 1) % count;
         dirty = true;
         if (on && patchouli) {

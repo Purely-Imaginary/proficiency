@@ -49,6 +49,7 @@ public final class HearthCommonEvents {
     public static void onServerStarted(ServerStartedEvent event) {
         HearthRange.refreshRange();
         HearthReload.reload(event.getServer());
+        dev.amman.proficiency.hearth.stages.HearthChunks.restore(event.getServer());
     }
 
     @SubscribeEvent
@@ -78,6 +79,7 @@ public final class HearthCommonEvents {
     public static void onServerStopping(ServerStoppingEvent event) {
         HearthReload.forget();
         HearthPresence.forgetAll();
+        dev.amman.proficiency.hearth.stages.HearthChunks.forgetAll();
         HearthBreaking.forgetAll();
     }
 

@@ -154,7 +154,7 @@ XP table, a line in the summary, and colours in the source mix.
 - Real client (NeoForge, throwaway SkillTest instance and `~/mc-skilltest` server on a private
   Xvfb display, never the real desktop): the blue segment on the HUD bar and on the panel rows, the
   `Rested: 40 XP` tooltip, a real death with the blue "Rested XP lost" line in the recap, and the
-  Social tree with the three new nodes. 
+  Social tree with the three new nodes. Shots are kept off-repo.
 - Not checked in a real client: two players teaching each other (the GameTests cover it), the
   `Rusty` tooltip line (unit tested only), and the Fabric and Forge clients' drawing of the blue
   segment (the same code, built and tested, not looked at).

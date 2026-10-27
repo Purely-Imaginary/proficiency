@@ -281,7 +281,7 @@ public final class XpSourcesLoader {
         }
         XpSpec xp = json.has("xp") ? spec(json.get("xp"), "xp") : null;
         switch (domain) {
-            case BREAK, PLACE, CRAFT, CAST -> {
+            case BREAK, BRUSH, PLACE, CRAFT, CAST -> {
                 if (!none && skill == null) {
                     throw new RuleError("a \"skill\" is required (or \"none\" to pay nothing)");
                 }
@@ -450,7 +450,7 @@ public final class XpSourcesLoader {
     /** The registry an id of this rule lives in, or null when it could be in several. */
     private static String registryOf(XpDomain domain, String kind) {
         return switch (domain) {
-            case BREAK, PLACE -> "block";
+            case BREAK, BRUSH, PLACE -> "block";
             case CRAFT -> "item";
             case KILL, KILL_BONUS, BOSS -> "entity";
             case STRUCTURE -> "structure";

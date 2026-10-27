@@ -5,8 +5,8 @@ shows what the jars contain. Textures are drawn at 8x with nearest-neighbour sca
 models are rendered by tools/model_preview.py; the HUD glyphs are also drawn at 1x on six
 backgrounds with a Minecraft-style text shadow, which is how they read in the game.
 
-    python3 tools/gen_hearth_art.py --sheet build/art-sheet.png
-    python3 tools/gen_hearth_art.py --icon-sheet build/art2-sheet.png
+    python3 tools/gen_hearth_art.py --sheet ./art-sheet.png
+    python3 tools/gen_hearth_art.py --icon-sheet ./art2-sheet.png
 
 The icon sheet (build_icons) lays every GUI icon of textures/gui/hearth/ beside eight skill icons at 1x, 2x
 and 4x, on the grey of an inventory slot and on the dark of the mod's panels, so "one family" is judged by

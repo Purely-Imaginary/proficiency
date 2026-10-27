@@ -32,6 +32,7 @@ public final class ProficiencyClientSetup {
         MinecraftForge.EVENT_BUS.addListener((ClientPlayerNetworkEvent.LoggingOut event) -> {
             ClientXpLog.clear();
             XpFeedHud.clear();
+            TempoBadge.reset();
             DiscoveryBanner.clear();
             ClientVisited.clear();
             HudState.reset();
@@ -73,6 +74,7 @@ public final class ProficiencyClientSetup {
     private static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
         event.register(ProficiencyClient.OPEN_SKILLS);
         event.register(ProficiencyClient.USE_ABILITY);
+        event.register(ProficiencyClient.WAYWHEEL);
         event.register(ProficiencyClient.HEARTH_MAP);
     }
 }

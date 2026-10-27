@@ -32,6 +32,9 @@ public final class NeoForgeHearthNetwork {
                 (payload, context) -> context.enqueueWork(() -> HearthClients.get().onGains(payload)));
         registrar.playToClient(HearthLedgerPayload.TYPE, HearthLedgerPayload.STREAM_CODEC,
                 (payload, context) -> context.enqueueWork(() -> HearthClients.get().onLedger(payload)));
+        registrar.playToClient(dev.amman.proficiency.hearth.net.HearthBuildPlanPayload.TYPE,
+                dev.amman.proficiency.hearth.net.HearthBuildPlanPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> HearthClients.get().onBuildPlan(payload)));
         registrar.playToClient(SiegePanelPayload.TYPE, SiegePanelPayload.STREAM_CODEC,
                 (payload, context) -> context.enqueueWork(() -> HearthClients.get().onSiegePanel(payload)));
         registrar.playToClient(HearthPingPayload.TYPE, HearthPingPayload.STREAM_CODEC,

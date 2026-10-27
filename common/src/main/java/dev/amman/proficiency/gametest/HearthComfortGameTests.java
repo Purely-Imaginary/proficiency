@@ -108,7 +108,7 @@ public final class HearthComfortGameTests {
             this.helper = helper;
             this.level = helper.getLevel();
             this.hearthRel = hearthRel;
-            this.player = helper.makeMockServerPlayerInLevel();
+            this.player = MockPlayers.make(helper);
             this.player.setGameMode(GameType.SURVIVAL);
             this.payXpBefore = ProficiencyConfig.placedBlocksPayXp();
             this.dataBefore = Hearths.data();
@@ -1090,7 +1090,7 @@ public final class HearthComfortGameTests {
             fx.light(1);
             // The roof covers the four western columns: the column at x = 4 is open sky.
             fx.roof(0, 0, 3, 4);
-            ServerPlayer bob = helper.makeMockServerPlayerInLevel();
+            ServerPlayer bob = MockPlayers.make(helper);
             bob.setGameMode(GameType.SURVIVAL);
             // Seat: the first placer breaks the chair herself; the next player's chair is the one that counts.
             fx.place(at(1, 1), Blocks.OAK_STAIRS);

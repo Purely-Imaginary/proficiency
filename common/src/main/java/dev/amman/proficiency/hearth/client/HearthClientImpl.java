@@ -22,7 +22,13 @@ final class HearthClientImpl implements HearthClient {
         // A stage sealed is the stages lane's moment (its DiscoveryPayload banner and world sounds); the
         // open panel plays its own unlock sweep when the stage it shows rises.
         HearthView.acceptState(payload, Util.getMillis());
-        if (payload.reason() == HearthStatePayload.PANEL || payload.reason() == HearthStatePayload.CAMPFIRE) {
+        if (payload.reason() == HearthStatePayload.PANEL && dev.amman.proficiency.client.stone.SkillstoneScreen.modern()) {
+            // ui.style = MODERN: the Hearth face of the Skillstone.
+            dev.amman.proficiency.client.stone.SkillstoneScreen.openHearth();
+        } else if (payload.reason() == HearthStatePayload.CAMPFIRE && dev.amman.proficiency.client.stone.SkillstoneScreen.modern()) {
+            // ui.style = MODERN: a plain campfire's preview as a slab page (1.34.0).
+            dev.amman.proficiency.client.stone.StoneCampfireScreen.open();
+        } else if (payload.reason() == HearthStatePayload.PANEL || payload.reason() == HearthStatePayload.CAMPFIRE) {
             HearthScreen.open();
         }
     }
@@ -40,6 +46,11 @@ final class HearthClientImpl implements HearthClient {
     @Override
     public void onLedger(HearthLedgerPayload payload) {
         HearthView.acceptLedger(payload);
+    }
+
+    @Override
+    public void onBuildPlan(dev.amman.proficiency.hearth.net.HearthBuildPlanPayload payload) {
+        HearthBuildScreen.accept(payload);
     }
 
     @Override

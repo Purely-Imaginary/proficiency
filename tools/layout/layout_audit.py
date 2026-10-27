@@ -14,9 +14,12 @@ glyphs_path, lang_dir, out_path = sys.argv[1:4]
 G = {int(k): v for k, v in json.load(open(glyphs_path)).items()}
 LANGS = ['en_us', 'pl_pl', 'zh_cn', 'ru_ru', 'pt_br', 'es_es', 'de_de', 'fr_fr', 'ja_jp', 'ko_kr', 'tr_tr', 'uk_ua']
 D = {l: json.load(open(f'{lang_dir}/{l}.json')) for l in LANGS}
-SKILLS = ['alchemy', 'archery', 'axes', 'beastslaying', 'blocking', 'charger', 'cooking', 'courage', 'crossbows',
-          'decorating', 'endurance', 'engineering', 'excavation', 'farming', 'fishing', 'guardian', 'homebuilder', 'jumping', 'maces',
-          'masonry', 'mining', 'nightwalker', 'running', 'smithing', 'sneaking', 'social', 'spellcasting',
+# A key a language lacks falls back to English in the game (the English-only keys, docs/english-only), so audit that text.
+for _l in LANGS[1:]:
+    D[_l] = {**D['en_us'], **D[_l]}
+SKILLS = ['alchemy', 'archery', 'axes', 'beastslaying', 'blocking', 'charger', 'commerce', 'cooking', 'courage', 'crossbows',
+          'decorating', 'endurance', 'engineering', 'excavation', 'farming', 'fishing', 'guardian', 'homebuilder', 'husbandry', 'jumping', 'maces',
+          'masonry', 'mining', 'nightwalker', 'riding', 'running', 'smithing', 'sneaking', 'social', 'spellcasting',
           'spelunking', 'swimming', 'swords', 'tactician', 'tridents', 'unarmed', 'wayfaring', 'woodcutting']
 CATS = ['combat', 'gathering', 'movement', 'crafting', 'mastery', 'expedition', 'construction', 'social', 'survival']
 

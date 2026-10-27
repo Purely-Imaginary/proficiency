@@ -1,6 +1,7 @@
 package dev.amman.proficiency.client;
 
 import dev.amman.proficiency.skill.Mastery;
+import dev.amman.proficiency.skill.MasteryEffects;
 import dev.amman.proficiency.skill.PlayerSkills;
 import dev.amman.proficiency.skill.Skill;
 import dev.amman.proficiency.skill.SkillMath;
@@ -68,6 +69,56 @@ public final class MasteryStars {
             int done = Math.min(cost, (int) Math.floor(skills.overflow(skill)));
             lines.add(Component.translatable("proficiency.tooltip.stars.next", done, cost,
                     (int) Math.floor(skills.starProgress(skill) * 100)).withStyle(ChatFormatting.GRAY));
+        }
+        lines.addAll(riderTooltip(skills, skill));
+        return lines;
+    }
+
+    /** The rider's current value at the stars that count (star 1's when none is earned yet). */
+    private static Component riderDesc(Skill skill, int stars) {
+        MasteryEffects.Effect effect = MasteryEffects.of(skill);
+        return Component.translatable(effect.descKey(), MasteryEffects.format(effect.at(Math.max(1, stars))));
+    }
+
+    /**
+     * The skill's Mastery rider as one header line: its name and what it does at the stars earned
+     * (star 1's number, marked, when none is). Empty below level 100 or with Mastery off.
+     */
+    public static String riderLine(PlayerSkills skills, Skill skill) {
+        if (skills.level(skill) < SkillMath.MAX_LEVEL || Mastery.maxStars() <= 0 || MasteryEffects.of(skill) == null) {
+            return "";
+        }
+        int stars = MasteryEffects.stars(skills, skill);
+        MasteryEffects.Effect effect = MasteryEffects.of(skill);
+        if (stars < 1) {
+            return Component.translatable("proficiency.mastery.header.locked",
+                    Component.translatable(effect.nameKey())).getString();
+        }
+        return Component.translatable("proficiency.mastery.header", text(stars),
+                Component.translatable(effect.nameKey()).getString() + ": " + Component.translatable(effect.shortKey(),
+                        MasteryEffects.format(effect.at(stars))).getString())
+                .getString();
+    }
+
+    /** The rider's hover: name, what it does now, and with Shift the whole table of stars. */
+    public static List<Component> riderTooltip(PlayerSkills skills, Skill skill) {
+        List<Component> lines = new ArrayList<>();
+        if (skills.level(skill) < SkillMath.MAX_LEVEL || Mastery.maxStars() <= 0 || MasteryEffects.of(skill) == null) {
+            return lines;
+        }
+        MasteryEffects.Effect effect = MasteryEffects.of(skill);
+        int stars = MasteryEffects.stars(skills, skill);
+        lines.add(Component.translatable("proficiency.mastery.tip.title", Component.translatable(effect.nameKey()))
+                .withStyle(ChatFormatting.GOLD));
+        lines.add(riderDesc(skill, stars).copy().withStyle(ChatFormatting.GRAY));
+        if (TooltipDetail.detailed()) {
+            StringBuilder table = new StringBuilder();
+            for (int n = 1; n <= Mastery.MAX_STARS; n++) {
+                table.append(n > 1 ? " / " : "").append(MasteryEffects.format(effect.at(n)));
+            }
+            lines.add(Component.translatable("proficiency.mastery.tip.table", table.toString())
+                    .withStyle(ChatFormatting.YELLOW));
+            lines.add(Component.translatable("proficiency.mastery.tip.never").withStyle(ChatFormatting.DARK_GRAY));
         }
         return lines;
     }

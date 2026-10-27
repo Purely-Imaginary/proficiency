@@ -100,6 +100,13 @@ public final class ClientConfigScreen extends Screen {
             return CycleButton.onOffBuilder(on).create(x, y, rowWidth, 20, label,
                     (button, next) -> value.set(next));
         }
+        if (current instanceof UiStyle style) {
+            ForgeConfigSpec.ConfigValue<UiStyle> value = (ForgeConfigSpec.ConfigValue<UiStyle>) entry.value();
+            return CycleButton.<UiStyle>builder(v -> Component.translatable(LANG + "ui.style." + v.name().toLowerCase(java.util.Locale.ROOT)))
+                    .withValues(UiStyle.values()).withInitialValue(style)
+                    .create(x, y, rowWidth, 20, label,
+                            (button, next) -> ProficiencyClientConfig.setUiStyle(next));
+        }
         boolean whole = current instanceof Integer;
         double number = ((Number) current).doubleValue();
         return new Slider(x, y, label, entry, whole, number);

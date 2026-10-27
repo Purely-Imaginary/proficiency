@@ -1,0 +1,14 @@
+# Lang keys that exist in en_us only (Husbandry, 2026-10-26 languages override). A key whose name
+# contains one of these lines is not required in the other 11 languages; the game falls back to English.
+# One substring per line. A later translation pass deletes the line once the key is translated.
+husbandry
+synergy.farm_to_table
+synergy.feed_the_herd
+synergy.packmaster
+synergy.fresh_dairy
+synergy.stable_roof
+synergy.village_herd
+synergy.watchdog
+synergy.trail_companion
+synergy.brave_hounds
+synergy.honey_tonic

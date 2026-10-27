@@ -84,6 +84,12 @@ class HearthForgeDataTest {
                         assertTrue(y.isJsonObject() && y.getAsJsonObject().get("id").getAsString().equals(x.getAsString())
                                 && !y.getAsJsonObject().get("required").getAsBoolean(),
                                 x + " is 1.21-only: optional in " + forge + ", got " + y);
+                    } else if (x.isJsonObject() && x.getAsJsonObject().get("id").getAsString().startsWith("#c:")) {
+                        // 1.21's common tags (#c:chests) are #forge: tags on 1.20.1, optional on both.
+                        String id = "#forge:" + x.getAsJsonObject().get("id").getAsString().substring(3);
+                        assertTrue(y.isJsonObject() && y.getAsJsonObject().get("id").getAsString().equals(id)
+                                && !y.getAsJsonObject().get("required").getAsBoolean(),
+                                x + " is " + id + " on 1.20.1, optional, in " + forge + ", got " + y);
                     } else {
                         assertEquals(x, y, "entry " + i + " of " + forge);
                     }

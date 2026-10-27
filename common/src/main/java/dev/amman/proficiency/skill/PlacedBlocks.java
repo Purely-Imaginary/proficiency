@@ -222,6 +222,19 @@ public final class PlacedBlocks {
         return !SkillTools.isRipeCrop(state);
     }
 
+    /**
+     * {@link #isUnpaid} without its one side effect: a mark whose block changed is left for the break to
+     * drop. The Jade tooltip asks this one, so a look never changes saved state.
+     */
+    public static boolean peekUnpaid(Level level, BlockPos pos, BlockState state) {
+        if (!(level instanceof ServerLevel server) || ProficiencyConfig.placedBlocksPayXp()) {
+            return false;
+        }
+        PlacedBlockStore store = store(server);
+        return !store.isEmpty() && store.isMarked(pos.getX(), pos.getY(), pos.getZ())
+                && store.hashAt(pos.getX(), pos.getY(), pos.getZ()) == hash(state) && !SkillTools.isRipeCrop(state);
+    }
+
     /** The block is gone: drops the mark and says whether it was an unpaid one. */
     public static boolean consume(Level level, BlockPos pos, BlockState state) {
         boolean unpaid = isUnpaid(level, pos, state);

@@ -1,0 +1,28 @@
+{
+  "parent": "proficiency:level_survival_50",
+  "display": {
+    "icon": {
+      "id": "minecraft:lantern"
+    },
+    "title": {
+      "translate": "advancement.proficiency.level_survival_100.title"
+    },
+    "description": {
+      "translate": "advancement.proficiency.level_survival_100.desc"
+    },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "event": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "event"
+    ]
+  ]
+}

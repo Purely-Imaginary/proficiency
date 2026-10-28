@@ -190,6 +190,7 @@ public final class TalentService {
                 continue;
             }
             Synergy synergy = Synergies.byId(id);
+            dev.amman.proficiency.haul.HaulService.onSynergy(player, id);
             player.sendSystemMessage(Component.translatable("proficiency.synergy.awakened",
                             Component.translatable(synergy.nameKey()).copy().withStyle(ChatFormatting.BOLD))
                     .withStyle(ChatFormatting.LIGHT_PURPLE));

@@ -39,6 +39,8 @@ public class Proficiency {
         MinecraftForge.EVENT_BUS.addGenericListener(net.minecraft.world.entity.Entity.class,
                 dev.amman.proficiency.hearth.HearthAttachments::attach);
         ProficiencyNetwork.register();
+        dev.amman.proficiency.net.HaulNetwork.register();
+        dev.amman.proficiency.net.CoopNetwork.register();
         // Forge resets the held stack around the place event, so refunds given there wait a tick.
         dev.amman.proficiency.event.RefundGuard.deferPlacementRefunds = true;
         // Tactician's side of Hammer and Anvil hooks into Charger's first blood.

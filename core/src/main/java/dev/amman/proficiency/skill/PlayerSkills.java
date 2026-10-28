@@ -93,8 +93,10 @@ public final class PlayerSkills {
                             .optionalFieldOf("expertise", Map.of())
                             .forGetter(skills -> Map.copyOf(skills.expertise)),
                     // Seam Sense's Motherlode charge (1.10.0). Saved, and synced since protocol 10.
-                    Codec.DOUBLE.optionalFieldOf("lode", 0.0)
-                            .forGetter(skills -> skills.lode),
+                    // The lode charge and the personal records share one slot: a record group is capped at 16 fields.
+                    Codec.mapPair(Codec.DOUBLE.optionalFieldOf("lode", 0.0),
+                                    PlayerRecords.CODEC.optionalFieldOf("records", new PlayerRecords()))
+                            .forGetter(skills -> com.mojang.datafixers.util.Pair.of(skills.lode, skills.records)),
                     // The Codex (1.21.0): milestones already announced, and the title shown in the tab list.
                     CodexState.CODEC.optionalFieldOf("codex", new CodexState(List.of(), ""))
                             .forGetter(skills -> new CodexState(List.copyOf(skills.codexSeen), skills.codexTitle))
@@ -286,6 +288,13 @@ public final class PlayerSkills {
     /** Seam Sense's Motherlode charge, 0 to 4 (see {@link LodeMath}). Saved; a death empties it. */
     private double lode;
 
+    /**
+     * Personal records (1.37.0): best XP rate, longest Tempo chain, biggest grant and the skill's own best, per skill.
+     * Saved, copied across a respawn, never touched by a death or {@link #reset()}; not in the sync packet (its own
+     * packet carries them). See {@link PlayerRecords}.
+     */
+    private final PlayerRecords records = new PlayerRecords();
+
     /** Codex milestones ({@code skill:kinds}) already announced; a login backfill adds without announcing. */
     private final Set<String> codexSeen = new HashSet<>();
 
@@ -301,6 +310,11 @@ public final class PlayerSkills {
     private transient boolean dirty;
 
     public PlayerSkills() {
+    }
+
+    /** The player's personal records (live object: raise it, reset it). */
+    public PlayerRecords records() {
+        return records;
     }
 
     public int level(Skill skill) {
@@ -576,7 +590,14 @@ public final class PlayerSkills {
     }
 
     public int placesSeen() {
-        return visited.size();
+        int n = 0;
+        for (String key : visited) {
+            // The milestone ceremonies' "already celebrated" marks are not places.
+            if (!key.startsWith(MilestoneTiers.MARK_PREFIX)) {
+                n++;
+            }
+        }
+        return n;
     }
 
     public long cooldownRemaining(Skill skill, long now) {
@@ -1176,6 +1197,11 @@ public final class PlayerSkills {
         }
     }
 
+    /** Changes when the set of paid nodes does; item tooltips rebuild their index on it. */
+    public int paidSignature() {
+        return paid.hashCode() * 31 + paid.size();
+    }
+
     public boolean hasPaid(Talent talent) {
         return paid.contains(talent.key());
     }
@@ -1204,6 +1230,18 @@ public final class PlayerSkills {
         if (isFull(talent)) {
             return TalentOutcome.MAXED;
         }
+        TalentOutcome gate = gate(talent);
+        if (gate != null) {
+            return gate;
+        }
+        if (pointsAvailable(talent.skill()) < talent.costPerRank()) {
+            return TalentOutcome.NOT_ENOUGH_POINTS;
+        }
+        return TalentOutcome.OK;
+    }
+
+    /** The tree rules alone, without points: the first of parents-not-full and level-too-low that fails, or null. */
+    private TalentOutcome gate(Talent talent) {
         for (String parent : talent.parents()) {
             Talent node = Talents.get(talent.skill(), parent);
             if (node != null && !isFull(node)) {
@@ -1213,10 +1251,16 @@ public final class PlayerSkills {
         if (level(talent.skill()) < talent.requiredLevel()) {
             return TalentOutcome.LEVEL_TOO_LOW;
         }
-        if (pointsAvailable(talent.skill()) < talent.costPerRank()) {
-            return TalentOutcome.NOT_ENOUGH_POINTS;
-        }
-        return TalentOutcome.OK;
+        return null;
+    }
+
+    /**
+     * True when the level gate is open and every parent is full, the same two rules {@link #check} runs
+     * before it looks at points. Material tooltips use it: a node you could unlock right now if you had the
+     * materials (and a spare point).
+     */
+    public boolean isUnlockableNow(Talent talent) {
+        return !isFull(talent) && gate(talent) == null;
     }
 
     /** Trees with their capstone taken, which is what Renaissance counts. */
@@ -1328,6 +1372,7 @@ public final class PlayerSkills {
         this.codexSeen.clear();
         this.codexSeen.addAll(other.codexSeen);
         this.codexTitle = other.codexTitle;
+        this.records.copyFrom(other.records);
         for (int i = 0; i < rested.length; i++) {
             this.rested[i] = other.rested[i] == null ? null : other.rested[i].copy();
         }
@@ -1354,11 +1399,13 @@ public final class PlayerSkills {
             Map<String, Long> cooldowns, List<String> visited, boolean onboarded, long streak, boolean xpFeed,
             long buildDay, Map<String, Integer> buildFirst, Map<String, MasteryState> mastery,
             Map<String, RestedPool.State> rested, Map<String, Long> usedDay, Map<String, Integer> expertise,
-            double lode, CodexState codex) {
+            com.mojang.datafixers.util.Pair<Double, PlayerRecords> lodeAndRecords, CodexState codex) {
+        double lode = lodeAndRecords.getFirst();
         PlayerSkills skills = new PlayerSkills();
         codex.seen().stream().filter(id -> Codex.parse(id) != null).forEach(skills.codexSeen::add);
         skills.codexTitle = Codex.parse(codex.title()) == null ? "" : codex.title();
         skills.lode = LodeMath.sane(lode);
+        skills.records.copyFrom(lodeAndRecords.getSecond());
         // A node that left the table is dropped, and a rank past a node's maximum is clamped.
         expertise.forEach((id, rank) -> {
             ExpertiseNode node = Expertise.byId(id);

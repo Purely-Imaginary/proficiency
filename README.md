@@ -1,181 +1,239 @@
 # Proficiency
 
 A Valheim-style skill system for Minecraft. You get better at what you do. Mining raises Mining,
-swinging an axe raises Axes, and sneaking past mobs raises Sneaking. There is no class to pick and no
-character sheet to fill in.
+a sword raises Swords, and sneaking past mobs raises Sneaking. You pick no class and fill in no
+character sheet. There are 38 skills, each from 0 to 100, and each has a passive, a signature
+move, an active ability, a talent tree and five Mastery stars after level 100. Trees link to each
+other through 187 synergies. On top of that sits the Hearth, a campfire that a group grows into the
+heart of its home.
 
-One codebase builds three jars:
+![Filling a tree's root wakes the skill: the socket rises, the materials fly in and the card slams into the Face](docs/media/hero-unlock-slam.gif)
 
 | Jar | Loader | Minecraft | Java |
 |---|---|---|---|
 | `proficiency-<version>.jar` | NeoForge 21.1.192 or newer | 1.21.1 | 21 |
-| `proficiency-<version>-fabric.jar` | Fabric Loader 0.16.14 or newer, Fabric API 0.116.17+1.21.1 | 1.21.1 | 21 |
+| `proficiency-<version>-fabric.jar` | Fabric Loader 0.16.14 or newer | 1.21.1 | 21 |
 | `proficiency-<version>-forge-1.20.1.jar` | Forge 47.4.0 or newer | 1.20.1 | 17 |
 
-![A talent tree](docs/talent-tree.png)
+Downloads: [GitHub releases](https://github.com/Purely-Imaginary/proficiency/releases) and
+[Modrinth](https://modrinth.com/mod/proficiency-skills). Every change is in
+[CHANGELOG.md](CHANGELOG.md).
 
-## What it adds
+## Skills and talent trees
 
-- **38 skills** in six categories, each from 0 to 100. Gathering, crafting, combat, movement,
-  construction and survival. Husbandry (animals), Riding (mounts, boats, minecarts, elytra) and
-  Commerce (villager trades and piglin bartering) are the newest three, each with its own tree and
-  ten synergies, and each guarded against farming.
-- **A passive per skill** that grows with the level, and a **signature proc** from level 25. Mining
-  hits a Motherlode, Woodcutting fells the whole tree, Swords land a Perfect Strike. The proc and
-  the ability switch on only once the first node of the skill's tree is filled.
-- **A talent tree per skill.** One point per level, and every tree can be filled completely by
-  level 100. Branch choices set priority, never a lockout. A respec costs 1 XP level per 10 points.
-- **187 synergies**, and the Renaissance, between trees. Every skill takes part in 9 to 11. Most are numeric boosts; about
-  thirty change how a pair plays (Falling Hammer, Pavise, Dragonbolt, Lifeguard, Moon Garden).
-- **Expertise, a tree across all skills.** One point per 100 skill levels summed over every skill
-  and one per 5 Mastery stars, 70 in all. Thirteen nodes of global power (XP, passives by category,
-  proc chance and power, ability duration and cooldown) that one player can fill completely.
-- **Critical hits count.** A critical melee hit pays 1.5x hit XP and doubles the signature move's
-  chance for that hit. Three crit talents: Lunge (Swords), Rend (Axes) and Flow (Unarmed).
-- **An active ability per skill** from level 50. Tap the ability key for the held item's ability,
-  hold it for a wheel with every ability you have unlocked.
-- **Mastery stars and riders.** After level 100 a skill's XP fills an overflow bar that earns up to
-  five gold stars, shown next to the skill name. Every one of the 38 skills turns its stars into a
-  bespoke Mastery rider on its own signature proc, stronger at each star (Swords repair the sword,
-  Axes feed you, Fishing brings Luck, Farming shakes out seeds). A rider only fires when that proc
-  lands, never chains and never softens a death. A death cuts the bar and never takes a star.
-- **Rested XP.** A skill you have not used for a while rests. Its rested pool fills while you are
-  active and away from that skill (up to 1.5 levels' worth, full after about 9 active hours), and
-  every grant in that skill pays double until the pool is spent. The HUD bar and the skills panel
-  show the pool as a faint blue segment. **A death empties every rested pool.**
-- **Teaching, inside Social.** A player near you who is at least 20 levels above you in a skill and
-  is using it fills your rested pool in that skill 3 times as fast. When you spend what they put in,
-  they earn Social XP. Three new Social talents (Quick Study, Wide Classroom, Teacher's Pride) tune
-  it. The mentor XP bonus is +25% now, not +50%, so a student near a teacher is not paid twice.
-- **Fair with big tools and machines.** A hammer, excavator or vein miner pays full XP for the block
-  you aimed at and 10% for each other block of the swing (`aoeXpShare` in the server config). Wands and
-  gadgets pay one placement per tick, refunded blocks cannot be farmed by picking them back up, and
-  target dummies, summons and machines' fake players pay nothing.
-- **The Hearth.** A campfire on a stone platform, lit with flint and steel, becomes a group's
-  Hearth. It grows through six stages, each a layer built around the fire to one of eight designs
-  (Longhouse, Forge, Shrine, Demonic, Gothic, Girly, Overgrown Ruin, Frost Lodge) plus an offering.
-  XP earned near it also charges five pools whose boons go to whoever has warmed up by the fire. A
-  furnished home earns the strongest boons, and a finished one draws sieges, which Siege Horns can
-  also call. The Hearth guide previews every stage in 3D, and a build guide shows the next stage as
-  ghost blocks around the fire (with Patchouli installed, through Patchouli's own visualizer).
-- **The Hearth builds for you.** "Build it for me" sets the next stage's blocks one a minute from
-  the packs and chests in range, with a plan screen where you choose every block. It pays no XP,
-  never touches a player's own block, waits and names what it lacks, and keeps its chunk loaded
-  (`hearth.buildKeepsChunkLoaded`) so a long stage goes on while you are away.
-- **Homebuilder**, the 35th skill. It earns a share of what you do at home plus milestones, gives
-  speed, reach and an item magnet at home, and charges the Hearth's **Reach**: the range grows from
-  24 to 64 blocks as Homebuilder XP is earned in it. On Forge 1.20.1 the ranges show on Xaero's
-  World Map.
-- **The Skillstone.** The default look of the skills screens: one carved slab with nine category
-  runes around a fire well, a Face for every skill (passive, signature, ability, Mastery and its
-  synergies), the talent tree, the Hearth and the Expertise, Mastery, Titles and Journal pages on
-  the same stone, and a one-column layout at small GUI sizes. Holding the ability key opens the
-  **Waywheel**, a stone wheel of the nine categories whose tokens cast an ability on release;
-  right-click pins up to three skills to a belt of sockets beside the hotbar. Click feedback is
-  one kit with one switch (`ui.juicyFeedback`). The old panels stay under `ui.style = CLASSIC`.
-- **Tempo is a fire on the skill bar.** Pixel flames rise along the HUD bar, five heats from embers
-  to white-yellow, with the multiplier beside the bar (`hud.showTempo` turns it off).
-- **Codex titles and advancements.** Finding 10, 25, 50 and 100 kinds in a skill earns Dabbler,
-  Scholar, Savant and Codex for it, 140 titles worn in the tab list (`/skills title`). A Proficiency
-  advancement tab of 61 advancements (skill levels, stars, synergies, Expertise, Hearth stages) can be read by FTB
-  Quests and datapacks. Neither is farmable and neither pays XP.
-- **Jade.** With Jade installed a block or mob shows what it would pay you, with the first-time mark,
-  and a Hearth shows its state. Nothing depends on it.
-- **Trial Chambers and Brushing.** Trial mobs pay Courage and Charger more, a cleared trial pays the
-  skill you fought with, vaults pay Wayfaring once, and brushing pays Excavation (NeoForge and
-  Fabric; Forge 1.20.1 has neither).
-- **A file for a home dashboard.** The server writes `players.json` every five minutes (levels,
-  stars, awake synergies, Expertise, Hearths and their self-builds), read only. See
-  [docs/DASHBOARD-EXPORT.md](docs/DASHBOARD-EXPORT.md).
-- **Survival bonus.** +1% skill XP per active hour alive, up to +50%. A death wipes the bonus and
-  the XP bars, never your levels or talents.
-- **Discovery.** Banners for new biomes, dimensions and structures, a one-time bonus for every new
-  kind of block, mob and item, and a discovery journal.
-- **Items.** The Forester's Compass (finds unvisited biomes and structures), the Friend Compass, and
-  station recipes made with a tool on a station (a ladle on a water cauldron, a smithing hammer on
-  an anvil).
-- **HUD.** The current skill's bar sits above the hotbar with the skill's icon, and XP dots fly into
-  it. A level-up rolls the number over with a small burst, gold on every tenth level. A badge
-  fills as your survival bonus grows. While an ability runs, the screen edge glows in the skill's
-  colour and a ring around the crosshair drains. On cooldown, the item shows a sweep. After a
-  death, a short recap shows the bars you lost. Every tenth level is announced in chat.
-- **Screens and effects.** Spending a talent point animates the node and lights the path to the
-  nodes it opens. The skills panel marks skills you used recently and graphs today's XP. Every
-  skill's proc has its own particle effect, discovery banners reveal their title letter by
-  letter, and tool tooltips show the skill's level, proc chance and ability. Each effect has a
-  switch in `config/proficiency-client.toml`.
-- **Fair XP.** Blocks you placed pay no gathering XP when you break them. Mobs from spawn eggs,
-  dispensers, commands and buckets pay no combat XP, and spawner mobs pay 25%. Unripe crops pay
-  nothing. Kills pay a bonus on top of the hits, bigger for tougher mobs, and the first kill of a
-  new mob type pays a one-time bonus.
-- **XP sources as data.** What a block, mob, structure or biome pays is read from datapack files.
-  A modpack can retune a source, add a modded one or switch one off, with no rebuild and nothing
-  to install on clients. See "Tuning XP with a datapack".
-- **Balance telemetry.** The server counts XP, active time, procs and deaths and writes them to
-  daily files, and a script turns them into a report. See "Balance telemetry".
-- **Tooltips in two layers.** Hovering a tool, a skill or a talent shows a short summary. Hold
-  Shift for everything: the real numbers your passive changes (Block reach 4.5 → 5.1, Break
-  speed ×1.00 → ×1.30), proc chance and power, costs and requirements. Power users can make the
-  detail permanent with one client setting.
-- **12 languages.** English, Polish, Simplified Chinese, Russian, Brazilian Portuguese, Spanish,
-  German, French, Japanese, Korean, Turkish and Ukrainian, each written for meaning with the
-  game's own terms, and every screen laid out so long words wrap instead of clipping.
+The skills key opens the Skillstone, a carved slab with nine category runes around a fire well.
+Each rune glows with its category's average level, and a slate lists its skills. Ember marks show
+where a talent rank is ready to take.
 
-Every tree, node and synergy is listed in [docs/TREES.md](docs/TREES.md). The full list of changes is
-in [CHANGELOG.md](CHANGELOG.md).
+![The Skillstone dial: nine category runes around the fire well, the Combat slate on the right](docs/media/skillstone-dial.png)
+
+- **The Face.** Click a skill to see its passive, signature move, ability, Mastery rider,
+  synergies and records on one stone. At small GUI sizes the Face is one scrolling column.
+- **The Tree.** One talent point per level. Every tree fills completely by level 100, so a branch
+  sets priority, never a lockout. Click for one rank, Shift-click to fill a node. Some nodes also
+  ask for materials, which the node detail lists with what you have.
+- **The unlock slam.** The first node wakes the signature move (and the ability from level 50).
+  The socket rises, the paid materials fly in, and the card slams into the Face.
+- **Respec** costs 1 XP level per 10 points.
+
+![Filling the Crossbows capstone, Siege Master, by clicks](docs/media/talent-tree.gif)
+
+Every tree, node and synergy is listed in [docs/TREES.md](docs/TREES.md). The old panels stay
+available under `ui.style = CLASSIC`.
+
+## Waywheel and belt
+
+Hold the ability key for the Waywheel, a stone wheel of the nine categories. It does not pause the
+game. Flick to a rune and release on a skill to cast its ability. Click a token to open its Face.
+Right-click pins up to three skills to a belt of sockets beside the hotbar. A tap of the key casts
+the ability of the item in your hand.
+
+![The Waywheel opens and flicks through the categories](docs/media/waywheel.gif)
+
+![A cast folds the wheel and flies the token to its belt socket](docs/media/waywheel-belt.gif)
+
+## Tempo
+
+Repeat a skill's action and the XP multiplier climbs, up to +50%. Pixel flames rise along the HUD
+bar, from embers to white-yellow, with the multiplier at the end. Gathering skills keep a chain
+through 3 s of silence and climb +2% a step.
+
+Fights have their own rule. The weapon skills keep a chain through 7 s and climb +5% a hit, so the
+cap is 10 hits away. Courage, Charger, Guardian, Tactician and Blocking ride your live weapon chain.
+A vanilla jump crit doubles the window of the next pause and flares the flames white.
+
+![Combat Tempo: the Swords chain climbs, holds through a pause, and a crit flares the flames white](docs/media/tempo-crit.gif)
+
+## Mastery stars and riders
+
+After level 100 a skill's XP fills an overflow bar that earns up to five gold stars. Each star
+powers that skill's Mastery rider, a bonus on its signature move. Swords echo the slash, Archery
+arrows ricochet, Axes whirl, Engineering pulls loot in with a tractor beam. A rider fires only when
+the signature lands and never chains. A death cuts the bar but never takes a star.
+
+![Six Mastery riders at five stars: Echo Slash, Ricochet, Whirl, Tractor Beam, Tremor, Cave Sense](docs/media/mastery-riders.gif)
+
+## Expertise
+
+One more tree, across every skill. You get one point per 100 skill levels summed over all skills
+and one per 5 Mastery stars, 70 in all. Thirteen nodes give XP, passives by category, signature
+chance and power, and ability duration and cooldown. One player can fill all of it. A respec is
+free at your own lit Hearth. Details: [docs/EXPERTISE-SPEC.md](docs/EXPERTISE-SPEC.md).
+
+![The Expertise page on the Skillstone, Breadth hovered](docs/media/expertise.png)
+
+## Synergies
+
+Two trees that work together wake a synergy. Every skill takes part in 9 to 11 of them. Most are
+numeric boosts, and about thirty change how a pair plays (Falling Hammer, Pavise, Dragonbolt,
+Lifeguard, Moon Garden). A synergy that wakes slams onto the screen once, then waits in a small
+counter by the hotbar.
+
+![Prospector's Forge wakes: the synergy slam and the counter](docs/media/synergy-slam.gif)
+
+## The Hearth and Homebuilder
+
+Light a campfire on a stone platform with flint and steel and it becomes your group's Hearth. It
+grows through six stages. Each stage is a layer built around the fire to one of eight designs plus
+an offering. XP earned near the Hearth charges five pools whose boons go to whoever warmed up by
+the fire. A furnished home earns the strongest boons, and a finished one draws sieges.
+
+![The Hearth page: stage stones, the fireplace, pool crucibles and boons](docs/media/hearth.png)
+
+- **Eight designs.** Longhouse, Forge, Shrine, Demonic, Gothic, Girly, Overgrown Ruin and Frost
+  Lodge. The guide previews each stage in 3D, and a build guide shows the next stage as ghost
+  blocks (through Patchouli's visualizer when Patchouli is installed).
+- **Build it for me.** The Hearth sets the next stage one block a minute from the packs and chests
+  in range. You choose every block on a plan screen. It pays no XP and never touches your own
+  blocks.
+- **Homebuilder** is a skill of its own. It earns a share of what you do at home, gives speed,
+  reach and an item magnet there, and grows the Hearth's range from 24 to 64 blocks.
+- **Campfire page.** An empty hand on a plain campfire shows what stage I wants: the offering, the
+  build, the empty pools and the build guide.
+
+![The Hearth guide: the eight designs](docs/media/homebuilder-designs.png)
+
+![A campfire's page: the build guide turns on, and the Hearth refuses until stage I is built](docs/media/campfire-page.gif)
+
+## Juice
+
+Small effects make progress visible. Each one has its own client switch, and Distortion Effects at
+0% (or `ui.juicyFeedback = false`) stops the movement while it keeps the numbers.
+
+- **HUD flights.** XP dots fly into the skill bar. Bonus loot flies to its hotbar slot. On a
+  level-up a coin flies from the bar into the coin brazier right of the hotbar.
+- **Coin brazier and ready markers.** The brazier says how many talent ranks you can take now.
+  The dial, the slate, the Face and the tree mark the same ranks, and a toast tells you when one
+  becomes ready.
+- **Milestones.** Levels 10, 25, 50, 75 and 100 get a banner and a firework.
+- **Records.** Each skill keeps four personal bests, such as XP per minute and the longest Tempo
+  chain. A new best gets a toast.
+- **Today's Haul.** A bed shows a Today's Haul button. The card counts up what you earned since
+  the last haul and stamps a rating.
+- **Co-op streams.** A partner's XP streams from them into your bar when you earn together, and
+  their faces sit in a row of pips.
+- **HUD stack.** Up to three other skills that earn XP get a small row above the main line, with
+  their own bars and level-ups.
+
+![A level-up coin flies from the bar into the brazier](docs/media/coin-brazier.gif)
+
+![Today's Haul: rows fill one by one and the rating stamps down](docs/media/todays-haul.gif)
+
+![The HUD stack: Running, Jumping and Charger rows above the Swords line](docs/media/hud-stack.gif)
+
+![Co-op streams: a partner's mining XP streams into your bar](docs/media/coop-streams.gif)
+
+![Mining 50: the milestone banner and firework](docs/media/milestone.gif)
+
+![A personal best toast](docs/media/personal-best.gif)
+
+## Jade
+
+With [Jade](https://modrinth.com/mod/jade) installed, a block or a mob shows what it would pay you
+with the item in your hand, and a Hearth shows its state. The line is one short row: the skill's
+icon and the XP. Another player shows their title, best skills and what you gain together. Five
+toggles sit under "Proficiency" in Jade's plugin settings.
+
+![Jade before and after the trim: "Mining +0.6 XP" becomes the skill icon and "+0.6 XP"](docs/media/jade.png)
+
+## Material tooltips
+
+An item's tooltip lists the talent nodes you can open now that want it as a material, and how many
+more you need. Shift adds the nodes that open later.
+
+![Leather's tooltip: three nodes need it now, three more later](docs/media/material-tooltip.png)
 
 ## Install
 
-Put the jar for your loader in the `mods/` folder of the **server and every client**. The mod
-registers items, so a client without it cannot join a server that has it. Since 1.21.0 the network
-protocol is 13 on NeoForge and Fabric and 15 on Forge 1.20.1: an older client cannot join, so update
-the server, the clients and any modpack together. Never leave two Proficiency jars in one `mods/` folder.
+Put the jar for your loader in the `mods/` folder of the server and of every client. The mod
+registers items, so a client without it cannot join a server that has it. Never leave two
+Proficiency jars in one `mods/` folder.
 
-An existing server keeps its saved `mentorBonus = 0.5`. The new default is 0.25: set it by hand in
-`config/proficiency-server.toml` if you want the new balance.
+| Loader | Required | Optional |
+|---|---|---|
+| NeoForge 1.21.1 | nothing | Jade, Patchouli |
+| Fabric 1.21.1 | Fabric API, Forge Config API Port | Jade, Patchouli |
+| Forge 1.20.1 | nothing | Jade, Patchouli, Xaero's World Map |
 
-Default keys on NeoForge and Fabric: **K** opens the skills panel, **G** uses an ability (hold it
-for the wheel). On Forge 1.20.1 the keys are **I** and **`** (backtick), because K and G are taken
-in the Reclamation pack. All of them can be rebound under Controls.
+The network protocol is 13 on NeoForge and Fabric and 15 on Forge 1.20.1. Update the server, the
+clients and any modpack together.
 
-## Commands
+Default keys on NeoForge and Fabric: **K** opens the Skillstone and **G** casts an ability (hold
+it for the Waywheel). On Forge 1.20.1 the keys are **I** and **`** (backtick). All of them can be
+rebound under Controls.
 
-| Command | Who |
+## Config
+
+`config/proficiency-client.toml` is per player. Mods > Proficiency > Config opens it in game.
+
+| Key | Default | What it does |
+|---|---|---|
+| `ui.style` | `MODERN` | `MODERN` is the Skillstone and the Waywheel, `CLASSIC` the old panels |
+| `ui.juicyFeedback` | true | Click feedback and movement in every effect |
+| `ui.unlockSlam`, `ui.synergySlam`, `ui.milestoneCeremonies` | true | The three big moments |
+| `ui.pointCoin`, `ui.bonusFlight`, `ui.restedPour` | true | The HUD flights |
+| `ui.hudStack` | true | Rows for other skills that earn XP |
+| `ui.readyToasts`, `ui.recordToasts` | true | Ready-rank and personal-best toasts |
+| `ui.haulCard`, `ui.coopStreams` | true | Today's Haul and co-op streams |
+| `ui.materialTooltips` | true | Talent nodes in item tooltips |
+| `ui.skillIcons` | true | Skill icons instead of names in short lines, Jade included |
+| `ui.tempoCritFlare`, `hud.showTempo` | true | The Tempo flames and the crit flare |
+| `tooltip.alwaysDetailed` | false | Always show the Shift layer of tooltips |
+
+`config/proficiency-server.toml` is created on the server's first start. Its main sections:
+
+| Section | What it tunes |
 |---|---|
-| `/skills` | anyone, own levels |
-| `/proficiency perks [skill]` | anyone, own trees |
-| `/proficiency respec <skill>` | anyone, empties one tree for XP levels |
-| `/proficiency synergies` | anyone, every synergy and your progress |
-| `/proficiency expertise` | anyone, your Expertise tree in chat |
-| `/skills magnet [on\|off]` | anyone, Homebuilder's item magnet |
-| `/proficiency recipes` | anyone, the station recipes |
-| `/skills title [list\|<title>]` | anyone, the Codex title you wear |
-| `/proficiency top <skill>` | anyone, best online player in that skill |
-| `/skills xpfeed [on\|off]` | anyone, a live XP feed with every multiplier |
-| `/proficiency set <player> <skill> <level>` | op |
-| `/proficiency addxp <player> <skill> <amount>` | op |
-| `/proficiency stars <player> <skill> <0-5>` | op, sets a skill to level 100 with that many stars |
-| `/proficiency rested <player> <skill> <xp>` | op, sets a skill's rested pool (0 empties it) |
-| `/proficiency xpsources <id>` | op, which XP rule matched a block, item, mob, structure or biome and why |
-| `/proficiency xpaudit <mod>` | op, a mod's ores, logs, crops and mobs that pay nothing or the wrong skill |
-| `/proficiency reset <player>` | op |
+| `progression` | XP rate, the level curve, Mastery stars, the kill bonus, `aoeXpShare` for area tools |
+| `tempo` | The chain window and step; `tempo.combat` for the weapon skills |
+| `survival` | The survival bonus (+1% XP per active hour alive, up to +50%) |
+| `rested` | Rested XP and teaching |
+| `company` | Mentor and group bonuses, co-op streams, the Jade player line |
+| `records`, `haul`, `telemetry` | Personal records, Today's Haul, balance telemetry |
+| `hearth`, `homebuilder` | The Hearth's range and sieges, Homebuilder's share and milestones |
 
-## Configuration
+Levels cost `8 + 2 * L^1.35` XP by default, about 44,000 XP from 0 to 100. A death wipes the
+survival bonus and the progress toward each next level, never a level or a talent.
 
-- `config/proficiency-server.toml`, created on first start: per-skill switches and XP rates, the
-  level curve, the survival bonus, abilities, the placed-block and spawner rules
-  (`placedBlocksPayXp`, `spawnerMobXp`, `artificialMobXp`), the kill bonus (`killBonusBase`,
-  `killBonusHealthDivisor`, `killBonusCap`, `killBonusBossMultiplier`), Mastery stars
-  (`masteryStarFactor`, `masteryMaxStars`, 0 turns them off) and telemetry (`telemetry.enabled`,
-  `telemetry.retentionDays`) and rested XP and teaching (`rested.capFactor`, 0 turns it off,
-  `rested.fullHours`, `rested.extra`, `rested.teachFactor`, `rested.teacherShare`).
-- `config/proficiency-client.toml`, per player: banners, the XP feed position, the XP dots, every
-  visual effect, and `tooltip.alwaysDetailed` (always show the Shift layer).
+## Compatibility
 
-Levels cost `8 + 2 * L^1.35` XP by default, about 44,000 XP from 0 to 100. Change `curveFloor`,
-`curveBase` and `curveExponent` in the server config to make it faster or slower. Star n costs n
-times the XP of level 99 to 100 (times `masteryStarFactor`), so all five stars cost about as much
-as the last 15 levels.
+Nothing is a hard dependency beyond the loader's own. With these mods installed, Proficiency picks
+them up:
+
+- Area tools (hammers, excavators, paxels, vein miners) pay full XP for the block you aimed at and
+  10% for each other block of the swing.
+- Create, Applied Energistics 2 and storage mods count for Engineering, Ars Nouveau for
+  Spellcasting, Farmer's Delight for Cooking.
+- Twilight Forest, the Aether and boss mods count for Beastslaying. Furniture mods such as
+  Supplementaries and Chipped count for Decorating.
+- Falling Tree makes Timber stand down, and Right Click Harvest pays Farming.
+- Patchouli draws the Hearth build guide. Jade shows XP and Hearth state. Xaero's World Map shows
+  Hearth ranges on Forge 1.20.1.
+- Twelve languages: English, Polish, Simplified Chinese, Russian, Brazilian Portuguese, Spanish,
+  German, French, Japanese, Korean, Turkish and Ukrainian.
+
+Placed blocks, spawn-egg and spawner mobs, unripe crops, dummies and fake players pay nothing or
+little, so a farm cannot level a skill.
 
 ## Tuning XP with a datapack
 
@@ -185,8 +243,8 @@ server) and run `/reload`. Only the server reads these files. The mod's own rule
 `data/proficiency/proficiency/xp_sources/defaults.json` inside the jar, and with no datapack the
 game pays exactly what 1.2.0 paid.
 
-A file is a JSON object with one array of rules per domain: `break`, `place`, `craft`, `cast`,
-`kill`, `kill_bonus`, `boss`, `structure`, `biome`, `dimension` and `first_time`. A rule names what
+A file is a JSON object with one array of rules per domain: `break`, `brush`, `place`, `craft`,
+`cast`, `kill`, `kill_bonus`, `boss`, `structure`, `biome`, `dimension` and `first_time`. A rule names what
 it matches (`"match"`: an id, a `#tag`, `mymod:*` or `*`), the `skill` (or `"none"` to pay
 nothing) and the `xp`, a number or `{ "base", "per_hardness", "per_health", "min", "max" }`. The
 highest `priority` wins, then the more specific match, then the rule loaded later. A bad file or
@@ -229,49 +287,25 @@ rule is logged and skipped, never a crash.
 
 `/proficiency xpsources <id>` shows which rule won for an id and why the others lost.
 `/proficiency xpaudit <mod>` lists what a mod adds that pays nothing or the wrong skill. The
-Reclamation pack's own datapack is in `forge-1.20.1/packs/reclamation/datapack/`.
+Reclamation modpack's datapack is an example: `forge-1.20.1/packs/reclamation/datapack/`.
 
 The held-block ability key on a client works out the build skill from the shipped defaults, because
 clients never receive the datapack. That changes only which ability a held block fires, never the XP.
 
-## Balance telemetry
-
-Every server counts, in memory, what its players earn and appends it to
-`<world>/proficiency/telemetry/YYYY-MM-DD.jsonl` every five minutes and when the server stops. It
-is on by default, sends no packets and does no disk work per grant. `telemetry.retentionDays`
-(60) deletes old files at start.
-
-`tools/balance_report.py` turns the files into one HTML page and a markdown summary: XP per active
-hour, source mix, dead and runaway skills, time to level, proc rate against the configured chance
-and death cost. `--anon` hides player names.
-
-## Works with
-
-Nothing is a hard dependency. With these installed the mod picks them up: Create, Applied
-Energistics 2 and storage mods (Engineering), Ars Nouveau (Spellcasting), Farmer's Delight
-(Cooking), Twilight Forest, the Aether and boss mods (Beastslaying), furniture mods such as
-Supplementaries and Chipped (Decorating), Falling Tree (Timber stands down), Right Click Harvest,
-Patchouli (the Hearth build guide uses its visualizer), Jade (what a block or mob pays) and Xaero's World Map (Hearth ranges, Forge
-1.20.1).
-
 ## Build
 
-The three loaders build from this one tree. `core/` is pure Java shared by every jar, `common/` is
-the Minecraft 1.21.1 code NeoForge and Fabric share, and `neoforge/`, `fabric/` and `forge-1.20.1/`
-hold what each loader needs.
+One tree builds the three jars. `core/` is pure Java shared by every jar, `common/` is the
+Minecraft 1.21.1 code that NeoForge and Fabric share, and `neoforge/`, `fabric/` and
+`forge-1.20.1/` hold what each loader needs.
 
 ```sh
-./gradlew build
+./gradlew assemble
 ```
 
-The jars are in `neoforge/build/libs/`, `fabric/build/libs/` and `forge-1.20.1/build/libs/`.
-`tools/check-all.sh` builds all three, runs every unit test and then the three in-world GameTest
-suites one after another. `./gradlew :neoforge:runGameTestServer`, `:fabric:runGametest` and
-`:forge-1.20.1:runGameTestServer` run one suite. Java 21 is needed, and the Forge 1.20.1 project
-also needs a Java 17 that Gradle can find.
-
-The branches `fabric-1.21.1` and `forge-1.20.1` hold the old per-loader releases up to 1.2.0 and
-are no longer updated. Everything from 1.3.0 on is on `main`.
+The jars land in `neoforge/build/libs/`, `fabric/build/libs/` and `forge-1.20.1/build/libs/`.
+`tools/check-all.sh` builds all three and runs every unit test and the three GameTest suites. Java
+21 is needed, and the Forge 1.20.1 project also needs a Java 17 that Gradle can find. The branches
+`fabric-1.21.1` and `forge-1.20.1` hold the old per-loader releases up to 1.2.0 and are frozen.
 
 ## License
 

@@ -117,6 +117,8 @@ public final class TalentTreeScreen extends Screen {
     private List<HLine> headerLines = List.of();
     /** The Mastery rider line of the header (empty below level 100), and its place for the hover. */
     private String riderText = "";
+    /** The one-line Records summary of the header (empty with no records), 1.37.0. */
+    private String recordsText = "";
     private List<String> footerLines = List.of();
     private String layoutKey = "";
     /** Mastery stars drawn after the title (0 below level 100), and where, for the hover. */
@@ -197,9 +199,24 @@ public final class TalentTreeScreen extends Screen {
     }
 
     private Component summaryLine(PlayerSkills skills) {
-        return Component.translatable("proficiency.tree.summary",
-                skills.level(skill), skills.pointsAvailable(skill),
+        // "N ready" counts the ranks you can take now (1.55.0); the unspent total is in the brazier hovers.
+        return Component.translatable("proficiency.tree.summary_ready",
+                skills.level(skill), SpendableClient.summary().ready(skill),
                 skills.pointsSpent(skill), Talents.fullTreeCost(skill));
+    }
+
+    /** The signature line is greyed with a padlock while the signature is not active (1.55.0). */
+    private boolean procLocked;
+    /** The Mastery rider line is greyed with a padlock at level 100 before the first star. */
+    private boolean riderLocked;
+
+    /** Why the signature is not active yet: "Opens at Lv 25" or "Take Pickwork in the tree". */
+    private String procLockText(PlayerSkills skills) {
+        int unlock = dev.amman.proficiency.config.ProficiencyConfig.procUnlockLevel();
+        if (skills.level(skill) < unlock) {
+            return Component.translatable("proficiency.spend.lock_level", unlock).getString();
+        }
+        return Component.translatable("proficiency.stone.root", SkillNumbers.rootName(skill)).getString();
     }
 
     private Component disciplineLine(PlayerSkills skills) {
@@ -221,12 +238,15 @@ public final class TalentTreeScreen extends Screen {
     private void layout(PlayerSkills skills) {
         String title = this.title.getString();
         String summary = summaryLine(skills).getString();
-        String proc = procLine().getString();
+        procLocked = skills.procChance(skill) <= 0;
+        String proc = procLine().getString() + (procLocked ? "  \u00b7  " + procLockText(skills) : "");
         String numbers = SkillNumbers.line(skills, skill).getString();
         String footer = Component.translatable("proficiency.tree.footer").getString();
         treeStars = MasteryStars.shown(skills, skill);
         riderText = MasteryStars.riderLine(skills, skill);
-        String key = treeStars + riderText + title + '\n' + summary + '\n' + proc + '\n' + numbers + '\n' + footer;
+        riderLocked = !riderText.isEmpty() && dev.amman.proficiency.skill.MasteryEffects.stars(skills, skill) < 1;
+        recordsText = ClientRecords.enabled() ? ClientRecords.summary(skill) : "";
+        String key = treeStars + riderText + recordsText + title + '\n' + summary + '\n' + proc + '\n' + numbers + '\n' + footer;
         if (key.equals(layoutKey) && layoutWidth == this.width && layoutHeight == this.height) {
             return;
         }
@@ -284,15 +304,21 @@ public final class TalentTreeScreen extends Screen {
         for (String line : TextFit.pack(this.font, summary, width, 2, cut, TextFit.DOT_RE, TextFit.DOT)) {
             lines.add(new HLine(line, SkillPalette.TEXT_DIM, 1));
         }
-        for (String line : TextFit.wrapLimited(this.font, proc, width, procLinesMax, cut)) {
-            lines.add(new HLine(line, accent, 2));
+        for (String line : TextFit.wrapLimited(this.font, proc, procLocked ? width - LOCK_W : width, procLinesMax, cut)) {
+            lines.add(new HLine(line, procLocked ? SkillPalette.TEXT_DIM : accent, 2));
         }
         for (String line : TextFit.pack(this.font, numbers, width, 2, cut, TextFit.DOT_RE, TextFit.DOT)) {
             lines.add(new HLine(line, SkillPalette.TEXT, 3));
         }
         if (!riderText.isEmpty()) {
-            for (String line : TextFit.pack(this.font, riderText, width, 1, cut, TextFit.DOT_RE, TextFit.DOT)) {
-                lines.add(new HLine(line, MasteryStars.GOLD | 0xFF000000, 4));
+            for (String line : TextFit.pack(this.font, riderText, riderLocked ? width - LOCK_W : width, 1, cut,
+                    TextFit.DOT_RE, TextFit.DOT)) {
+                lines.add(new HLine(line, riderLocked ? SkillPalette.TEXT_DIM : MasteryStars.GOLD | 0xFF000000, 4));
+            }
+        }
+        if (!recordsText.isEmpty()) {
+            for (String line : TextFit.pack(this.font, recordsText, width, 1, cut, TextFit.DOT_RE, TextFit.DOT)) {
+                lines.add(new HLine(line, SkillPalette.TEXT_DIM, 5));
             }
         }
         if (cut[0]) {
@@ -432,6 +458,8 @@ public final class TalentTreeScreen extends Screen {
         }
         int y = titleY;
         boolean firstSummary = true;
+        boolean lockDrawn2 = false;
+        boolean lockDrawn4 = false;
         int procTop = -1;
         int procBottom = -1;
         int statsTop = -1;
@@ -456,6 +484,16 @@ public final class TalentTreeScreen extends Screen {
             if (line.block() == 4) {
                 riderTop = riderTop < 0 ? y : riderTop;
                 riderBottom = y + HEADER_LINE;
+            }
+            if ((line.block() == 2 && procLocked) || (line.block() == 4 && riderLocked)) {
+                // A locked signature or rider: the padlock before its first line, every line indented.
+                boolean first = line.block() == 2 ? !lockDrawn2 : !lockDrawn4;
+                if (first) {
+                    SpendableClient.lock(graphics, x, y, SkillPalette.TEXT_DIM);
+                }
+                lockDrawn2 |= line.block() == 2;
+                lockDrawn4 |= line.block() == 4;
+                x += LOCK_W;
             }
             graphics.drawString(this.font, line.text(), x, y, line.colour(), false);
             if (line.block() == 0 && treeStars > 0) {
@@ -662,6 +700,8 @@ public final class TalentTreeScreen extends Screen {
         return false;
     }
 
+    private static final int LOCK_W = 8;
+
     private void drawNode(GuiGraphics graphics, Talent talent, PlayerSkills skills, long now, boolean fxOn) {
         int nodeBoxX = nodeX(talent);
         int nodeBoxY = nodeY(talent);
@@ -717,9 +757,37 @@ public final class TalentTreeScreen extends Screen {
             }
         }
 
+        // Spendable now (1.55.0): a soft pulsing ring; not buyable now: dimmed, the reason on a chip at its foot.
+        boolean ready = !full && this.minecraft != null && this.minecraft.player != null
+                && dev.amman.proficiency.perk.Spendable.nextReady(skills, talent, SpendableClient.materials(this.minecraft.player));
+        if (ready) {
+            float pulse = ClickFx.motion() ? 0.5f + 0.5f * (float) Math.sin(now / 380.0 + talent.col() * 0.9) : 0.6f;
+            int a = Math.round(60 + 110 * pulse);
+            border(graphics, x - 2, y - 2, node + 4, node + 4, (accent() & 0x00FFFFFF) | (a << 24));
+            border(graphics, x - 3, y - 3, node + 6, node + 6, (accent() & 0x00FFFFFF) | ((a / 3) << 24));
+        } else if (!full) {
+            graphics.fill(x + 1, y + 1, x + node - 1, y + node - 1, 0x66000000);
+        }
+
         String text = talent.maxRank() == 1 ? (full ? "✔" : "◆") : rank + "/" + talent.maxRank();
-        int colour = full ? SkillPalette.MAXED : open || rank > 0 ? SkillPalette.TEXT : SkillPalette.TEXT_DIM;
+        int colour = full ? SkillPalette.MAXED : ready || rank > 0 ? SkillPalette.TEXT : SkillPalette.TEXT_DIM;
         graphics.drawCenteredString(this.font, text, x + node / 2 + 1, y + (node - 8) / 2, colour);
+        if (!full && !ready) {
+            String why = null;
+            if (skills.level(skill) < talent.requiredLevel()) {
+                why = Component.translatable("proficiency.spend.node_level", talent.requiredLevel()).getString();
+            } else if (skills.isUnlockableNow(talent) && talent.costPerRank() > skills.pointsAvailable(skill)) {
+                why = Component.translatable("proficiency.spend.node_points", skills.pointsAvailable(skill),
+                        talent.costPerRank()).getString();
+            }
+            if (why != null) {
+                int w = this.font.width(why);
+                int cx = x + node / 2;
+                int cy = y + node - 3;
+                graphics.fill(cx - w / 2 - 2, cy - 1, cx + w / 2 + 3, cy + 9, 0xE0101216);
+                graphics.drawString(this.font, why, cx - w / 2 + 1, cy, SkillPalette.TEXT_DIM, false);
+            }
+        }
     }
 
     /** A slow diagonal glint across a finished capstone, with a soft halo while it passes. */

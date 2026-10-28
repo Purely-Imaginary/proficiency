@@ -169,8 +169,11 @@ public final class SkillHud {
         } else if (player.getY() > groundY + 0.25) {
             jumpAt = now;
         }
-        return dev.amman.proficiency.skill.HudSkillPick.pick(context, player.getMainHandItem().isEmpty(),
+        Skill picked = dev.amman.proficiency.skill.HudSkillPick.pick(context, player.getMainHandItem().isEmpty(),
                 now - unarmedGainAt, ActiveService.isFrenzied(player, Skill.UNARMED), now - jumpAt);
+        // With the recent-skills stack the line holds a movement skill while it earns (HudStack.holdMain): the
+        // other movement gains go to the stack's rows, so Running and Jumping no longer flip the one line.
+        return HudStackRows.enabled() ? HudStackRows.hold(picked, now) : picked;
     }
 
     /**
@@ -184,6 +187,21 @@ public final class SkillHud {
     /** The y the Hearth tracker's dots leave from: the skill bar's middle row. */
     public static int dotAnchorY(int guiHeight, long now) {
         return now - anchorAt <= ANCHOR_FRESH_MS && anchorY >= 0 ? anchorY : guiHeight - fromBottom() + 12;
+    }
+
+    /** True when the skill line was drawn a moment ago, whatever its skill (co-op streams land in it). */
+    public static boolean lineUp(long now) {
+        return now - anchorAt <= ANCHOR_FRESH_MS;
+    }
+
+    /** The left end of the skill bar for a GUI width (the co-op partner pips sit left of it). */
+    public static int barLeft(int guiWidth) {
+        return guiWidth / 2 - BAR_WIDTH / 2;
+    }
+
+    /** The bar's width, for the co-op streams' ghost track. */
+    public static int barWidth() {
+        return BAR_WIDTH;
     }
 
     /** True when the line is on screen for this skill right now (its own dots fly into it). */
@@ -240,11 +258,13 @@ public final class SkillHud {
             // Nothing is drawn, so nothing may be queued up to play when the GUI comes back: a
             // level gained now would otherwise replay as a borrowed line long after it happened.
             LevelUpFx.takeQueuedSkill();
+            HudFlights.hidden();
             lastSkill = null;
             PlayerSkills hidden = ProficiencyAttachments.of(minecraft.player);
             for (Skill skill : Skill.VALUES) {
                 SEEN[skill.ordinal()] = hidden.level(skill);
             }
+            HudStackRows.hidden(hidden);
             return;
         }
 
@@ -252,6 +272,11 @@ public final class SkillHud {
         PlayerSkills skills = ProficiencyAttachments.of(minecraft.player);
         // The ability key's skill drives the ability effects; the line may show another (lineSkill).
         Skill context = AbilityContext.current(minecraft.player);
+        boolean stack = HudStackRows.enabled();
+        if (stack) {
+            // Before the line's pick: the movement hold reads when the line's skill last earned.
+            HudStackRows.sense(skills, now);
+        }
         Skill held = lineSkill(minecraft.player, skills, context, now);
 
         // Every skill but the one the line shows keeps its last-seen level equal to the real one,
@@ -264,13 +289,22 @@ public final class SkillHud {
             }
         }
         StreakBadge.observe(SurvivalStreak.percent(SurvivalStreak.stacks(skills)), now);
+        AbilityGlint.observe(minecraft.player, skills, context);
         AbilityFx.render(graphics, minecraft.player, skills, context, event.getPartialTick(), now);
         DeathRecapHud.render(graphics, minecraft, now);
         dev.amman.proficiency.client.stone.WaywheelBelt.render(graphics, minecraft);
         ProcCallout.render(graphics, minecraft, now);
+        // The bonus loot, the talent point coin and its brazier (1.38.0).
+        HudFlights.render(graphics, minecraft, skills);
+        // Co-op XP streams (1.45.0): partners' XP trickling in, and who you are in company with.
+        CoopStreams.render(graphics, minecraft);
 
-        // A level gained on a skill the HUD is not showing borrows the line for a moment.
+        // A level gained on a skill the HUD is not showing borrows the line for a moment; with the recent-skills
+        // stack it pops on that skill's own row instead (HudStackRows), so the line is never borrowed.
         Skill queued = LevelUpFx.takeQueuedSkill();
+        if (queued != null && stack && queued != held) {
+            queued = null;
+        }
         if (queued != null && ProficiencyClientConfig.hudLevelUpFx()) {
             if (LevelUpFx.queuedStars() > 0) {
                 // A Mastery star: the lighter moment, on the held line or borrowing one.
@@ -278,7 +312,12 @@ public final class SkillHud {
             } else if (queued != held) {
                 int level = LevelUpFx.queuedLevel();
                 LevelUpFx.start(queued, level - 1, level, now, true);
+                HudFlights.onLevelUp(queued, level - 1, level, graphics.guiWidth(), graphics.guiHeight());
             }
+        }
+        if (stack) {
+            HudStackRows.render(graphics, minecraft, skills, held, lineY(graphics.guiHeight()),
+                    held != null && ActiveService.isFrenzied(minecraft.player, held), now);
         }
         if (ProficiencyClientConfig.hudLevelUpFx() && LevelUpFx.lineUp(now)) {
             Skill skill = LevelUpFx.skill();
@@ -336,6 +375,10 @@ public final class SkillHud {
         if (!ProficiencyClientConfig.hudXpDots()) {
             DOTS.snap(real, now);
         }
+        // The pool in bars (cap is 1.5 bars), not its reach: the reach stops at 1 for a big pool, and then a payment
+        // would not move it at all.
+        float restedCap = skills.restedCap(skill);
+        HudFlights.observeRested(skill, level, restedCap > 0f ? skills.rested(skill) * 1.5f / restedCap : 0f, real, now);
         double shown = DOTS.update(real, now);
         // Keep the line up while anything is still flying in; the fade starts when it has landed.
         if (DOTS.busy(real, now)) {
@@ -347,6 +390,7 @@ public final class SkillHud {
         int seen = SEEN[skill.ordinal()];
         if (shownLevel > seen && ProficiencyClientConfig.hudLevelUpFx()) {
             LevelUpFx.start(skill, seen, shownLevel, now, false);
+            HudFlights.onLevelUp(skill, seen, shownLevel, graphics.guiWidth(), graphics.guiHeight());
         }
         SEEN[skill.ordinal()] = shownLevel;
         // The effect and the line it lives on outlast the bar's own timer.
@@ -379,6 +423,15 @@ public final class SkillHud {
             graphics.drawString(minecraft.font, frenzy,
                     graphics.guiWidth() / 2 - width / 2, graphics.guiHeight() - fromBottom() - 11 - TempoBadge.currentLift(),
                     0xFFF2D98A, true);
+        }
+    }
+
+    /** The layout demo films the finished HUD frame ({@code LayoutDemo.hsFilm}): after every other HUD listener. */
+    @SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.LOWEST)
+    public static void onRenderGuiLast(RenderGuiEvent.Post event) {
+        java.util.function.Consumer<Minecraft> sink = HudStackRows.filmSink;
+        if (sink != null && Minecraft.getInstance().player != null) {
+            sink.accept(Minecraft.getInstance());
         }
     }
 
@@ -523,6 +576,7 @@ public final class SkillHud {
             graphics.fill(barLeft + rested[0], barTop, barLeft + rested[1], barTop + 2,
                     restedAlpha | (SkillPalette.RESTED_BAR & 0x00FFFFFF));
         }
+        HudFlights.drawPour(graphics, barLeft, barTop, filled, rested, alpha, now);
         // Tempo: the fire rises from the fill (TempoBadge), the multiplier small past the bar's right end.
         TempoBadge.draw(graphics, barLeft, barTop, BAR_WIDTH, filled, alpha, skill);
         if (skill == Skill.MINING) {

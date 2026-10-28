@@ -372,26 +372,26 @@ level-100 skill earns, so every branch fills in the end.
 
 - **Mortar** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches, the signature move and the ability. _+5% XP per rank; materials (old Apprentice list)._
 - **Thrifty** · 5 ranks · level 10 (after Mortar). Placed blocks come back more often. _+5% passive per rank._
-- **Rapid Build** · 5 ranks · level 10 (after Mortar). A triple refund comes more often. _+10% signature chance per rank._
+- **Rapid Build** · 5 ranks · level 10 (after Mortar). A free block comes more often. _+10% signature chance per rank._
 - **Long Arm** · 3 ranks · level 30 (after Thrifty). Half a block more reach per rank.
-- **Stonecutter** · 3 ranks · level 30 (after Thrifty, Rapid Build). Triple refunds can be bigger. _+15% signature power per rank._
+- **Stonecutter** · 3 ranks · level 30 (after Thrifty, Rapid Build). +4% chance per rank that a placed block is free.
 - **Safety Harness** · 3 ranks · level 30 (after Rapid Build). Holding a block, you take 15% less fall damage per rank.
 - **Cornerstone** · 3 ranks · level 60 (after Long Arm, Stonecutter). The ability lasts longer; a streak pays more. _+15% ability duration per rank, +20% tempo bonus per rank; materials (old Journeyman list)._
-- **Bulk Order** · 3 ranks · level 60 (after Safety Harness). Every 10th identical full block in a row refunds 1 per rank. _materials (old Expert list)._
-- **Master Mason** · 1 rank · level 90 (after Cornerstone, Bulk Order). Some blocks you place cost nothing at all. _materials (old Master list)._
+- **Bulk Order** · 3 ranks · level 60 (after Safety Harness). In a run of one full block, every 10th is free (every 8th at rank 2, every 6th at rank 3). _materials (old Expert list)._
+- **Master Mason** · 1 rank · level 90 (after Cornerstone, Bulk Order). +30% chance that a block is free, and the free chance can reach 75% instead of 55%. _materials (old Master list)._
 - **Grand Architect** · 1 rank · level 100 (after Master Mason). Two more blocks of reach, always. _+15% passive, -20% ability cooldown._
 
 ## Decorating (84 points)
 
 - **Eye for Detail** · 5 ranks · level 0. Where the tree starts. Fill it to open the branches, the signature move and the ability. _+5% XP per rank; materials (old Apprentice list)._
 - **Thrift Shop** · 5 ranks · level 10 (after Eye for Detail). Placed decorations come back more often. _+5% passive per rank._
-- **Inspiration** · 5 ranks · level 10 (after Eye for Detail). A triple refund comes more often. _+10% signature chance per rank._
+- **Inspiration** · 5 ranks · level 10 (after Eye for Detail). A free decoration comes more often. _+10% signature chance per rank._
 - **Hygge** · 3 ranks · level 30 (after Thrift Shop). A cozy room needs 2 fewer decorations per rank.
-- **Feng Shui** · 3 ranks · level 30 (after Thrift Shop, Inspiration). Triple refunds can be bigger. _+15% signature power per rank._
-- **Lamplighter** · 3 ranks · level 30 (after Inspiration). Placing a light: 15% chance per rank it comes back.
+- **Feng Shui** · 3 ranks · level 30 (after Thrift Shop, Inspiration). +4% chance per rank that a placed decoration is free.
+- **Lamplighter** · 3 ranks · level 30 (after Inspiration). Placing a light: +15% chance per rank that it is free.
 - **The Host** · 3 ranks · level 60 (after Hygge). Your cozy room also warms players within 2 blocks per rank. _materials (old Journeyman list)._
 - **Curator** · 3 ranks · level 60 (after Lamplighter). The ability lasts longer; a streak pays more. _+15% ability duration per rank, +20% tempo bonus per rank; materials (old Expert list)._
-- **Master Decorator** · 1 rank · level 90 (after The Host, Curator). Some blocks you place cost nothing at all. _materials (old Master list)._
+- **Master Decorator** · 1 rank · level 90 (after The Host, Curator). +30% chance that a decoration is free, and the free chance can reach 75% instead of 55%. _materials (old Master list)._
 - **Tastemaker** · 1 rank · level 100 (after Master Decorator, Feng Shui). A cozy room gives Regeneration II and Luck. _+15% passive, -20% ability cooldown._
 
 ## Social (99 points)

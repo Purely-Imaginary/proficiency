@@ -516,7 +516,7 @@ public final class GatheringEvents {
             copies += procCopies(player, skill);
         }
         if (copies > 0) {
-            duplicate(event, copies);
+            duplicate(event, copies, player);
         }
 
         // Bountiful Harvest puts the crop back in the ground for you, and Master Farming does it
@@ -618,7 +618,7 @@ public final class GatheringEvents {
     /** Woodsman's Edge: each log Timber takes teaches the axe arm a little. */
     private static final double WOODSMAN_AXES_XP = 0.25;
 
-    private static void duplicate(BlockDropsEvent event, int copies) {
+    private static void duplicate(BlockDropsEvent event, int copies, Player player) {
         List<ItemEntity> extra = new ArrayList<>();
         for (ItemEntity drop : event.getDrops()) {
             ItemStack original = drop.getItem();
@@ -629,6 +629,9 @@ public final class GatheringEvents {
                 extra.add(new ItemEntity(event.getLevel(),
                         drop.getX(), drop.getY(), drop.getZ(), original.copy()));
             }
+            // The HUD flies each bonus copy from the block to the hotbar (BonusLoot).
+            dev.amman.proficiency.skill.BonusLoot.note(player, original.copyWithCount(original.getCount() * copies),
+                    drop.getX(), drop.getY(), drop.getZ());
         }
         event.getDrops().addAll(extra);
     }
@@ -641,6 +644,8 @@ public final class GatheringEvents {
             return;
         }
 
+        // How many drops are the catch itself: whatever the skill's luck appends after this is a bonus.
+        int natural = event.getDrops().size();
         double bonus = SkillService.bonus(player, Skill.FISHING);
         // Master Angler: the rod is never worn at all, which makes Patience's saving moot.
         boolean unbreakable = TalentService.rank(player, Skill.FISHING, "unbreakable_rod") > 0;
@@ -673,6 +678,10 @@ public final class GatheringEvents {
         }
         // After Double Hook, so the second fish comes up cooked as well.
         boolean cooked = TalentGatheringEvents.freshCatch(level, player, event.getDrops());
+        for (int i = natural; i < event.getDrops().size(); i++) {
+            net.minecraft.world.phys.Vec3 hook = event.getHookEntity().position();
+            dev.amman.proficiency.skill.BonusLoot.note(player, event.getDrops().get(i), hook.x, hook.y, hook.z);
+        }
         // The log names the catch itself, "Raw Cod", rather than the act of fishing.
         String caught = event.getDrops().isEmpty() ? "proficiency.xplog.source.fishing"
                 : event.getDrops().get(0).getDescriptionId();

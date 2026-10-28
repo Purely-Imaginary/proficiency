@@ -27,6 +27,13 @@ public final class AbilityFx {
     /** A third of a second. */
     private static final float FADE_IN_TICKS = 7f;
 
+    /**
+     * The hotbar slot's fills go in vanilla's cooldown-overlay layer (no depth test, no depth write). In the plain
+     * layer they write depth, and a HUD batcher (ImmediatelyFast, in all three packs) that draws the hotbar's items
+     * after them then loses the item behind the sweep.
+     */
+    private static final net.minecraft.client.renderer.RenderType OVERLAY = net.minecraft.client.renderer.RenderType.guiOverlay();
+
     private static final RemainTrack FRENZY = new RemainTrack(Skill.VALUES.length);
     private static final RemainTrack COOLDOWN = new RemainTrack(Skill.VALUES.length);
 
@@ -36,6 +43,8 @@ public final class AbilityFx {
     public static void reset() {
         FRENZY.clear();
         COOLDOWN.clear();
+        slotSkill = null;
+        slotCooldown = 0f;
     }
 
     /**
@@ -80,10 +89,36 @@ public final class AbilityFx {
         }
         // Only over a stack that is really in the hand: an empty hand means the skill came from
         // what you are doing (swimming, sneaking), not from an item to put a sweep on.
-        if (held != null && heldCooldown > 0f && !player.getMainHandItem().isEmpty()) {
-            int slot = player.getInventory().selected;
-            sweep(graphics, graphics.guiWidth() / 2 - 90 + slot * 20 + 2,
-                    graphics.guiHeight() - 16 - 3, heldCooldown);
+        boolean inHand = held != null && !player.getMainHandItem().isEmpty();
+        slotSkill = inHand ? held : null;
+        slotCooldown = inHand ? heldCooldown : 0f;
+    }
+
+    /** The held skill and its cooldown share, kept from the HUD pass for {@link #renderHotbarSlot}. */
+    private static Skill slotSkill;
+    private static float slotCooldown;
+
+    /**
+     * The cooldown sweep and the ready glint over the held item's hotbar slot. Called from inside the hotbar's own
+     * draw ({@code mixin/client/HotbarSlotFxMixin}, at the end of {@code Gui.renderItemHotbar}), not from the HUD
+     * event: on 1.21 every HUD layer sits 200 deeper than the one before ({@code LayeredDraw}, NeoForge's
+     * {@code GuiLayerManager}) and the HUD event comes after the layer stack's pose is popped, so anything drawn
+     * there over the hotbar is behind it in the depth test. Here it is at the hotbar's depth, and the +200 puts it
+     * over the items like vanilla's own cooldown overlay. The state is the last HUD pass's (one frame old).
+     */
+    public static void renderHotbarSlot(GuiGraphics graphics, Player player) {
+        Skill held = slotSkill;
+        if (held == null || !ProficiencyClientConfig.hudAbilityFx() || player.getMainHandItem().isEmpty()) {
+            return;
+        }
+        int x = graphics.guiWidth() / 2 - 90 + player.getInventory().selected * 20 + 2;
+        int y = graphics.guiHeight() - 16 - 3;
+        if (slotCooldown > 0f) {
+            sweep(graphics, x, y, slotCooldown);
+        }
+        long age = AbilityGlint.age(held);
+        if (ReadyGlint.running(age)) {
+            slotGlint(graphics, x, y, age, SkillPalette.accent(held.category()));
         }
     }
 
@@ -127,9 +162,47 @@ public final class AbilityFx {
         HudMath.ring(graphics, cx, cy, RING_RADIUS, RING_RADIUS, bright, 1, 1, lit);
     }
 
+    /**
+     * The ability coming ready over its hotbar slot: a glow in the skill's colour, a frame that pops out past
+     * the slot and settles, and the glint sweeping across. Under Distortion Effects 0% only the glow stays.
+     */
+    private static void slotGlint(GuiGraphics graphics, int x, int y, long age, int accent) {
+        graphics.pose().pushPose();
+        graphics.pose().translate(0f, 0f, 200f);
+        slotGlintDraw(graphics, x, y, age, accent);
+        graphics.pose().popPose();
+    }
+
+    private static void slotGlintDraw(GuiGraphics graphics, int x, int y, long age, int accent) {
+        float flash = ReadyGlint.flash(age);
+        graphics.fill(OVERLAY, x, y, x + 16, y + 16, ClickFx.argb(0.5f * flash, accent));
+        if (!ClickFx.motion()) {
+            return;
+        }
+        float scale = ClickFxMath.pop(age, 0.45f);
+        int size = Math.round(16f * Math.max(1f, scale)) + 2;
+        int cx = x + 8;
+        int cy = y + 8;
+        frame(graphics, cx - size / 2, cy - size / 2, size, size, ClickFx.argb(0.9f * flash,
+                StreakBadge.lerp(accent & 0xFFFFFF, 0xFFFFFF, 0.5f)));
+        AbilityGlint.sweep(graphics, OVERLAY, x, y, 16, 16, age, 0);
+    }
+
+    /** {@code ClickFx.frame} in the overlay layer. */
+    private static void frame(GuiGraphics graphics, int x, int y, int w, int h, int argb) {
+        graphics.fill(OVERLAY, x, y, x + w, y + 1, argb);
+        graphics.fill(OVERLAY, x, y + h - 1, x + w, y + h, argb);
+        graphics.fill(OVERLAY, x, y + 1, x + 1, y + h - 1, argb);
+        graphics.fill(OVERLAY, x + w - 1, y + 1, x + w, y + h - 1, argb);
+    }
+
     /** Vanilla's own cooldown sweep: a pale block over the lower part of the slot that shrinks. */
     private static void sweep(GuiGraphics graphics, int x, int y, float fraction) {
+        // Over the item, like vanilla's own cooldown overlay (z 200 above the hotbar it is drawn in).
+        graphics.pose().pushPose();
+        graphics.pose().translate(0f, 0f, 200f);
         int top = y + (int) Math.floor(16.0f * (1.0f - fraction));
-        graphics.fill(x, top, x + 16, top + (int) Math.ceil(16.0f * fraction), 0x7FFFFFFF);
+        graphics.fill(OVERLAY, x, top, x + 16, top + (int) Math.ceil(16.0f * fraction), 0x7FFFFFFF);
+        graphics.pose().popPose();
     }
 }

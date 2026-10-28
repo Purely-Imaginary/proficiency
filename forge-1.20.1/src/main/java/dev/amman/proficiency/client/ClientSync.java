@@ -26,6 +26,7 @@ public final class ClientSync {
         if (player != null) {
             ProficiencyAttachments.of(player).copyFrom(skills);
             synced = true;
+            SynergySlam.observe(ProficiencyAttachments.of(player));
         }
     }
 }

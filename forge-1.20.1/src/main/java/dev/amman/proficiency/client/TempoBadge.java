@@ -23,6 +23,9 @@ import java.util.List;
  * digits with their shadow; the frame comes from the clock ({@link TempoFlames#frame}). While the fire burns
  * the label rises {@link TempoFlames#LIFT} rows ({@link #lift}) so no flame reaches it.
  *
+ * <p>A support skill (Courage, Charger, Guardian, Tactician, Blocking) owns no chain since 1.49.0: its line
+ * shows the fire of the weapon chain it rides ({@link TempoState#source}); Endurance's line shows none.
+ *
  * <p>The server sends a skill's chain only when it changes, so the client keeps one small record per skill
  * ({@link TempoState}, pure and unit tested, with the rules in {@link TempoFlames}); the HUD line asks for
  * the skill it names.
@@ -67,6 +70,13 @@ public final class TempoBadge {
                 Math.max(1, payload.windowTicks()) * 50L, now());
     }
 
+    /** A vanilla jump crit lengthened {@code skillOrdinal}'s chain: flare it white (ui.tempoCritFlare). */
+    public static void acceptCrit(int skillOrdinal) {
+        if (dev.amman.proficiency.config.ProficiencyClientConfig.uiTempoCritFlare()) {
+            STATE.acceptCrit(Math.floorMod(skillOrdinal, Skill.VALUES.length), now());
+        }
+    }
+
     public static void reset() {
         STATE.clear();
         lift = 0f;
@@ -77,14 +87,26 @@ public final class TempoBadge {
         return dev.amman.proficiency.config.ProficiencyClientConfig.hudShowTempo();
     }
 
-    /** True while {@code forSkill} has fire or smoke to draw (and the setting is on). */
-    public static boolean visible(Skill forSkill) {
-        return forSkill != null && enabled() && STATE.visible(forSkill.ordinal(), now());
+    /**
+     * The record whose fire the line of {@code forSkill} shows: its own, the weapon chain a support skill rides,
+     * or -1 (Endurance and the lump-paid skills have no Tempo).
+     */
+    private static int source(Skill forSkill, long now) {
+        return forSkill == null ? -1 : STATE.source(forSkill.ordinal(), now);
     }
 
-    /** 1 while the chain of {@code forSkill} lives, else 0; 0 when the setting is off. */
+    /** True while {@code forSkill} has fire or smoke to draw (and the setting is on). */
+    public static boolean visible(Skill forSkill) {
+        long now = now();
+        int s = source(forSkill, now);
+        return s >= 0 && enabled() && STATE.visible(s, now);
+    }
+
+    /** 1 while the chain {@code forSkill} shows lives, else 0; 0 when the setting is off. */
     public static float alpha(Skill forSkill) {
-        return enabled() ? STATE.alpha(forSkill.ordinal(), now()) : 0f;
+        long now = now();
+        int s = source(forSkill, now);
+        return s >= 0 && enabled() ? STATE.alpha(s, now) : 0f;
     }
 
     /**
@@ -104,8 +126,8 @@ public final class TempoBadge {
         return Math.round(lift);
     }
 
-    private static String text(Skill forSkill) {
-        return TempoFlames.text(STATE.permille(forSkill.ordinal()));
+    private static String text(int source) {
+        return TempoFlames.text(STATE.permille(source));
     }
 
     /**
@@ -114,15 +136,41 @@ public final class TempoBadge {
      */
     public static void draw(GuiGraphics graphics, int barLeft, int barTop, int barWidth, int filled, int alpha,
             Skill forSkill) {
+        drawFire(graphics, barLeft, barTop, barWidth, filled, alpha, forSkill, true);
+    }
+
+    /**
+     * The fire at half size on a recent-skills stack row's bar ({@link HudStackRows}): the same strip and frames,
+     * four pixels tall, no multiplier (its 3x5 digits would not read at half size). Does not move the main line's
+     * label lift.
+     */
+    public static void drawSmall(GuiGraphics graphics, int barLeft, int barTop, int barWidth, int filled, int alpha,
+            Skill forSkill) {
+        if (forSkill == null || alpha <= 8 || !visible(forSkill)) {
+            return;
+        }
+        graphics.pose().pushPose();
+        graphics.pose().translate(barLeft, barTop + 1, 0);
+        graphics.pose().scale(0.5f, 0.5f, 1f);
+        drawFire(graphics, 0, 0, barWidth * 2, filled * 2, alpha, forSkill, false);
+        graphics.pose().popPose();
+    }
+
+    private static void drawFire(GuiGraphics graphics, int barLeft, int barTop, int barWidth, int filled, int alpha,
+            Skill forSkill, boolean number) {
         if (forSkill == null || alpha <= 8 || !visible(forSkill)) {
             return;
         }
         long now = now();
-        int s = forSkill.ordinal();
+        int s = source(forSkill, now);
+        if (s < 0) {
+            return;
+        }
         float lapse = STATE.lapse(s, now);
         int heat = TempoFlames.shownHeat(STATE.heat(s), lapse);
         float flare = lapse > 0f ? 0f : STATE.flare(s, now);
         float smoke = TempoFlames.smoke(lapse);
+        float crit = STATE.critFlare(s, now);
         int span = Math.min(Math.min(barWidth, STRIP_W), Math.max(MIN_SPAN, filled));
         int frame = TempoFlames.frame(now);
         // The strip's bottom row lies on the bar's top row: the fire comes out of the bar.
@@ -152,13 +200,24 @@ public final class TempoBadge {
         if (smoke > 0.02f) {
             strip(graphics, ROW_SMOKE, frame, barLeft, top, span, r0, g0, b0, a * smoke);
         }
-        float numberA = a * TempoFlames.numberFade(lapse);
+        if (crit > 0.02f) {
+            // A jump crit: the brightest flare row added on top (additive, so it whitens what burns), two quads on
+            // offset frames so it reads as a burst; it fades over CRIT_FLARE_MS. Brightness only: it stays at
+            // Distortion Effects 0%.
+            RenderSystem.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE);
+            strip(graphics, ROW_FLARE, frame, barLeft, top, span, r0, g0, b0, a * crit);
+            strip(graphics, ROW_FLARE, (frame + TempoFlames.FRAMES / 3) % TempoFlames.FRAMES, barLeft, top, span,
+                    r0, g0, b0, a * crit * 0.7f);
+            RenderSystem.defaultBlendFunc();
+        }
+        float numberA = number ? a * TempoFlames.numberFade(lapse) : 0f;
         if (numberA > 0.03f) {
             int rgb = NUMBER_RGB[Math.max(0, Math.min(NUMBER_RGB.length, STATE.heat(s)) - 1)];
-            if (flare > 0f) {
-                rgb = StreakBadge.lerp(rgb, 0xFFFFFF, flare);
+            float white = Math.max(flare, crit);
+            if (white > 0f) {
+                rgb = StreakBadge.lerp(rgb, 0xFFFFFF, white);
             }
-            String text = text(forSkill);
+            String text = text(s);
             int x = barLeft + barWidth + NUMBER_GAP;
             // Bottom of the digits on the bar's bottom row.
             int y = barTop + 2 - GLYPH_H;
@@ -196,12 +255,22 @@ public final class TempoBadge {
         }
     }
 
-    /** The skills panel's hover line for {@code forSkill}: empty unless its chain is alive. */
+    /**
+     * The skills panel's hover line for {@code forSkill}: empty unless the chain it shows is alive. The seconds are
+     * that chain's own window as the server sent it (7 s for a weapon, 3 s for Mining, doubled by In Step); a
+     * support skill names the weapon chain it rides.
+     */
     public static List<Component> tooltip(Skill forSkill) {
         if (alpha(forSkill) <= 0f) {
             return List.of();
         }
-        return List.of(Component.translatable("proficiency.tooltip.tempo", text(forSkill),
-                Math.round(STATE.windowMs(forSkill.ordinal()) / 100f) / 10f).withStyle(ChatFormatting.GOLD));
+        int s = source(forSkill, now());
+        float seconds = Math.round(STATE.windowMs(s) / 100f) / 10f;
+        if (s != forSkill.ordinal()) {
+            return List.of(Component.translatable("proficiency.tooltip.tempo_ride", text(s),
+                    Component.translatable(Skill.VALUES[s].translationKey()), seconds).withStyle(ChatFormatting.GOLD));
+        }
+        return List.of(Component.translatable("proficiency.tooltip.tempo", text(s), seconds)
+                .withStyle(ChatFormatting.GOLD));
     }
 }

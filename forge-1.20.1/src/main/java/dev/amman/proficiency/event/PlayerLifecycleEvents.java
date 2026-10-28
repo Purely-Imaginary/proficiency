@@ -68,6 +68,7 @@ public final class PlayerLifecycleEvents {
             return;
         }
         ProficiencyNetwork.sendFullSync(player);
+        dev.amman.proficiency.skill.RecordsService.sendAll(player);
         // Veterans get the Codex milestones they already earned, with no toast, sound or chat line.
         dev.amman.proficiency.skill.CodexService.backfill(player);
         // Veterans get the advancements they already earned, silently.
@@ -111,6 +112,8 @@ public final class PlayerLifecycleEvents {
     @SubscribeEvent
     public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
         ProficiencyNetwork.forgetVisited(event.getEntity().getUUID());
+        dev.amman.proficiency.skill.RecordsService.forget(event.getEntity().getUUID());
+        dev.amman.proficiency.skill.BonusLoot.forget(event.getEntity().getUUID());
         if (event.getEntity() instanceof ServerPlayer leaver) {
             dev.amman.proficiency.skill.ExportService.left(leaver);
         }
@@ -233,6 +236,10 @@ public final class PlayerLifecycleEvents {
         if (event.phase != TickEvent.Phase.END) {
             return;
         }
+        // Bonus items noted this tick fly to their owners' hotbars as one small packet each.
+        dev.amman.proficiency.skill.BonusLoot.flush();
+        // Co-op XP streams: once a second, partners' XP to the players in company range.
+        dev.amman.proficiency.coop.CoopService.tick(event.getServer());
         // Belt and braces for the break context: it is matched on position so a stale one is
         // already harmless, but there is no reason to let one outlive the tick that made it.
         GatheringEvents.clearBreakContext();
@@ -273,6 +280,7 @@ public final class PlayerLifecycleEvents {
             // Same cadence, its own small packet: the recent-XP list in the tree screen.
             ProficiencyNetwork.sendXpLogIfChanged(player);
             ProficiencyNetwork.sendXpFeed(player);
+            dev.amman.proficiency.skill.RecordsService.tick(player);
             ProficiencyNetwork.sendVisitedIfChanged(player);
         }
     }

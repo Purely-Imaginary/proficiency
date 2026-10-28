@@ -186,6 +186,15 @@ public final class ProcService {
         return multiplier;
     }
 
+    /**
+     * The chance an ordinary roll of {@link #fire(Player, Skill, BlockPos)} lands, without the
+     * frenzy or a forced proc. Masonry's free-block rule (RefundMath) needs it to split its total.
+     */
+    public static double chance(ServerPlayer player, Skill skill) {
+        return Math.min(1.0, Math.max(0.0, dev.amman.proficiency.skill.CritRules.scaledChance(
+                ProficiencyAttachments.of(player).procChance(skill) * situational(player, skill), 1.0)));
+    }
+
     /** How hard a proc lands, raised by Precision and Mastery. */
     public static double power(Player player, Skill skill) {
         return ProficiencyAttachments.of(player).procPower(skill);

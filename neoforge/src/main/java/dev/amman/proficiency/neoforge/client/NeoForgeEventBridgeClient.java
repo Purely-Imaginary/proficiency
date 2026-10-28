@@ -4,6 +4,7 @@ import dev.amman.proficiency.neoforge.NeoForgeEventBridge;
 import dev.amman.proficiency.platform.client.event.ClientTickEvent;
 import dev.amman.proficiency.platform.client.event.RenderGuiEvent;
 import dev.amman.proficiency.platform.client.event.RenderLevelEvent;
+import dev.amman.proficiency.platform.client.event.ScreenInitEvent;
 
 /** The client events, relayed like {@link NeoForgeEventBridge}'s. Client dist only. */
 public final class NeoForgeEventBridgeClient {
@@ -17,6 +18,9 @@ public final class NeoForgeEventBridgeClient {
                 ClientTickEvent.Post.class, e -> new ClientTickEvent.Post());
         NeoForgeEventBridge.relay(net.neoforged.neoforge.client.event.RenderGuiEvent.Post.class,
                 RenderGuiEvent.Post.class, e -> new RenderGuiEvent.Post(e.getGuiGraphics(), e.getPartialTick()));
+        // A screen was built (the bed's chat screen gets the Today's Haul button).
+        NeoForgeEventBridge.relay(net.neoforged.neoforge.client.event.ScreenEvent.Init.Post.class,
+                ScreenInitEvent.Post.class, e -> new ScreenInitEvent.Post(e.getScreen(), e::addListener));
         // The world pass, once per frame, at the stage after the particles (the stage with a pose stack
         // that is also posted in both graphics modes). A direct listener: the relay cannot filter a stage.
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(

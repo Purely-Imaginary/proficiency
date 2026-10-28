@@ -48,6 +48,29 @@ final class BlockLookView {
         } else {
             tooltip.add(line);
         }
+        firstMark(tooltip, data, config);
+    }
+
+    /**
+     * A mob that pays, with the icons on: "[skill] +1.0 · [skull] +4.5 XP", "[skill] [skull] +4.5 XP" for a kill
+     * only, "[skill] +1.0 XP" for a hit only. No words: the skull is the kill.
+     */
+    static void mobPays(ITooltip tooltip, Skill skill, CompoundTag data, float hit, float kill, IPluginConfig config) {
+        int colour = LookText.colour(skill);
+        tooltip.add(new SkillIconElement(skill));
+        if (kill > 0) {
+            if (hit > 0) {
+                tooltip.append(Component.literal("+" + LookRules.formatXp(hit) + " \u00b7 ").withStyle(style -> style.withColor(colour)));
+            }
+            tooltip.append(new SkullIconElement());
+            tooltip.append(LookText.pays(skill, kill));
+        } else {
+            tooltip.append(LookText.pays(skill, hit));
+        }
+        firstMark(tooltip, data, config);
+    }
+
+    private static void firstMark(ITooltip tooltip, CompoundTag data, IPluginConfig config) {
         if (LookRules.has(data.getInt(XpLookData.FLAGS), LookRules.FIRST) && config.get(ProficiencyJadePlugin.LOOK_FIRST)) {
             tooltip.append(Component.literal("  "));
             tooltip.append(LookText.first(data.getFloat(XpLookData.FIRST)));

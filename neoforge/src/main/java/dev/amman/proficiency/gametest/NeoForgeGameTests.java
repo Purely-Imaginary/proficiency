@@ -60,7 +60,11 @@ public final class NeoForgeGameTests {
             SiegeGameTests.class,
             HearthIntegrationGameTests.class,
             NeoForgeHearthStagesGameTests.class,
-            LookGameTests.class);
+            LookGameTests.class,
+            RecordsGameTests.class,
+            HaulGameTests.class,
+            CoopGameTests.class,
+            TempoGameTests.class);
 
     private NeoForgeGameTests() {
     }

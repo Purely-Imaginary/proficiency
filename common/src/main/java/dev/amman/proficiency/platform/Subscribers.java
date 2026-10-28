@@ -14,8 +14,10 @@ public final class Subscribers {
     public static void registerCommon() {
         for (Class<?> holder : new Class<?>[] {
                 dev.amman.proficiency.command.SkillCommand.class,
+                dev.amman.proficiency.command.RecordsCommand.class,
                 dev.amman.proficiency.event.XpReloadEvents.class,
                 dev.amman.proficiency.event.PlayerLifecycleEvents.class,
+                dev.amman.proficiency.haul.HaulEvents.class,
                 dev.amman.proficiency.event.CombatEvents.class,
                 dev.amman.proficiency.event.CritEvents.class,
                 dev.amman.proficiency.event.CraftingEvents.class,
@@ -52,7 +54,10 @@ public final class Subscribers {
     public static void registerClient() {
         NeoForge.EVENT_BUS.register(dev.amman.proficiency.client.ClientInputEvents.class);
         NeoForge.EVENT_BUS.register(dev.amman.proficiency.client.SkillHud.class);
+        NeoForge.EVENT_BUS.register(dev.amman.proficiency.client.HaulClient.class);
         NeoForge.EVENT_BUS.register(dev.amman.proficiency.client.DiscoveryBanner.class);
+        NeoForge.EVENT_BUS.register(dev.amman.proficiency.client.SynergySlam.class);
+        NeoForge.EVENT_BUS.register(dev.amman.proficiency.client.MilestoneCeremony.class);
         NeoForge.EVENT_BUS.register(dev.amman.proficiency.client.XpFeedHud.class);
         NeoForge.EVENT_BUS.register(dev.amman.proficiency.client.DarkSight.class);
         NeoForge.EVENT_BUS.register(dev.amman.proficiency.client.CalledShotMarks.class);

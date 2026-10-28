@@ -5,6 +5,7 @@ import dev.amman.proficiency.hearth.HearthBlock;
 import dev.amman.proficiency.hearth.HearthBlockEntity;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.Block;
 import snownee.jade.api.IWailaClientRegistration;
 import snownee.jade.api.IWailaCommonRegistration;
@@ -23,11 +24,14 @@ public class ProficiencyJadePlugin implements IWailaPlugin {
 
     /** The first-time mark, a toggle with no provider of its own. */
     static final ResourceLocation LOOK_FIRST = Proficiency.id("look_first");
+    /** Another player's tooltip (1.36.0): the provider's own id is its toggle in Jade's settings, so no addConfig. */
+    static final ResourceLocation LOOK_PLAYERS = Proficiency.id("look_players");
 
     @Override
     public void register(IWailaCommonRegistration registration) {
         registration.registerBlockDataProvider(HearthLookProvider.INSTANCE, HearthBlockEntity.class);
         registration.registerEntityDataProvider(MobLookProvider.INSTANCE, LivingEntity.class);
+        registration.registerEntityDataProvider(PlayerLookProvider.INSTANCE, Player.class);
     }
 
     @Override
@@ -36,5 +40,6 @@ public class ProficiencyJadePlugin implements IWailaPlugin {
         registration.registerBlockComponent(BlockLookProvider.INSTANCE, Block.class);
         registration.registerBlockComponent(HearthLookProvider.INSTANCE, HearthBlock.class);
         registration.registerEntityComponent(MobLookProvider.INSTANCE, LivingEntity.class);
+        registration.registerEntityComponent(PlayerLookProvider.INSTANCE, Player.class);
     }
 }

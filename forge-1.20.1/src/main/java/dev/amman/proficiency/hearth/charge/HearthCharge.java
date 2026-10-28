@@ -122,6 +122,7 @@ public final class HearthCharge {
             return 0.0;
         }
         state.ledger().add(player, who, pool, src, taken, RestedMath.today());
+        dev.amman.proficiency.haul.HaulService.onCharge(level.getServer(), player, taken);
         TelemetryService.hearth(player, who, Telemetry.HEARTH_CHARGE, pool.id(), src, taken);
         if (dotsTo != null) {
             HearthNet.queueGain(dotsTo, pool, (float) taken, dotsFrom);

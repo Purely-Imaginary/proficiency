@@ -19,9 +19,16 @@
     "VaultServerMixin"
   ],
   "client": [
+    "client.ChatComponentAccessor",
+    "client.AdvancementToastAccessor",
+    "client.ChatSynergyMixin",
     "client.GameRendererMixin",
+    "client.GuiSlamShakeMixin",
+    "client.HotbarSlotFxMixin",
     "client.LightTextureAccess",
-    "client.LightTextureMixin"
+    "client.LightTextureMixin",
+    "client.ScreenSlamMixin",
+    "client.ToastInstanceMixin"
   ],
   "injectors": {
     "defaultRequire": 0

@@ -5,6 +5,7 @@ import dev.amman.proficiency.config.ProficiencyConfig;
 import dev.amman.proficiency.net.ProficiencyNetwork;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
@@ -277,6 +278,8 @@ public final class SkillService {
         }
 
         int expertiseBefore = skills.expertisePoints();
+        double haulBefore = dev.amman.proficiency.haul.HaulService.units(skills, skill);
+        int levelBefore = skills.level(skill);
         Mastery.Result result = skills.addXpMastery(skill, amount);
         int gained = result.levels();
         // Telemetry records what was banked: XP past the last star is thrown away, and counting it
@@ -291,6 +294,9 @@ public final class SkillService {
         if (restedBanked > 0f) {
             TelemetryService.rested(serverPlayer, skill, restedBanked);
         }
+        // Today's Haul: what was kept, and the levels and stars it made.
+        dev.amman.proficiency.haul.HaulService.onGrant(serverPlayer, skill, banked, haulBefore, levelBefore, gained,
+                result.stars());
         if (gained > 0) {
             TelemetryService.levelUps(serverPlayer, skill, gained, skills.level(skill));
             onLevelUp(serverPlayer, skill, skills.level(skill) - gained, skills.level(skill));
@@ -307,6 +313,8 @@ public final class SkillService {
         // Social's only source: a share of what company just added. It ignores its own grants.
         // It sees the grant without the rested extra: resting must not pay Social.
         SocialService.onGrant(serverPlayer, skill, source, beforeRested, company);
+        // Co-op XP streams: partners in company range see this XP trickle (batched once a second, cosmetic).
+        dev.amman.proficiency.coop.CoopService.onGrant(serverPlayer, skill, amount, company);
         // Nightwalker's only share source: a part of any grant earned in the dark.
         NightwalkerService.onGrant(serverPlayer, skill, source, baseAmount, aoe ? tier * aoeShare : tier);
         // The Hearth mirrors beforeRested (never banked: a skill with every star must still feed).
@@ -314,6 +322,8 @@ public final class SkillService {
                 amount, banked, play, aoe);
         // After the XP is paid: the Tempo packet is cosmetic and must never cost a grant.
         Tempo.announce(serverPlayer, skill);
+        // Personal records: also cosmetic and also after the XP is paid.
+        RecordsService.onGrant(serverPlayer, skill, source, amount, play);
         return amount;
     }
 
@@ -339,9 +349,9 @@ public final class SkillService {
         double rate = ProficiencyConfig.xpRate(skill) * ProficiencyConfig.xpMultiplier();
         double perk = skills.perkModifier(skill, dev.amman.proficiency.perk.PerkEffect.XP_RATE);
         double company = CompanyBonus.multiplier(player, skill);
-        // Social, Nightwalker and Homebuilder are paid in 5-second lumps, so a tempo chain could never build.
-        double tempo = skill == Skill.SOCIAL || skill == Skill.NIGHTWALKER || skill == Skill.HOMEBUILDER
-                ? 1.0 : aoe ? 1.0 : commit ? Tempo.multiplier(player, skill) : Tempo.preview(player, skill, tempoLater);
+        // Tempo knows its own exemptions (TempoRules): Social, Nightwalker and Homebuilder are paid in lumps and
+        // Endurance for being hit, so they pay x1.0; the support skills ride the live weapon chain.
+        double tempo = aoe ? 1.0 : commit ? Tempo.multiplier(player, skill) : Tempo.preview(player, skill, tempoLater);
         return new Mult(rate, perk, company, tempo, overflow(player, skill), inspiration(player),
                 SurvivalStreak.multiplier(skills));
     }
@@ -462,6 +472,7 @@ public final class SkillService {
         XP_FEEDS.remove(player);
         XpFeedRecorder.stop(player);
         SocialService.forget(player);
+        dev.amman.proficiency.coop.CoopService.forget(player);
         NightwalkerService.forget(player);
         RestedService.forget(player);
     }
@@ -566,8 +577,12 @@ public final class SkillService {
         // Only this player hears the chime. A shared base would be unbearable otherwise.
         player.playNotifySound(
                 SoundEvents.NOTE_BLOCK_CHIME.value(), SoundSource.PLAYERS, 0.6f, 1.2f);
+        // Around the feet, never the chest: a vanilla particle spawned within a block of the first-person
+        // camera is drawn as a huge green star across the screen (the 1.57.0 Lesznica report).
         player.serverLevel().sendParticles(ParticleTypes.HAPPY_VILLAGER,
-                player.getX(), player.getY() + 1.2, player.getZ(), 8, 0.35, 0.45, 0.35, 0.02);
+                player.getX(), player.getY() + 0.1, player.getZ(), 8, 0.6, 0.05, 0.6, 0.02);
+
+        celebrateMilestone(player, skill, from, level);
 
         // Crossing the unlock level is the moment the skill stops being a percentage, so say so.
         if (Milestones.passed(from, level, ProficiencyConfig.procUnlockLevel())
@@ -589,6 +604,36 @@ public final class SkillService {
                     .withStyle(ChatFormatting.GOLD);
             player.server.getPlayerList().broadcastSystemMessage(message, false);
         }
+    }
+
+    /**
+     * The ceremony for level 10, 25, 50, 75 or 100: the highest tier this gain crossed that was never
+     * celebrated before, once. Every tier the gain crossed is marked, so a jump 9 to 30 plays the 25
+     * only and the 10 never plays later; a level-up never replays a tier on a relog. Players close by
+     * see a small firework (vanilla particles, no payload); the player's own client plays the full
+     * ceremony from the milestone packet.
+     */
+    static void celebrateMilestone(ServerPlayer player, Skill skill, int from, int level) {
+        PlayerSkills skills = ProficiencyAttachments.of(player);
+        int tier = MilestoneTiers.fresh(from, level, t -> skills.hasVisited(MilestoneTiers.mark(skill, t)));
+        for (int crossed : MilestoneTiers.crossed(from, level)) {
+            skills.markVisited(MilestoneTiers.mark(skill, crossed));
+        }
+        if (tier <= 0) {
+            return;
+        }
+        ProficiencyNetwork.sendMilestone(player, skill, tier);
+        int size = MilestoneTiers.index(tier);
+        ServerLevel world = player.serverLevel();
+        for (ServerPlayer other : world.players()) {
+            if (other == player || other.distanceToSqr(player) > 24.0 * 24.0) {
+                continue;
+            }
+            world.sendParticles(other, ParticleTypes.FIREWORK, false, player.getX(), player.getY() + 2.4,
+                    player.getZ(), 8 + 6 * size, 0.6 + 0.2 * size, 0.5, 0.6 + 0.2 * size, 0.06);
+        }
+        world.playSound(player, player.getX(), player.getY() + 2.0, player.getZ(),
+                SoundEvents.FIREWORK_ROCKET_TWINKLE, SoundSource.PLAYERS, 0.5f + 0.1f * size, 1.0f);
     }
 
     /** Current passive bonus for a skill, as a fraction. Safe to call on either side. */

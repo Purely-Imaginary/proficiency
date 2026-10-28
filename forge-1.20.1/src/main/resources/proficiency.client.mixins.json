@@ -5,9 +5,15 @@
   "package": "dev.amman.proficiency.mixin",
   "compatibilityLevel": "JAVA_17",
   "client": [
+    "client.ChatComponentAccessor",
+    "client.AdvancementToastAccessor",
+    "client.ChatSynergyMixin",
     "client.GameRendererMixin",
+    "client.GuiSlamShakeMixin",
     "client.LightTextureAccess",
-    "client.LightTextureMixin"
+    "client.LightTextureMixin",
+    "client.ScreenSlamMixin",
+    "client.ToastInstanceMixin"
   ],
   "injectors": {
     "defaultRequire": 0

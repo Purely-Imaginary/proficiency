@@ -49,6 +49,10 @@ public final class ProficiencyNetwork {
      * Version 13: the Jade plugin's look request and reply (this line only: Jade 11 has no server data for
      * a block without a block entity). Version 14: the tempo packet (the HUD's Tempo indicator), appended last.
      * Version 15: the sync packet ends with the picked Codex title (a string, "" for none).
+     * The personal records packet (1.37.0) is appended last and carries no number: it is sent only to a peer that has it
+     * ({@link #canReceive}), so an older client joins and shows no records.
+     * (The milestone packet, the 10/25/50/75/100 ceremonies, is appended last with no version bump: cosmetic, and Forge 1.20.1 is single-player here.)
+     * The bonus loot packet (1.38.0) is appended last with no version bump; its sender asks canReceive first.
      * A mismatched pair must fail at negotiation, not in readUtf.
      */
     public static final String PROTOCOL = "15";
@@ -97,9 +101,23 @@ public final class ProficiencyNetwork {
         });
         toClient(LookReplyPayload.class, LookReplyPayload.STREAM_CODEC,
                 (payload, context) -> context.enqueueWork(() -> dev.amman.proficiency.jade.LookClient.accept(payload)));
-        // Protocol 14, the Tempo indicator. Appended last.
+        // Protocol 14, the Tempo indicator.
         toClient(TempoPayload.class, TempoPayload.STREAM_CODEC,
                 (payload, context) -> context.enqueueWork(() -> dev.amman.proficiency.client.TempoBadge.accept(payload)));
+        // The personal records (1.37.0): optional, no protocol bump. Appended last.
+        toClient(RecordsPayload.class, RecordsPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> dev.amman.proficiency.client.ClientRecords.accept(payload)));
+        // The milestone ceremonies (cosmetic, appended last, no protocol bump).
+        toClient(MilestonePayload.class, MilestonePayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> dev.amman.proficiency.client.MilestoneCeremony.start(
+                        Skill.VALUES[Math.floorMod(payload.skillOrdinal(), Skill.VALUES.length)], payload.tier(),
+                        payload.procUnlock(), payload.abilityUnlock())));
+        // Bonus loot flying to the hotbar (1.38.0, no protocol bump). Appended last.
+        toClient(BonusLootPayload.class, BonusLootPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> dev.amman.proficiency.client.HudFlights.acceptBonus(payload)));
+        // The white Tempo flare of a vanilla jump crit (1.49.0, no protocol bump). Appended last.
+        toClient(TempoCritPayload.class, TempoCritPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> dev.amman.proficiency.client.TempoBadge.acceptCrit(payload.skillOrdinal())));
     }
 
     /**
@@ -346,11 +364,46 @@ public final class ProficiencyNetwork {
         send(player, new TempoPayload(skill.ordinal(), steps, maxSteps, permille, windowTicks));
     }
 
+    /** Personal records: the given rows and an optional toast. See {@link RecordsPayload}. */
+    public static void sendRecords(ServerPlayer player, java.util.List<RecordsPayload.Row> rows, int toastSkill,
+            int toastMetric, float toastValue) {
+        if (!canReceive(player)) {
+            return;
+        }
+        send(player, new RecordsPayload(rows, toastSkill, toastMetric, toastValue));
+    }
+
+    /** A vanilla jump crit lengthened a weapon chain's window (no protocol bump). */
+    public static void sendTempoCrit(ServerPlayer player, Skill skill) {
+        if (!canReceive(player)) {
+            return;
+        }
+        send(player, new TempoCritPayload(skill.ordinal()));
+    }
+
+    /** The bonus items a skill's luck added this tick (no protocol bump); a client without the channel simply sees no flight. */
+    public static void sendBonusLoot(ServerPlayer player, BonusLootPayload payload) {
+        if (payload.entries().isEmpty() || !canReceive(player)) {
+            return;
+        }
+        send(player, payload);
+    }
+
     public static void sendLevelUp(ServerPlayer player, Skill skill, int level) {
         if (!canReceive(player)) {
             return;
         }
         send(player, new LevelUpPayload(skill.ordinal(), level, 0));
+    }
+
+    /** A milestone ceremony (tier 10, 25, 50, 75 or 100), sent after the level-up packet. */
+    public static void sendMilestone(ServerPlayer player, Skill skill, int tier) {
+        if (!canReceive(player)) {
+            return;
+        }
+        send(player, new MilestonePayload(skill.ordinal(), tier,
+                dev.amman.proficiency.config.ProficiencyConfig.procUnlockLevel(),
+                dev.amman.proficiency.skill.ActiveService.unlockLevel()));
     }
 
     /** A Mastery star: the level-up packet with the star count, so the HUD plays the lighter moment. */
@@ -387,11 +440,20 @@ public final class ProficiencyNetwork {
     /** As above, with the name of the player who led, for a convoy member's shared discovery. */
     public static void sendDiscovery(ServerPlayer player, int kind, String name, String id,
             dev.amman.proficiency.skill.Skill skill, float xp, String with) {
+        if (kind == DiscoveryPayload.FIRST || kind == DiscoveryPayload.BIOME || kind == DiscoveryPayload.DIMENSION
+                || kind == DiscoveryPayload.STRUCTURE) {
+            dev.amman.proficiency.haul.HaulService.onFound(player);
+        }
         if (!canReceive(player)) {
             return;
         }
         send(player,
                 new DiscoveryPayload(kind, name, id, skill.ordinal(), xp, with));
+    }
+
+    /** Co-op XP streams (1.45.0): on their own optional channel, to a client that has it ({@link CoopNetwork}). */
+    public static void sendCoop(ServerPlayer player, dev.amman.proficiency.coop.CoopBatch batch) {
+        CoopNetwork.send(player, batch);
     }
 
     /** Tactician's Called Shot icon over a mob: {@code ticks} left, or 0 when the mark ended. */

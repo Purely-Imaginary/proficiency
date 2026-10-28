@@ -81,9 +81,21 @@ public final class CritEvents {
         }
         if (event.isCriticalHit()) {
             PENDING.put(player.getUUID(), new long[] {event.getTarget().getId(), player.level().getGameTime()});
+            // A jump crit as vanilla decided it (not Lunge, not any other crit of ours) holds the Tempo chain longer.
+            if (isVanillaJumpCrit(event) && player instanceof net.minecraft.server.level.ServerPlayer server
+                    && !SkillTools.isFakePlayer(server) && event.getTarget() instanceof LivingEntity) {
+                dev.amman.proficiency.skill.Tempo.markVanillaCrit(server);
+            }
         } else {
             PENDING.remove(player.getUUID());
         }
+    }
+
+    /**
+     * True for a crit vanilla itself decided (the jump crit), false for one only Proficiency forced.
+     */
+    private static boolean isVanillaJumpCrit(CriticalHitEvent event) {
+        return event.isVanillaCritical() && event.isCriticalHit();
     }
 
     /**

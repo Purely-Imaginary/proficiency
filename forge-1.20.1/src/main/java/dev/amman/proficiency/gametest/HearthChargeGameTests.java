@@ -348,7 +348,7 @@ public final class HearthChargeGameTests {
             SpawnOrigin.tagSiege(peace);
             int seenPeace = home.grants.size();
             kill(player, peace);
-            helper.assertTrue(home.grants.indexOf(home.last(zombie)) >= seenPeace, "setup: the kill at peace paid XP");
+            helper.assertTrue(home.grants.lastIndexOf(home.last(zombie)) >= seenPeace, "setup: the kill at peace paid XP");
             near(helper, 0.0, home.total(), "a siege mob killed while this Hearth is not under siege");
             home.state().setSiegePhase(SiegeRules.Phase.ACTIVE);
             Mob outside = mob(helper, EntityType.ZOMBIE, 4, 3);
@@ -357,14 +357,14 @@ public final class HearthChargeGameTests {
             helper.assertFalse(HearthRange.inHouse(home.pos, outside.position()), "setup: out of range");
             int seenOutside = home.grants.size();
             kill(player, outside);
-            helper.assertTrue(home.grants.indexOf(home.last(zombie)) >= seenOutside, "setup: the kill outside paid XP");
+            helper.assertTrue(home.grants.lastIndexOf(home.last(zombie)) >= seenOutside, "setup: the kill outside paid XP");
             near(helper, 0.0, home.total(), "a siege mob killed outside this Hearth's range");
 
             // A siege mob killed in range while the siege runs: combatShare of the kill XP into every pool.
             int seen = home.grants.size();
             kill(player, siege);
             HearthHooks.Grant siegeKill = home.last(zombie);
-            helper.assertTrue(home.grants.indexOf(siegeKill) >= seen, "setup: the siege kill paid kill XP");
+            helper.assertTrue(home.grants.lastIndexOf(siegeKill) >= seen, "setup: the siege kill paid kill XP");
             double share = siegeKill.beforeRested() * Hearths.data().combatShare();
             for (HearthPool pool : HearthPool.VALUES) {
                 near(helper, share, home.charge(pool), "siege kill into " + pool.id());
@@ -400,7 +400,7 @@ public final class HearthChargeGameTests {
                 int seenWitch = home.grants.size();
                 kill(player, witch);
                 HearthHooks.Grant witchKill = home.last("kill|" + EntityType.WITCH.getDescriptionId());
-                helper.assertTrue(home.grants.indexOf(witchKill) >= seenWitch, "setup: the witch's kill paid XP");
+                helper.assertTrue(home.grants.lastIndexOf(witchKill) >= seenWitch, "setup: the witch's kill paid XP");
                 near(helper, beforeWitch, home.total(), "a witch next to a running raid feeds nothing");
 
                 Pillager joined = (Pillager) mob(helper, EntityType.PILLAGER, 2, 4);
@@ -413,7 +413,7 @@ public final class HearthChargeGameTests {
                 helper.assertTrue(joined instanceof ChargeEvents.RaidMember member && member.proficiency$raidAtDeath() == real,
                         "HearthRaiderMixin kept the raid it died in");
                 HearthHooks.Grant joinedKill = home.last("kill|" + EntityType.PILLAGER.getDescriptionId());
-                helper.assertTrue(home.grants.indexOf(joinedKill) >= seenJoined, "setup: the raider's kill paid XP");
+                helper.assertTrue(home.grants.lastIndexOf(joinedKill) >= seenJoined, "setup: the raider's kill paid XP");
                 near(helper, beforeJoined + joinedKill.beforeRested() * Hearths.data().combatShare(),
                         home.charge(HearthPool.FORTIFIED), "a raider of a running raid feeds every pool");
             } finally {

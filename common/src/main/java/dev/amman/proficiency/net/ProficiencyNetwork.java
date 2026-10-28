@@ -27,6 +27,8 @@ public final class ProficiencyNetwork {
      * talent table, and the crit XP factor; a 1.6.0 client would not know them.
      * Version 10: the sync packet carries Seam Sense's Motherlode charge.
      * Version 13: the sync packet ends with the picked Codex title (a string, "" for none).
+     * (The bonus loot packet, 1.38.0, carries no number: like the tempo packet it is optional, sent only to a client
+     * that registered it ({@code canReceive}), so an older client still joins and simply sees no bonus flight.)
      * (The Forge 1.20.1 line is at 15: 13 gained the Jade plugin's look request and reply, 14 the tempo packet, 15 the Codex title. The
      * 1.21.1 lines carry no number for either: Jade 15 has its own data channel, and the tempo packet is optional,
      * sent only to a client that registered it ({@code canReceive}), so a 1.15 or 1.16 client still joins and
@@ -38,6 +40,7 @@ public final class ProficiencyNetwork {
     public static void onSync(SyncSkillsPayload payload, Player player) {
         ProficiencyAttachments.of(player).copyFrom(payload.skills());
         dev.amman.proficiency.client.ClientSync.markSynced();
+        dev.amman.proficiency.client.SynergySlam.observe(ProficiencyAttachments.of(player));
     }
 
     /** To every client within 48 blocks of the player or of the effect, the player included. */
@@ -124,11 +127,46 @@ public final class ProficiencyNetwork {
                 new TempoPayload(skill.ordinal(), steps, maxSteps, permille, windowTicks));
     }
 
+    /** Personal records (optional packet): the given rows and an optional toast. See {@link RecordsPayload}. */
+    public static void sendRecords(ServerPlayer player, java.util.List<RecordsPayload.Row> rows, int toastSkill,
+            int toastMetric, float toastValue) {
+        if (!canReceive(player, RecordsPayload.TYPE)) {
+            return;
+        }
+        PacketDistributor.sendToPlayer(player, new RecordsPayload(rows, toastSkill, toastMetric, toastValue));
+    }
+
+    /** A vanilla jump crit lengthened a weapon chain's window (optional channel, no protocol bump). */
+    public static void sendTempoCrit(ServerPlayer player, Skill skill) {
+        if (!canReceive(player, TempoCritPayload.TYPE)) {
+            return;
+        }
+        PacketDistributor.sendToPlayer(player, new TempoCritPayload(skill.ordinal()));
+    }
+
+    /** The bonus items a skill's luck added this tick (optional, no protocol bump); a client without the channel simply sees no flight. */
+    public static void sendBonusLoot(ServerPlayer player, BonusLootPayload payload) {
+        if (payload.entries().isEmpty() || !canReceive(player, BonusLootPayload.TYPE)) {
+            return;
+        }
+        PacketDistributor.sendToPlayer(player, payload);
+    }
+
     public static void sendLevelUp(ServerPlayer player, Skill skill, int level) {
         if (!canReceive(player, LevelUpPayload.TYPE)) {
             return;
         }
         PacketDistributor.sendToPlayer(player, new LevelUpPayload(skill.ordinal(), level, 0));
+    }
+
+    /** A milestone ceremony (tier 10, 25, 50, 75 or 100), sent after the level-up packet. */
+    public static void sendMilestone(ServerPlayer player, Skill skill, int tier) {
+        if (!canReceive(player, MilestonePayload.TYPE)) {
+            return;
+        }
+        PacketDistributor.sendToPlayer(player, new MilestonePayload(skill.ordinal(), tier,
+                dev.amman.proficiency.config.ProficiencyConfig.procUnlockLevel(),
+                dev.amman.proficiency.skill.ActiveService.unlockLevel()));
     }
 
     /** A Mastery star: the level-up packet with the star count, so the HUD plays the lighter moment. */
@@ -158,11 +196,41 @@ public final class ProficiencyNetwork {
     /** As above, with the name of the player who led, for a convoy member's shared discovery. */
     public static void sendDiscovery(ServerPlayer player, int kind, String name, String id,
             dev.amman.proficiency.skill.Skill skill, float xp, String with) {
+        if (kind == DiscoveryPayload.FIRST || kind == DiscoveryPayload.BIOME || kind == DiscoveryPayload.DIMENSION
+                || kind == DiscoveryPayload.STRUCTURE) {
+            dev.amman.proficiency.haul.HaulService.onFound(player);
+        }
         if (!canReceive(player, DiscoveryPayload.TYPE)) {
             return;
         }
         PacketDistributor.sendToPlayer(player,
                 new DiscoveryPayload(kind, name, id, skill.ordinal(), xp, with));
+    }
+
+    /** Today's Haul: true when the client registered the card (an older client did not). */
+    public static boolean canReceiveHaul(ServerPlayer player) {
+        return canReceive(player, HaulPayload.TYPE);
+    }
+
+    /** Today's Haul: the card or the login hello, to a client that has it; nothing for one that does not. */
+    public static void sendHaul(ServerPlayer player, dev.amman.proficiency.haul.HaulSummary summary) {
+        if (summary == null || !canReceive(player, HaulPayload.TYPE)) {
+            return;
+        }
+        PacketDistributor.sendToPlayer(player, new HaulPayload(summary));
+    }
+
+    /** Server thread: the client asks for its haul (from a bed, or the login reminder's key). */
+    public static void onHaulRequest(HaulRequestPayload payload, ServerPlayer player) {
+        dev.amman.proficiency.haul.HaulService.onRequest(player, payload.reason());
+    }
+
+    /** Co-op XP streams (1.45.0): one second of partners' XP, to a client that has it; nothing for one that does not. */
+    public static void sendCoop(ServerPlayer player, dev.amman.proficiency.coop.CoopBatch batch) {
+        if (batch == null || !canReceive(player, CoopPayload.TYPE)) {
+            return;
+        }
+        PacketDistributor.sendToPlayer(player, new CoopPayload(batch));
     }
 
     /** Tactician's Called Shot icon over a mob: {@code ticks} left, or 0 when the mark ended. */

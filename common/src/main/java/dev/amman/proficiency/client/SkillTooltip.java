@@ -49,6 +49,7 @@ public final class SkillTooltip {
 
     static void reset() {
         TooltipDetail.reset();
+        MaterialTooltip.reset();
         Arrays.fill(CACHE[0], null);
         Arrays.fill(CACHE[1], null);
     }
@@ -58,6 +59,14 @@ public final class SkillTooltip {
 
     /** The loaders' tooltip events call this: NeoForge's ItemTooltipEvent, Fabric's callback. */
     public static void append(Player player, ItemStack stack, List<Component> tip) {
+        appendSkill(player, stack, tip);
+        if (player != null && !stack.isEmpty() && RenderSystem.isOnRenderThread()
+                && Minecraft.getInstance().screen != null) {
+            MaterialTooltip.append(player, stack, tip);
+        }
+    }
+
+    private static void appendSkill(Player player, ItemStack stack, List<Component> tip) {
         if (player == null || stack.isEmpty() || !RenderSystem.isOnRenderThread()
                 || Minecraft.getInstance().screen == null) {
             return;

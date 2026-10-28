@@ -16,7 +16,10 @@ public final class HudState {
         DeathRecapHud.reset();
         ProcCallout.reset();
         AbilityFx.reset();
+        AbilityGlint.reset();
         SkillHud.reset();
+        HudStackRows.reset();
+        CoopStreams.reset();
         SkillActivity.reset();
         ClientSync.reset();
         SkillTooltip.reset();

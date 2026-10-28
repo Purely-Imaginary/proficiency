@@ -2,8 +2,10 @@ package dev.amman.proficiency.client.stone;
 
 import com.mojang.math.Axis;
 import dev.amman.proficiency.ProficiencyAttachments;
+import dev.amman.proficiency.client.AbilityGlint;
 import dev.amman.proficiency.client.ClickFx;
 import dev.amman.proficiency.client.ClickFxMath;
+import dev.amman.proficiency.client.ReadyGlint;
 import dev.amman.proficiency.client.SkillstoneMath;
 import dev.amman.proficiency.client.TempoBadge;
 import dev.amman.proficiency.client.WaywheelMath;
@@ -132,6 +134,21 @@ public final class WaywheelBelt {
                     FX.success(s, x, y, n, n, 0xFFFFB050, 1, 1f, now);
                 }
             }
+            long glintAge = landing ? Long.MAX_VALUE / 2 : AbilityGlint.age(s);
+            boolean glinting = ReadyGlint.running(glintAge);
+            if (glinting) {
+                // The ability came ready: the token pops about its centre and a warm glow flares behind it.
+                float fl = ReadyGlint.flash(glintAge);
+                int rad = Math.round(n * (1.1f + 0.7f * fl));
+                Stone.light(g, x + n / 2, y + n / 2, rad, rad, Stone.WARM, Math.min(1f, 0.9f * fl + 0.1f));
+                g.pose().pushPose();
+                if (ClickFx.motion()) {
+                    float pop = ClickFxMath.pop(glintAge, 0.32f);
+                    g.pose().translate(x + n / 2f, y + n / 2f, 0);
+                    g.pose().scale(pop, pop, 1f);
+                    g.pose().translate(-(x + n / 2f), -(y + n / 2f), 0);
+                }
+            }
             FX.begin(g, s, x, y, n, n, now);
             if (landing) {
                 // The socket waits empty for its token: the stone shows, the icon is in the air.
@@ -142,6 +159,12 @@ public final class WaywheelBelt {
             FX.end(g, s, x, y, n, n, now);
             // The Tempo fire comes off the token's top edge; its multiplier sits in the gap to the right.
             TempoBadge.draw(g, x + 2, y, n - 4, n - 4, 255, s);
+            if (glinting) {
+                if (ClickFx.motion()) {
+                    AbilityGlint.sweep(g, x, y, n, n, glintAge, WaywheelMath.face(n));
+                }
+                g.pose().popPose();
+            }
         }
         drawFlight(g, mc, skills, game, xs, first, y, now);
         FX.render(g, now, 1f);

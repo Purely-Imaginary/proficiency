@@ -44,6 +44,22 @@ public final class NeoForgeNetwork {
                 dev.amman.proficiency.net.TempoPayload.STREAM_CODEC,
                 (payload, context) -> context.enqueueWork(() ->
                         dev.amman.proficiency.client.ClientWiring.onTempo(payload)));
+        registrar.playToClient(dev.amman.proficiency.net.RecordsPayload.TYPE,
+                dev.amman.proficiency.net.RecordsPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() ->
+                        dev.amman.proficiency.client.ClientWiring.onRecords(payload)));
+        registrar.playToClient(dev.amman.proficiency.net.TempoCritPayload.TYPE,
+                dev.amman.proficiency.net.TempoCritPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() ->
+                        dev.amman.proficiency.client.ClientWiring.onTempoCrit(payload)));
+        registrar.playToClient(dev.amman.proficiency.net.MilestonePayload.TYPE,
+                dev.amman.proficiency.net.MilestonePayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() ->
+                        dev.amman.proficiency.client.ClientWiring.onMilestone(payload)));
+        registrar.playToClient(dev.amman.proficiency.net.BonusLootPayload.TYPE,
+                dev.amman.proficiency.net.BonusLootPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() ->
+                        dev.amman.proficiency.client.ClientWiring.onBonusLoot(payload)));
         registrar.playToClient(XpLogPayload.TYPE, XpLogPayload.STREAM_CODEC,
                 (payload, context) -> context.enqueueWork(() ->
                         dev.amman.proficiency.client.ClientWiring.onXpLog(payload)));
@@ -82,6 +98,23 @@ public final class NeoForgeNetwork {
                 (payload, context) -> context.enqueueWork(() -> {
                     if (context.player() instanceof ServerPlayer player) {
                         ProficiencyNetwork.onExpertise(payload, player);
+                    }
+                }));
+        // Co-op XP streams (1.45.0): optional, asked for with canSend before each send.
+        registrar.playToClient(dev.amman.proficiency.net.CoopPayload.TYPE,
+                dev.amman.proficiency.net.CoopPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() ->
+                        dev.amman.proficiency.client.CoopStreams.accept(payload.batch())));
+        // Today's Haul (1.44.0): optional like every channel here, and asked for with canSend before each send.
+        registrar.playToClient(dev.amman.proficiency.net.HaulPayload.TYPE,
+                dev.amman.proficiency.net.HaulPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() ->
+                        dev.amman.proficiency.client.HaulClient.accept(payload.summary())));
+        registrar.playToServer(dev.amman.proficiency.net.HaulRequestPayload.TYPE,
+                dev.amman.proficiency.net.HaulRequestPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> {
+                    if (context.player() instanceof ServerPlayer player) {
+                        ProficiencyNetwork.onHaulRequest(payload, player);
                     }
                 }));
         NeoForgeHearthNetwork.register(registrar);

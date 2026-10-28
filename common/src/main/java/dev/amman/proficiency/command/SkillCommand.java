@@ -162,6 +162,25 @@ public final class SkillCommand {
                                         EntityArgument.getPlayer(context, "player")))
                                 .then(Commands.argument("stacks", IntegerArgumentType.integer(0, 1000))
                                         .executes(SkillCommand::setStreak))))
+                .then(Commands.literal("cooldown")
+                        .requires(source -> source.hasPermission(2))
+                        .then(Commands.argument("skill", StringArgumentType.word())
+                                .suggests(SKILL_SUGGESTIONS)
+                                .then(Commands.argument("ticks", IntegerArgumentType.integer(0, 1_000_000))
+                                        .executes(SkillCommand::setCooldown))))
+                .then(Commands.literal("haul")
+                        .executes(context -> dev.amman.proficiency.haul.HaulService.command(
+                                context.getSource().getPlayerOrException()))
+                        .then(Commands.literal("seed")
+                                .requires(source -> source.hasPermission(2))
+                                .executes(context -> {
+                                    var player = context.getSource().getPlayerOrException();
+                                    dev.amman.proficiency.haul.HaulService.seed(player, Skill.MINING);
+                                    context.getSource().sendSuccess(() -> Component.literal(
+                                            "Haul seeded: a Tempo chain, 3 discoveries, a synergy and Hearth charge."
+                                                    + " Add XP with /proficiency addxp."), false);
+                                    return 1;
+                                })))
                 .then(xpFeedCommand())
                 .then(CodexCommand.node())
                 .then(ExpertiseCommand.node())
@@ -503,6 +522,10 @@ public final class SkillCommand {
         int level = IntegerArgumentType.getInteger(context, "level");
 
         ProficiencyAttachments.of(target).setLevel(skill, level);
+        // An op's set never plays a ceremony, now or later: every tier up to it counts as celebrated.
+        for (int tier : dev.amman.proficiency.skill.MilestoneTiers.crossed(0, level)) {
+            ProficiencyAttachments.of(target).markVisited(dev.amman.proficiency.skill.MilestoneTiers.mark(skill, tier));
+        }
         ProficiencyNetwork.sendFullSync(target);
         context.getSource().sendSuccess(() -> Component.translatable("proficiency.command.set",
                 target.getDisplayName(), Component.translatable(skill.translationKey()), level), true);
@@ -519,6 +542,9 @@ public final class SkillCommand {
         PlayerSkills skills = ProficiencyAttachments.of(target);
         if (stars > 0 && skills.level(skill) < SkillMath.MAX_LEVEL) {
             skills.setLevel(skill, SkillMath.MAX_LEVEL);
+            for (int tier : dev.amman.proficiency.skill.MilestoneTiers.crossed(0, SkillMath.MAX_LEVEL)) {
+                skills.markVisited(dev.amman.proficiency.skill.MilestoneTiers.mark(skill, tier));
+            }
         }
         skills.setStars(skill, stars);
         ProficiencyNetwork.sendFullSync(target);
@@ -551,6 +577,19 @@ public final class SkillCommand {
         ProficiencyNetwork.sendFullSync(target);
         context.getSource().sendSuccess(() -> Component.translatable("proficiency.command.addxp",
                 target.getDisplayName(), amount, Component.translatable(skill.translationKey())), true);
+        return 1;
+    }
+
+    /**
+     * Op test tool. Puts your {@code skill}'s ability on cooldown for {@code ticks} (0 ends it at once), so the
+     * ready glint and the cooldown sweep can be watched without waiting out a real cooldown.
+     */
+    private static int setCooldown(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        Skill skill = requireSkill(context);
+        int ticks = IntegerArgumentType.getInteger(context, "ticks");
+        ProficiencyAttachments.of(player).beginFrenzy(skill, 0L, ticks == 0 ? 0L : player.level().getGameTime() + ticks);
+        context.getSource().sendSuccess(() -> Component.literal(skill.id() + " cooldown set to " + ticks + " ticks."), false);
         return 1;
     }
 

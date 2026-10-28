@@ -33,7 +33,10 @@ public final class ProficiencyClientSetup {
             ClientXpLog.clear();
             XpFeedHud.clear();
             TempoBadge.reset();
+            SynergySlam.reset();
+            HudFlights.reset();
             DiscoveryBanner.clear();
+            MilestoneCeremony.clear();
             ClientVisited.clear();
             HudState.reset();
             // The Hearth's client copies (the HUD packet, then the client lane's views) and Homebuilder's.

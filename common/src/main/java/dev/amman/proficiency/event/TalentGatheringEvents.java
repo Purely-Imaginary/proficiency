@@ -673,6 +673,9 @@ public final class TalentGatheringEvents {
 
     private static void addDrop(BlockDropsEvent event, ItemStack stack) {
         BlockPos pos = event.getPos();
+        if (event.getBreaker() instanceof Player breaker) {
+            dev.amman.proficiency.skill.BonusLoot.note(breaker, stack, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
+        }
         event.getDrops().add(new ItemEntity(event.getLevel(),
                 pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, stack));
     }

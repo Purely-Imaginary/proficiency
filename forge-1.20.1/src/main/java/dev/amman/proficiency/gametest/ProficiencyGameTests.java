@@ -312,6 +312,53 @@ public final class ProficiencyGameTests {
         helper.succeed();
     }
 
+    /** The drops event a survival break would raise (a mock player is creative, which drops nothing). */
+    private static void stoneDrops(GameTestHelper helper, ServerPlayer player, BlockPos relative) {
+        BlockPos pos = helper.absolutePos(relative);
+        java.util.List<net.minecraft.world.entity.item.ItemEntity> drops = new java.util.ArrayList<>();
+        drops.add(new net.minecraft.world.entity.item.ItemEntity(helper.getLevel(), pos.getX() + 0.5, pos.getY() + 0.5,
+                pos.getZ() + 0.5, new ItemStack(Items.COBBLESTONE)));
+        dev.amman.proficiency.event.GatheringEvents.onBlockDrops(new dev.amman.proficiency.compat.BlockDropsEvent(helper.getLevel(), pos,
+                Blocks.STONE.defaultBlockState(), drops, player, player.getMainHandItem()));
+    }
+
+    /**
+     * Bonus loot to the HUD (optional payload, no protocol bump): a Motherlode's extra copies are noted for the player's client, an ordinary
+     * break's drops are not, and the flush sends one small packet naming the item.
+     */
+    @GameTest(template = "empty")
+    public static void aMotherlodeSendsItsBonusItemsToTheHudAndANormalBreakDoesNot(GameTestHelper helper) {
+        ServerPlayer player = MockPlayers.make(helper);
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.DIAMOND_PICKAXE));
+        GameTestRoots.open(player, Skill.MINING);
+        dev.amman.proficiency.skill.BonusLoot.forget(player.getUUID());
+
+        BlockPos plain = new BlockPos(1, 1, 1);
+        helper.setBlock(plain, Blocks.STONE);
+        Breaks.separately(player, helper.absolutePos(plain));
+        stoneDrops(helper, player, plain);
+        helper.assertTrue(dev.amman.proficiency.skill.BonusLoot.pending(player) == 0,
+                "an ordinary break's drops were noted as a bonus: " + dev.amman.proficiency.skill.BonusLoot.pending(player));
+
+        // 30, not 100 (see the Tempering test): a Motherlode needs some proc power, and a plain break above rolled none.
+        ProficiencyAttachments.of(player).setLevel(Skill.MINING, 30);
+        ProcService.forceNext(player, Skill.MINING);
+        BlockPos lode = new BlockPos(2, 1, 1);
+        helper.setBlock(lode, Blocks.STONE);
+        Breaks.separately(player, helper.absolutePos(lode));
+        stoneDrops(helper, player, lode);
+        helper.assertTrue(dev.amman.proficiency.skill.BonusLoot.pending(player) > 0,
+                "a Motherlode's extra copies were not noted for the HUD");
+        dev.amman.proficiency.skill.BonusLoot.flush(player);
+        var sent = dev.amman.proficiency.skill.BonusLoot.last(player);
+        helper.assertTrue(sent != null && !sent.entries().isEmpty(), "no bonus loot packet was built after the flush");
+        helper.assertTrue(sent.entries().size() <= dev.amman.proficiency.net.BonusLootPayload.MAX, "the packet is not bounded");
+        helper.assertTrue(sent.entries().get(0).item().equals("minecraft:cobblestone") && sent.entries().get(0).count() >= 1,
+                "the bonus entry names " + sent.entries().get(0));
+        helper.assertTrue(dev.amman.proficiency.skill.BonusLoot.pending(player) == 0, "the flush left entries waiting");
+        helper.succeed();
+    }
+
     /** Falling Leaf: a Timber with the talent leaves you Slow Falling, one without it does not. */
     @GameTest(template = "empty")
     public static void fallingLeafSlowsTheFallAfterATimber(GameTestHelper helper) {

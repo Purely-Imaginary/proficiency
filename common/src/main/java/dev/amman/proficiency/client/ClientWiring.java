@@ -55,8 +55,25 @@ public final class ClientWiring {
         SkillToasts.show(skill, payload.level());
     }
 
+    public static void onMilestone(dev.amman.proficiency.net.MilestonePayload payload) {
+        MilestoneCeremony.start(Skill.VALUES[Math.floorMod(payload.skillOrdinal(), Skill.VALUES.length)],
+                payload.tier(), payload.procUnlock(), payload.abilityUnlock());
+    }
+
     public static void onTempo(dev.amman.proficiency.net.TempoPayload payload) {
         TempoBadge.accept(payload);
+    }
+
+    public static void onRecords(dev.amman.proficiency.net.RecordsPayload payload) {
+        ClientRecords.accept(payload);
+    }
+
+    public static void onTempoCrit(dev.amman.proficiency.net.TempoCritPayload payload) {
+        TempoBadge.acceptCrit(payload.skillOrdinal());
+    }
+
+    public static void onBonusLoot(dev.amman.proficiency.net.BonusLootPayload payload) {
+        HudFlights.acceptBonus(payload);
     }
 
     public static void onXpLog(XpLogPayload payload) {
@@ -104,7 +121,10 @@ public final class ClientWiring {
         ClientXpLog.clear();
         XpFeedHud.clear();
         TempoBadge.reset();
+        SynergySlam.reset();
+        HudFlights.reset();
         DiscoveryBanner.clear();
+        MilestoneCeremony.clear();
         ClientVisited.clear();
         CalledShotMarks.clear();
         ProcFxPlayer.clear();

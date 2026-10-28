@@ -12,6 +12,8 @@ public final class TempoFlames {
     public static final int HEATS = 5;
     /** How long the flare burns after a step up. */
     public static final long FLARE_MS = 350;
+    /** How long the white flare of a vanilla jump crit burns (1.49.0): longer than a step's, it is the event. */
+    public static final long CRIT_FLARE_MS = 900;
     /** How long the fire takes to die down to smoke and go, once the window has lapsed. */
     public static final long DIE_MS = 1800;
     /** The part of the die-down in which the fire sinks, one heat at a time, to nothing. */
@@ -86,6 +88,19 @@ public final class TempoFlames {
             return 0f;
         }
         float t = sinceStepMs / (float) FLARE_MS;
+        return (1f - t) * (1f - t);
+    }
+
+    /** 1 at a jump crit, falling to 0 over {@link #CRIT_FLARE_MS}; held full for the first tenth so it reads. */
+    public static float critFlare(long sinceCritMs) {
+        if (sinceCritMs < 0 || sinceCritMs >= CRIT_FLARE_MS) {
+            return 0f;
+        }
+        float hold = CRIT_FLARE_MS * 0.1f;
+        if (sinceCritMs <= hold) {
+            return 1f;
+        }
+        float t = (sinceCritMs - hold) / (CRIT_FLARE_MS - hold);
         return (1f - t) * (1f - t);
     }
 

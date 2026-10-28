@@ -50,11 +50,15 @@ public final class ProficiencyConfig {
     public static final ModConfigSpec.BooleanValue ANNOUNCE_GRAND_DISCOVERIES;
     public static final ModConfigSpec.ConfigValue<java.util.List<? extends String>> XP_FEED_PLAYERS;
     public static final ModConfigSpec.BooleanValue TELEMETRY_ENABLED;
+    public static final ModConfigSpec.BooleanValue HAUL_ENABLED;
     public static final ModConfigSpec.IntValue TELEMETRY_RETENTION_DAYS;
     public static final ModConfigSpec.BooleanValue EXPORT_ENABLED;
     public static final ModConfigSpec.IntValue EXPORT_INTERVAL_SECONDS;
 
     public static final ModConfigSpec.DoubleValue COMPANY_RADIUS;
+    public static final ModConfigSpec.BooleanValue JADE_PLAYERS;
+    public static final ModConfigSpec.BooleanValue RECORDS_ENABLED;
+    public static final ModConfigSpec.BooleanValue COOP_STREAMS;
     public static final ModConfigSpec.IntValue MENTOR_GAP;
     public static final ModConfigSpec.DoubleValue MENTOR_BONUS;
     public static final ModConfigSpec.DoubleValue CAMARADERIE_BONUS;
@@ -106,6 +110,9 @@ public final class ProficiencyConfig {
     public static final ModConfigSpec.IntValue TEMPO_WINDOW;
     public static final ModConfigSpec.DoubleValue TEMPO_STEP;
     public static final ModConfigSpec.DoubleValue TEMPO_CAP;
+    public static final ModConfigSpec.IntValue TEMPO_COMBAT_WINDOW;
+    public static final ModConfigSpec.DoubleValue TEMPO_COMBAT_STEP;
+    public static final ModConfigSpec.DoubleValue TEMPO_COMBAT_CRIT_WINDOW_MUL;
 
     public static final ModConfigSpec.BooleanValue HEARTH_ENABLED;
     public static final ModConfigSpec.DoubleValue HEARTH_RANGE;
@@ -134,6 +141,11 @@ public final class ProficiencyConfig {
     public static final ModConfigSpec.IntValue ABILITY_UNLOCK_LEVEL;
     public static final ModConfigSpec.IntValue ABILITY_DURATION;
     public static final ModConfigSpec.IntValue ABILITY_COOLDOWN;
+
+    // Masonry and Decorating free blocks (RefundMath).
+    public static final ModConfigSpec.DoubleValue REFUND_FREE_CAP;
+    public static final ModConfigSpec.DoubleValue REFUND_FREE_CAP_KEYSTONE;
+    public static final ModConfigSpec.DoubleValue REFUND_KEYSTONE_CHANCE;
 
     private static final Map<Skill, ModConfigSpec.DoubleValue> MAX_BONUS = new EnumMap<>(Skill.class);
     private static final Map<Skill, ModConfigSpec.DoubleValue> XP_RATE = new EnumMap<>(Skill.class);
@@ -359,6 +371,16 @@ public final class ProficiencyConfig {
                         "grant. 0.5 with camaraderie +15% pays Social about 6.5% of what you earn",
                         "near others. Grants with no company bonus pay Social nothing.")
                 .defineInRange("socialShare", 0.5, 0.0, 10.0);
+        JADE_PLAYERS = b
+                .comment("Jade (optional): looking at another player shows their title, their three best",
+                        "skills and what the two of you gain together. false hides all of it, so a",
+                        "server can keep levels private.")
+                .define("jadePlayers", true);
+        COOP_STREAMS = b
+                .comment("Co-op XP streams (1.45.0): once a second each player is sent the XP of the players",
+                        "within company range (their dots stream in on the client, ui.coopStreams) and who is in",
+                        "company with them. Cosmetic and optional; false sends nothing.")
+                .define("coopStreams", true);
         b.pop();
 
         b.comment("Rested XP: a pool per skill that fills while you are active and away from that",
@@ -556,6 +578,28 @@ public final class ProficiencyConfig {
                 .defineInRange("windowTicks", 60, 1, 1200);
         TEMPO_STEP = b.defineInRange("perStep", 0.02, 0.0, 1.0);
         TEMPO_CAP = b.defineInRange("cap", 0.50, 0.0, 10.0);
+        b.comment("The weapon skills (Swords, Axes, Maces, Tridents, Unarmed, Archery, Crossbows, Beastslaying).",
+                        "A fight has pauses, so their chain survives a longer silence and climbs in bigger steps",
+                        "to the same cap. Courage, Charger, Guardian, Tactician and Blocking own no chain: they",
+                        "pay what the live weapon chain pays. Endurance has no Tempo.")
+                .push("combat");
+        TEMPO_COMBAT_WINDOW = b
+                .comment("Ticks of silence that break a weapon skill's chain.")
+                .defineInRange("windowTicks", 140, 1, 1200);
+        TEMPO_COMBAT_STEP = b.defineInRange("perStep", 0.05, 0.0, 1.0);
+        TEMPO_COMBAT_CRIT_WINDOW_MUL = b
+                .comment("A vanilla jump crit with a weapon (falling, not sprinting, full swing) multiplies the window",
+                        "of the next gap only by this. Proficiency's own crits do not. 1.0 turns it off.")
+                .defineInRange("critWindowMul", 2.0, 1.0, 10.0);
+        b.pop();
+        b.pop();
+
+        b.comment("Personal records per skill: best XP per minute, longest Tempo chain, biggest single grant and",
+                        "the skill's own best. Saved with the player, never wiped by a death.")
+                .push("records");
+        RECORDS_ENABLED = b
+                .comment("false stops tracking, toasts and the Records line. Saved records stay as they are.")
+                .define("enabled", true);
         b.pop();
 
         b.comment("Balance telemetry: per player, skill and source kind, XP and active time are",
@@ -567,6 +611,14 @@ public final class ProficiencyConfig {
         TELEMETRY_RETENTION_DAYS = b
                 .comment("Day files older than this are deleted at server start. 0 keeps everything.")
                 .defineInRange("retentionDays", 60, 0, 36500);
+        b.pop();
+
+        b.comment("Today's Haul (1.44.0): a per-player summary of what was earned since the last haul (XP per skill,",
+                        "levels, stars, talent points, best Tempo chain, discoveries, synergies, Hearth charge), saved",
+                        "with the player and shown as a card in bed or with /proficiency haul. false: nothing is",
+                        "recorded or sent and the command says it is off.")
+                .push("haul");
+        HAUL_ENABLED = b.define("enabled", true);
         b.pop();
 
         b.comment("Dashboard export: every intervalSeconds and when a player leaves, the server writes",
@@ -583,6 +635,23 @@ public final class ProficiencyConfig {
         ABILITY_UNLOCK_LEVEL = b.defineInRange("unlockLevel", 50, 1, 100);
         ABILITY_DURATION = b.defineInRange("durationTicks", 400, 20, 12000);
         ABILITY_COOLDOWN = b.defineInRange("cooldownTicks", 6000, 20, 432000);
+        b.pop();
+
+        b.comment("Masonry and Decorating: a placed block can come back, which makes it free. A placement gives",
+                        "back at most the one block. Every source (the signature proc, the passive, talents) is a",
+                        "chance that the block is free; together they never pass the cap. During the ability every",
+                        "proc lands, so a block is free at the cap. Storage blocks, ores, rare items and",
+                        "#proficiency:no_refund never come back.")
+                .push("refunds");
+        REFUND_FREE_CAP = b
+                .comment("The most a placed block can be free, as a fraction (0.55: a block costs at least 0.45).")
+                .defineInRange("freeCap", dev.amman.proficiency.skill.RefundMath.DEFAULT_FREE_CAP, 0.0, 1.0);
+        REFUND_FREE_CAP_KEYSTONE = b
+                .comment("The cap with Master Mason or Master Decorator.")
+                .defineInRange("freeCapKeystone", dev.amman.proficiency.skill.RefundMath.DEFAULT_FREE_CAP_KEYSTONE, 0.0, 1.0);
+        REFUND_KEYSTONE_CHANCE = b
+                .comment("Master Mason's and Master Decorator's own chance that a block is free.")
+                .defineInRange("keystoneChance", dev.amman.proficiency.skill.RefundMath.DEFAULT_KEYSTONE_CHANCE, 0.0, 1.0);
         b.pop();
 
         b.comment("The Hearth: a base block that mirrors nearby XP into boons (docs/HEARTH-SPEC.md).",
@@ -980,6 +1049,26 @@ public final class ProficiencyConfig {
         return safe(TEACHER_SHARE, dev.amman.proficiency.skill.RestedMath.DEFAULT_TEACHER_SHARE);
     }
 
+    public static double refundFreeCap() {
+        return safe(REFUND_FREE_CAP, dev.amman.proficiency.skill.RefundMath.DEFAULT_FREE_CAP);
+    }
+
+    public static double refundFreeCapKeystone() {
+        return safe(REFUND_FREE_CAP_KEYSTONE, dev.amman.proficiency.skill.RefundMath.DEFAULT_FREE_CAP_KEYSTONE);
+    }
+
+    public static double refundKeystoneChance() {
+        return safe(REFUND_KEYSTONE_CHANCE, dev.amman.proficiency.skill.RefundMath.DEFAULT_KEYSTONE_CHANCE);
+    }
+
+    public static boolean jadePlayers() {
+        return !SPEC.isLoaded() || JADE_PLAYERS.get();
+    }
+
+    public static boolean coopStreams() {
+        return !SPEC.isLoaded() || COOP_STREAMS.get();
+    }
+
     public static double camaraderieBonus() {
         return safe(CAMARADERIE_BONUS, 0.15);
     }
@@ -1096,6 +1185,10 @@ public final class ProficiencyConfig {
         return !SPEC.isLoaded() || COMMERCE_DISCOUNT.get();
     }
 
+    public static boolean recordsEnabled() {
+        return !SPEC.isLoaded() || RECORDS_ENABLED.get();
+    }
+
     public static int tempoWindow() {
         return SPEC.isLoaded() ? TEMPO_WINDOW.get() : 60;
     }
@@ -1104,8 +1197,24 @@ public final class ProficiencyConfig {
         return safe(TEMPO_STEP, 0.02);
     }
 
+    public static int tempoCombatWindow() {
+        return SPEC.isLoaded() ? TEMPO_COMBAT_WINDOW.get() : 140;
+    }
+
+    public static double tempoCombatStep() {
+        return safe(TEMPO_COMBAT_STEP, 0.05);
+    }
+
+    public static double tempoCombatCritWindowMul() {
+        return safe(TEMPO_COMBAT_CRIT_WINDOW_MUL, 2.0);
+    }
+
     public static double tempoCap() {
         return safe(TEMPO_CAP, 0.50);
+    }
+
+    public static boolean haulEnabled() {
+        return !SPEC.isLoaded() || HAUL_ENABLED.get();
     }
 
     public static boolean hearthEnabled() {

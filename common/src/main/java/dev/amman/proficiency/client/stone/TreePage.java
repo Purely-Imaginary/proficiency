@@ -13,6 +13,7 @@ import dev.amman.proficiency.perk.Talent;
 import dev.amman.proficiency.perk.TalentOutcome;
 import dev.amman.proficiency.perk.TalentService;
 import dev.amman.proficiency.perk.Talents;
+import dev.amman.proficiency.skill.ActiveService;
 import dev.amman.proficiency.skill.PlayerSkills;
 import dev.amman.proficiency.skill.Skill;
 import net.minecraft.client.gui.Font;
@@ -89,6 +90,12 @@ final class TreePage {
     private int extrasLevel;
     private boolean extrasPaid;
     private TalentOutcome[] checks = new TalentOutcome[0];
+    // The slate's Materials block: its scroll when it does not fit, and the band the wheel works in.
+    private int matScroll;
+    private int matMax;
+    private int matTop;
+    private int matBot;
+    private Talent matFor;
 
     TreePage(SkillstoneScreen s) {
         this.s = s;
@@ -100,6 +107,10 @@ final class TreePage {
             focus = null;
             hovered = null;
             seen.clear();
+            paidSeen.clear();
+            paidNow.clear();
+            wokeSig = null;
+            wokeAb = null;
             filledAt.clear();
             pourAt.clear();
             flareAt.clear();
@@ -184,6 +195,7 @@ final class TreePage {
     void render(GuiGraphics g, PlayerSkills skills, long now, int mx, int my) {
         Font font = s.font();
         List<Talent> tree = Talents.of(skill);
+        spendMats = dev.amman.proficiency.client.SpendableClient.materials(net.minecraft.client.Minecraft.getInstance().player);
         outcomes(skills, tree);
         watch(skills, tree, now);
         renderHeader(g, skills, font);
@@ -228,6 +240,9 @@ final class TreePage {
         }
         renderMarks(g, tree, now, font);
         renderDetail(g, skills, now, mx, my, font);
+        if (hovered != null && NodeMaterials.owes(skills, hovered)) {
+            s.tooltip.addAll(NodeMaterials.tooltip(skills, hovered));
+        }
     }
 
     /** Off the tree: ranks are only noted, so a rank that landed meanwhile does not play on return. */
@@ -237,7 +252,20 @@ final class TreePage {
         }
         for (Talent t : Talents.of(skill)) {
             seen.put(t.id(), skills.rank(t));
+            paidSeen.put(t.id(), skills.hasPaid(t));
         }
+        wokeSig = signatureOn(skills);
+        wokeAb = ActiveService.unlocked(skills, skill);
+    }
+
+    // The unlock slam: what was awake last frame, and the nodes whose materials were taken while watched.
+    private final Map<String, Boolean> paidSeen = new HashMap<>();
+    private final java.util.Set<String> paidNow = new java.util.HashSet<>();
+    private Boolean wokeSig;
+    private Boolean wokeAb;
+
+    private boolean signatureOn(PlayerSkills skills) {
+        return skills.procChance(skill) > 0;
     }
 
     /** One {@code check} per node per frame, shared by the sockets, the shown node and the detail slate. */
@@ -257,14 +285,32 @@ final class TreePage {
 
     /** A rank that rose since the last frame lands: molten fill, flint sparks, flare, shake. */
     private void watch(PlayerSkills skills, List<Talent> tree, long now) {
+        Talent filled = null;
         for (Talent t : tree) {
+            boolean paid = skills.hasPaid(t);
+            Boolean paidBefore = paidSeen.put(t.id(), paid);
+            if (paid && Boolean.FALSE.equals(paidBefore)) {
+                paidNow.add(t.id());
+            }
             int rank = skills.rank(t);
             Integer before = seen.put(t.id(), rank);
             if (before == null || rank <= before) {
                 continue;
             }
             land(t, before, rank, now);
+            if (rank >= t.maxRank()) {
+                filled = t;
+            }
         }
+        // A node that filled this frame and woke the signature or the ability (the root): the unlock slam.
+        boolean sig = signatureOn(skills);
+        boolean ab = ActiveService.unlocked(skills, skill);
+        if (filled != null && wokeSig != null && (sig && !wokeSig || ab && !wokeAb)) {
+            s.unlockSlam(filled, nodeX(filled), nodeY(filled), half(filled), sig && !wokeSig, ab && !wokeAb,
+                    paidNow.contains(filled.id()), now);
+        }
+        wokeSig = sig;
+        wokeAb = ab;
     }
 
     private void land(Talent t, int before, int rank, long now) {
@@ -318,12 +364,13 @@ final class TreePage {
         String spent = SkillstoneScreen.tr("proficiency.stone.spent", skills.pointsSpent(skill), Talents.fullTreeCost(skill));
         Stone.text(g, font, name, x + 22, y, Stone.GOLD);
         Stone.text(g, font, spent, x + 22, y + 12, Stone.DIM);
-        int points = skills.pointsAvailable(skill);
+        // Ranks ready now (1.55.0), not every unspent point; the Face's brazier hover says why the rest wait.
+        int points = dev.amman.proficiency.client.SpendableClient.summary().ready(skill);
+        String readyText = dev.amman.proficiency.client.SpendableClient.readyText(points);
         int cx = x + 22 + Math.max(font.width(name), font.width(spent)) + (small ? 8 : 14);
-        if (cx + 40 + font.width(SkillstoneScreen.tr("proficiency.stone.to_spend", points)) < rx0) {
+        if (cx + 40 + font.width(readyText) < rx0) {
             Stone.coals(g, cx, y + 1, Math.min(3, points));
-            Stone.text(g, font, SkillstoneScreen.tr("proficiency.stone.to_spend", points), cx + 40, y + 7,
-                    points > 0 ? Stone.INK : Stone.DIM);
+            Stone.text(g, font, readyText, cx + 40, y + 7, points > 0 ? Stone.INK : Stone.DIM);
         }
     }
 
@@ -422,6 +469,16 @@ final class TreePage {
         }
     }
 
+    /** The inventory as the pay path counts it, taken once per frame (1.55.0). */
+    private dev.amman.proficiency.perk.Spendable.Materials spendMats;
+
+    /** A short reason on a dimmed socket ("Lv 30", "1/2 pts"): a dark chip centred on it, the text in lock grey. */
+    private static void reasonChip(GuiGraphics g, Font font, String text, int x, int y, int colour) {
+        int w = font.width(text);
+        Stone.fillRound(g, x - w / 2 - 2, y - 5, w + 5, 11, 2, Stone.argb(225, 0x140E0D));
+        g.drawString(font, text, x - w / 2 + 1, y - 3, Stone.argb(255, colour), false);
+    }
+
     private void renderNode(GuiGraphics g, PlayerSkills skills, Talent t, int index, long now, Font font) {
         TalentOutcome outcome = index < checks.length && checks[index] != null ? checks[index] : skills.check(t);
         int x = nodeX(t);
@@ -442,7 +499,15 @@ final class TreePage {
         }
         float shownRank = fill >= 1f ? rank : Math.max(0, rank - 1) + fill;
         float lit = locked ? 0f : shownRank / t.maxRank();
+        // Spendable now (1.55.0): open, its cost within the unspent points, its materials on hand if it fills.
+        boolean ready = !full && spendMats != null && dev.amman.proficiency.perk.Spendable.nextReady(skills, t, spendMats);
         Object key = t.key();
+        if (ready) {
+            // A soft breathing glow under a socket you can take now.
+            float pulse = dev.amman.proficiency.client.ClickFx.motion()
+                    ? 0.5f + 0.5f * (float) Math.sin(now / 380.0 + t.col() * 0.9 + t.row() * 0.6) : 0.6f;
+            Stone.light(g, x, y, h + 16, h + 16, 0xC86E1E, 0.75f + 0.5f * pulse);
+        }
         s.click.begin(g, key, x - h, y - h, 2 * h, 2 * h, now);
         Stone.socket(g, x - h, y - h, 2 * h, 2 * h, lit, t == focus || t == hovered, avail || t == hovered);
         int i0 = x - h + 4;
@@ -468,11 +533,25 @@ final class TreePage {
             int frame = (int) (((now / 100L) + t.col() * 3L + t.row()) % 8);
             Stone.blitAlpha(g, Stone.tex("flame_" + in), i0, j0, in, in, 0f, frame * in, in, in * 8, fill);
         }
-        if (locked) {
-            Stone.textCentred(g, font, Integer.toString(t.requiredLevel()), x + 1, y - 4, Stone.LOCK);
+        if (ready) {
+            // An ember ring that breathes with the glow: the socket takes a rank right now.
+            float pulse = dev.amman.proficiency.client.ClickFx.motion()
+                    ? 0.5f + 0.5f * (float) Math.sin(now / 380.0 + t.col() * 0.9 + t.row() * 0.6) : 0.6f;
+            Stone.outlineRound(g, x - h - 1, y - h - 1, 2 * h + 2, 2 * h + 2, 4,
+                    Stone.argb(Math.round(110 + 140 * pulse), Stone.ember(0.8f)));
         }
-        if (!t.materials().isEmpty() && !skills.hasPaid(t)) {
-            g.fill(x + h - 5, y - h + 2, x + h - 2, y - h + 5, Stone.argb(255, 0xD2A249));
+        if (!full && !ready) {
+            // Not buyable now: the socket is dimmed and says why (the item badge says it for materials).
+            Stone.fillRound(g, x - h + 2, y - h + 2, 2 * h - 4, 2 * h - 4, 2, Stone.argb(120, 0x0A0706));
+            if (locked) {
+                reasonChip(g, font, SkillstoneScreen.tr("proficiency.spend.node_level", t.requiredLevel()), x + 1, y, Stone.LOCK);
+            } else if (skills.isUnlockableNow(t) && t.costPerRank() > skills.pointsAvailable(skill)) {
+                reasonChip(g, font, SkillstoneScreen.tr("proficiency.spend.node_points", skills.pointsAvailable(skill),
+                        t.costPerRank()), x + 1, y, 0xD8A27A);
+            }
+        }
+        if (NodeMaterials.owes(skills, t)) {
+            materialBadge(g, skills, t, x + h - 6, y - h - 2, now);
         }
         s.click.end(g, key, x - h, y - h, 2 * h, 2 * h, now);
         // Rank pips under the socket.
@@ -552,6 +631,98 @@ final class TreePage {
         }
     }
 
+    /**
+     * The socket's materials badge: the first material as a tiny item on a dark chip, ringed green when
+     * everything is on hand and gold when something is short. The hover tooltip has the have/need lines.
+     */
+    private void materialBadge(GuiGraphics g, PlayerSkills skills, Talent t, int bx, int by, long now) {
+        List<NodeMaterials.Row> rows = NodeMaterials.rows(t);
+        if (rows.isEmpty()) {
+            return;
+        }
+        boolean ok = NodeMaterials.allThere(rows);
+        int ring = ok ? 0x6FCF6B : 0xD2A249;
+        Stone.fillRound(g, bx - 1, by - 1, 10, 10, 2, Stone.argb(235, 0x1A1413));
+        Stone.outlineRound(g, bx - 1, by - 1, 10, 10, 2, Stone.argb(255, ring));
+        net.minecraft.world.item.ItemStack icon = NodeMaterials.icon(rows.get(0).requirement(), now);
+        if (!icon.isEmpty()) {
+            var pose = g.pose();
+            pose.pushPose();
+            pose.translate(bx, by, 0);
+            pose.scale(0.5f, 0.5f, 1f);
+            g.renderItem(icon, 0, 0);
+            pose.popPose();
+        }
+        if (rows.size() > 1) {
+            g.fill(bx + 7, by + 8, bx + 10, by + 10, Stone.argb(255, ring));
+        }
+    }
+
+    /** Rows of the detail slate's Materials block, and the height it wants. */
+    private int materialsBlock(GuiGraphics g, Font font, PlayerSkills skills, Talent t, int x, int y, int w, int bottom,
+                               long now, int mx, int my) {
+        boolean paid = skills.hasPaid(t);
+        List<NodeMaterials.Row> rows = NodeMaterials.rows(t);
+        if (rows.isEmpty()) {
+            return y;
+        }
+        boolean last = skills.rank(t) + 1 == t.maxRank();
+        String head = SkillstoneScreen.tr("proficiency.stone.materials_head");
+        Stone.text(g, font, head, x, y, Stone.HEAD);
+        String note = paid ? SkillstoneScreen.tr("proficiency.stone.materials_paid")
+                : last ? "" : SkillstoneScreen.tr("proficiency.stone.materials_when");
+        if (!note.isEmpty()) {
+            Stone.textRight(g, font, Stone.fit(font, note, w - font.width(head) - 8), x + w, y, paid ? 0x7FD27A : Stone.DIM);
+        }
+        y += 12;
+        int icon = small ? 12 : 16;
+        int rowH = icon + (small ? 2 : 3);
+        int viewH = Math.max(0, bottom - y);
+        int total = rows.size() * rowH;
+        matMax = Math.max(0, total - viewH);
+        matScroll = Math.max(0, Math.min(matScroll, matMax));
+        matTop = y;
+        matBot = Math.min(bottom, y + total);
+        g.enableScissor(x - 2, y, x + w + 2, y + Math.min(total, viewH));
+        for (int i = 0; i < rows.size(); i++) {
+            NodeMaterials.Row row = rows.get(i);
+            int ry = y + i * rowH - matScroll;
+            if (ry + rowH < y || ry > bottom) {
+                continue;
+            }
+            Stone.fillRound(g, x, ry, icon + 2, icon + 2, 2, Stone.argb(255, 0x1A1413));
+            net.minecraft.world.item.ItemStack stack = NodeMaterials.icon(row.requirement(), now);
+            if (!stack.isEmpty()) {
+                var pose = g.pose();
+                pose.pushPose();
+                pose.translate(x + 1, ry + 1, 0);
+                float k = icon / 16f;
+                pose.scale(k, k, 1f);
+                g.renderItem(stack, 0, 0);
+                pose.popPose();
+            }
+            boolean enough = paid || row.enough();
+            int col = enough ? 0x7FD27A : 0xFF7864;
+            String count = paid ? "" : Math.min(row.held(), row.need()) + "/" + row.need();
+            int cw = font.width(count);
+            int tx = x + icon + 6;
+            String name = NodeMaterials.name(row.requirement());
+            if (paid) {
+                Stone.text(g, font, Stone.fit(font, name, w - icon - 8), tx, ry + (icon - 7) / 2, Stone.INK);
+            } else {
+                Stone.text(g, font, Stone.fit(font, name, w - icon - 8 - cw), tx, ry + (icon - 7) / 2, Stone.INK);
+                Stone.textRight(g, font, count, x + w, ry + (icon - 7) / 2, col);
+            }
+        }
+        g.disableScissor();
+        if (matMax > 0) {
+            int bh = Math.max(6, viewH * viewH / total);
+            int by = y + (viewH - bh) * matScroll / matMax;
+            g.fill(x + w + 3, by, x + w + 4, by + bh, Stone.argb(200, 0xD2A249));
+        }
+        return y + Math.min(total, viewH) + (small ? 4 : 6);
+    }
+
     // ---- Detail slate ---------------------------------------------------------------------------
 
     private Talent shownNode(PlayerSkills skills) {
@@ -593,7 +764,34 @@ final class TreePage {
         y += small ? 6 : 10;
         TalentOutcome outcome = outcomeOf(skills, t);
         // The action plate sits at the bottom; everything above it shares what is left.
-        int plateH = small ? 16 : 20;
+        // The action plate: what a click does, or why it cannot. A long text takes a second line.
+        String act;
+        int colour;
+        if (outcome == TalentOutcome.OK && NodeMaterials.chargesNext(skills, t)) {
+            List<NodeMaterials.Row> rows = NodeMaterials.rows(t);
+            if (NodeMaterials.allThere(rows)) {
+                act = SkillstoneScreen.tr("proficiency.stone.click_pay", NodeMaterials.all(rows));
+                colour = Stone.INK;
+            } else {
+                act = SkillstoneScreen.tr("proficiency.stone.click_missing", NodeMaterials.missing(rows));
+                colour = 0xFF8C78;
+            }
+        } else if (outcome == TalentOutcome.OK) {
+            act = SkillstoneScreen.tr("proficiency.stone.click_rank", t.costPerRank());
+            colour = Stone.INK;
+        } else if (outcome == TalentOutcome.MAXED) {
+            act = SkillstoneScreen.tr("proficiency.stone.node_full");
+            colour = Stone.GOLD;
+        } else if (outcome == TalentOutcome.MISSING_MATERIALS) {
+            act = SkillstoneScreen.tr("proficiency.stone.click_materials");
+            colour = Stone.HEAD;
+        } else {
+            act = TalentService.explain(skills, t, outcome).getString();
+            colour = 0xFF8C78;
+        }
+        String[] plateLines = wrap2(font, act, w - 10);
+        int plateRows = plateLines[1].isEmpty() ? 1 : 2;
+        int plateH = (small ? 16 : 20) + (plateRows - 1) * 10;
         int foot = outcome == TalentOutcome.OK && t.maxRank() - rank > 1 ? 12 : 0;
         int plateY = ry1 - (small ? 6 : 12) - foot - plateH;
         int line = small ? 10 : 11;
@@ -618,6 +816,15 @@ final class TreePage {
             extrasRank = rank;
             extrasLevel = level;
             extrasPaid = paid;
+        }
+        matMax = 0;
+        matBot = -1;
+        if (matFor != t) {
+            matFor = t;
+            matScroll = 0;
+        }
+        if (NodeMaterials.owes(skills, t) || (paid && !NodeMaterials.rows(t).isEmpty())) {
+            y = materialsBlock(g, font, skills, t, x, y, w, plateY - 4, now, mx, my);
         }
         for (String extra : extrasCache) {
             if (y + line > plateY - 4) {
@@ -650,27 +857,32 @@ final class TreePage {
                 y += line;
             }
         }
-        // The action plate: what a click does, or why it cannot.
-        String act;
-        int colour;
-        if (outcome == TalentOutcome.OK) {
-            act = SkillstoneScreen.tr("proficiency.stone.click_rank", t.costPerRank());
-            colour = Stone.INK;
-        } else if (outcome == TalentOutcome.MAXED) {
-            act = SkillstoneScreen.tr("proficiency.stone.node_full");
-            colour = Stone.GOLD;
-        } else if (outcome == TalentOutcome.MISSING_MATERIALS) {
-            act = SkillstoneScreen.tr("proficiency.stone.click_materials");
-            colour = Stone.HEAD;
-        } else {
-            act = TalentService.explain(skills, t, outcome).getString();
-            colour = 0xFF8C78;
+        Stone.plate(g, font, x, plateY, w, plateH, plateRows == 1 ? plateLines[0] : "", colour, false);
+        if (plateRows == 2) {
+            Stone.textCentred(g, font, plateLines[0], x + w / 2, plateY + 5, colour);
+            Stone.textCentred(g, font, plateLines[1], x + w / 2, plateY + 15, colour);
         }
-        Stone.plate(g, font, x, plateY, w, plateH, Stone.fit(font, act, w - 10), colour, false);
         if (foot > 0) {
             Stone.textCentred(g, font, Stone.fit(font, SkillstoneScreen.tr("proficiency.stone.shift_fill"), w), (rx0 + rx1) / 2,
                     plateY + plateH + 4, Stone.DIM);
         }
+    }
+
+    /** {@code text} on at most two lines of {@code room} px, broken after a space; the second ends in dots if it must. */
+    private static String[] wrap2(Font font, String text, int room) {
+        if (font.width(text) <= room) {
+            return new String[] {text, ""};
+        }
+        int cut = -1;
+        for (int i = 1; i < text.length(); i++) {
+            if (text.charAt(i) == ' ' && font.width(text.substring(0, i)) <= room) {
+                cut = i;
+            }
+        }
+        if (cut < 0) {
+            return new String[] {Stone.fit(font, text, room), ""};
+        }
+        return new String[] {text.substring(0, cut), Stone.fit(font, text.substring(cut + 1), room)};
     }
 
     /** The dim lines under the description: per-rank numbers, what the node opens, what it feeds. */
@@ -709,9 +921,6 @@ final class TreePage {
         }
         if (fed == 0 && t.kind() != Talent.Kind.ROOT) {
             out.add(SkillstoneScreen.tr("proficiency.stone.feeds_none"));
-        }
-        if (!t.materials().isEmpty() && !skills.hasPaid(t)) {
-            out.add(SkillstoneScreen.tr("proficiency.stone.materials"));
         }
         return out;
     }
@@ -754,6 +963,10 @@ final class TreePage {
     }
 
     boolean scroll(double mx, double my, double delta) {
+        if (matMax > 0 && mx >= rx0 && mx < rx1 && my >= matTop && my < matBot) {
+            matScroll = Math.max(0, Math.min(matMax, matScroll - (int) Math.round(delta * 8)));
+            return true;
+        }
         if (scrollMax <= 0 || mx < s.ix0 || mx >= rx0 || my < viewTop || my >= viewBot) {
             return false;
         }
@@ -767,6 +980,17 @@ final class TreePage {
         }
         scroll = SkillstoneMath.clampScroll(scroll - (int) Math.round(dy), scrollMax);
         return true;
+    }
+
+    /** For the layout demo: the unlock slam from node {@code id}, both cards, its materials flying. */
+    void demoSlam(String id, long now) {
+        Talent t = Talents.get(skill, id);
+        if (t != null) {
+            land(t, t.maxRank() - 1, t.maxRank(), now);
+            PlayerSkills skills = s.skillsNow();
+            boolean ability = skills != null && skills.level(skill) >= ActiveService.unlockLevel();
+            s.unlockSlam(t, nodeX(t), nodeY(t), half(t), true, ability, true, now);
+        }
     }
 
     /** For the frame sheets: the landing of the last rank of {@code id}. */

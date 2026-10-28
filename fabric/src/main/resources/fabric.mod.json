@@ -13,6 +13,7 @@
     "client": ["dev.amman.proficiency.fabric.client.ProficiencyFabricClient"],
     "jade": ["dev.amman.proficiency.jade.ProficiencyJadePlugin"],
     "fabric-gametest": [
+      "dev.amman.proficiency.gametest.RecordsGameTests",
       "dev.amman.proficiency.gametest.ProficiencyGameTests",
       "dev.amman.proficiency.gametest.CourageGameTests",
       "dev.amman.proficiency.gametest.TrialGameTests",
@@ -46,7 +47,10 @@
       "dev.amman.proficiency.gametest.SiegeGameTests",
       "dev.amman.proficiency.gametest.HearthIntegrationGameTests",
       "dev.amman.proficiency.gametest.FabricHearthStagesGameTests",
-      "dev.amman.proficiency.gametest.LookGameTests"
+      "dev.amman.proficiency.gametest.LookGameTests",
+      "dev.amman.proficiency.gametest.TempoGameTests",
+      "dev.amman.proficiency.gametest.HaulGameTests",
+      "dev.amman.proficiency.gametest.CoopGameTests"
     ]
   },
   "accessWidener": "proficiency.accesswidener",

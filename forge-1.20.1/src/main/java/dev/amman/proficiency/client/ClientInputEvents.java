@@ -59,8 +59,10 @@ public final class ClientInputEvents {
             journalOpenedFromEnvironment = true;
             minecraft.setScreen(new DiscoveryJournalScreen(dev.amman.proficiency.client.stone.SkillstoneScreen.skills()));
         }
+        HaulClient.tick(minecraft);
+        SpendableClient.tick(minecraft);
         while (ProficiencyClient.OPEN_SKILLS.consumeClick()) {
-            if (minecraft.screen == null && minecraft.player != null) {
+            if (minecraft.screen == null && minecraft.player != null && !HaulClient.takeSkillsKey()) {
                 minecraft.setScreen(dev.amman.proficiency.client.stone.SkillstoneScreen.skills());
             }
         }

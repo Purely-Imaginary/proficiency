@@ -448,45 +448,88 @@ public final class ExpansionEvents {
                     placed.getBlock().getDescriptionId());
         }
 
-        // Master Mason and Master Decorator build for free, which is what a builder actually wants
-        // from a capstone.
-        if (TalentService.hasSpecial(player, skill, "free_place")) {
-            RefundGuard.giveBack(player, placed, pos, 1);
-            ProcService.fire(player, skill, pos);
-            return true;
+        int free = freeBlock(player, placed, pos, skill, split);
+        if (free > 0) {
+            RefundGuard.giveBack(player, placed, pos, free);
         }
+        return true;
+    }
 
-        double refundChance = ProficiencyAttachments.of(player).bonus(skill);
-        int refunds = 0;
-        if (ProcService.fire(player, skill, pos)) {
-            // Stonecutter and Feng Shui make the triple bigger.
-            refunds = Math.max(1, ProcService.roundRandomly(
-                    player, 3.0 * ProcService.power(player, skill)));
-        } else if (refundChance > 0 && player.level().getRandom().nextDouble() < refundChance) {
-            refunds = 1;
+    // ---- Free blocks (Masonry, Decorating) ---------------------------------------------------
+
+    private static final TagKey<Item> NO_REFUND = TagKey.create(Registries.ITEM, ResourceLocation.fromNamespaceAndPath("proficiency", "no_refund"));
+    private static final TagKey<Item> STORAGE_C = TagKey.create(Registries.ITEM, ResourceLocation.fromNamespaceAndPath("c", "storage_blocks"));
+    private static final TagKey<Item> ORES_C = TagKey.create(Registries.ITEM, ResourceLocation.fromNamespaceAndPath("c", "ores"));
+
+    /** GameTest seam: a player's free-block roll. No entry means the player's own random. */
+    public static final Map<UUID, java.util.function.DoubleSupplier> FREE_ROLL_FOR_TEST = new ConcurrentHashMap<>();
+
+    /**
+     * A block that is worth more than the effort of placing it: never refunded and never free, so
+     * "place, keep the refund, break" cannot copy it. Items in #c:storage_blocks, #c:ores,
+     * #proficiency:no_refund, or rarer than common (a beacon, a dragon egg, modded loot blocks).
+     */
+    public static boolean isValuable(BlockState state) {
+        Item item = state.getBlock().asItem();
+        if (item == Items.AIR) {
+            return false;
         }
+        ItemStack stack = new ItemStack(item);
+        return stack.is(NO_REFUND) || stack.is(STORAGE_C) || stack.is(ORES_C)
+                || stack.getRarity() != net.minecraft.world.item.Rarity.COMMON;
+    }
 
-        // Lamplighter: a light is the one decoration you place dozens of.
-        int lamplighter = TalentService.rank(player, Skill.DECORATING, "lamplighter");
-        if (refunds == 0 && lamplighter > 0 && placed.getLightEmission() > 0
-                && player.getRandom().nextDouble() < 0.15 * lamplighter) {
-            refunds = 1;
+    /**
+     * Masonry and Decorating: whether this placement gives its block back (0 or 1, never more).
+     * Every source is a chance that the block is free and they combine as independent rolls, capped
+     * (RefundMath): the signature proc, the passive, Stonecutter or Feng Shui, Lamplighter on a light,
+     * Master Mason or Master Decorator (30%, and the higher cap) and Bulk Order (the Nth block of a
+     * run is certain). During the ability every proc lands, so the block is free at the cap. Public so
+     * a GameTest can call it.
+     */
+    public static int freeBlock(ServerPlayer player, BlockState placed, BlockPos pos, Skill skill, boolean split) {
+        // A valuable block gets no free roll and no proc: the callout would promise a free block.
+        if (isValuable(placed)) {
+            return 0;
         }
+        boolean frenzy = ActiveService.isFrenzied(player, skill);
+        double proc = frenzy ? 1.0 : ProcService.chance(player, skill);
+        boolean landed = ProcService.fire(player, skill, pos);
 
-        // Bulk Order: a wall is the same block a hundred times, so reward the run.
-        int bulk = TalentService.rank(player, Skill.MASONRY, "bulk_order");
-        if (bulk > 0 && skill == Skill.MASONRY && !split) {
+        // Lamplighter: a light is the one decoration you place dozens of. The placement's own
+        // tree's rank, so a Decorating talent no longer pays on a Masonry light block.
+        int lamplighter = placed.getLightEmission() > 0 ? TalentService.rank(player, skill, "lamplighter") : 0;
+        double passive = dev.amman.proficiency.skill.RefundMath.combine(
+                ProficiencyAttachments.of(player).bonus(skill),
+                dev.amman.proficiency.skill.RefundMath.FREE_CHANCE_PER_RANK * TalentService.rank(player, skill, "free_chance"),
+                dev.amman.proficiency.skill.RefundMath.LAMPLIGHTER_PER_RANK * lamplighter);
+        boolean keystone = TalentService.hasSpecial(player, skill, "free_place");
+        double keystoneChance = keystone ? ProficiencyConfig.refundKeystoneChance() : 0.0;
+        double cap = dev.amman.proficiency.skill.RefundMath.cap(keystone,
+                ProficiencyConfig.refundFreeCap(), ProficiencyConfig.refundFreeCapKeystone());
+        double chance = dev.amman.proficiency.skill.RefundMath.total(proc, passive, keystoneChance, 0.0, cap);
+
+        // Bulk Order: a wall is the same block a hundred times, so every Nth of a run is free. The
+        // other blocks of the run give up what the cap would otherwise lose, so a run never beats it.
+        int bulk = skill == Skill.MASONRY && !split ? TalentService.rank(player, Skill.MASONRY, "bulk_order") : 0;
+        if (bulk > 0) {
             ResourceLocation blockId = BuiltInRegistries.BLOCK.getKey(placed.getBlock());
-            if (STREAKS.computeIfAbsent(player.getUUID(), id -> new TalentMath.Streak())
-                    .place(String.valueOf(blockId))) {
-                refunds += bulk;
+            TalentMath.Streak streak = STREAKS.computeIfAbsent(player.getUUID(), id -> new TalentMath.Streak());
+            if (streak.place(String.valueOf(blockId), dev.amman.proficiency.skill.RefundMath.bulkEvery(bulk))) {
+                return 1;
+            }
+            if (streak.count() > 1) {
+                double share = dev.amman.proficiency.skill.RefundMath.bulkShare(bulk);
+                chance = dev.amman.proficiency.skill.RefundMath.offStreak(
+                        dev.amman.proficiency.skill.RefundMath.total(proc, passive, keystoneChance, share, cap), share);
             }
         }
 
-        if (refunds > 0) {
-            RefundGuard.giveBack(player, placed, pos, refunds);
-        }
-        return true;
+        double given = landed ? dev.amman.proficiency.skill.RefundMath.freeGivenProc(proc, chance)
+                : dev.amman.proficiency.skill.RefundMath.freeGivenNoProc(proc, chance);
+        java.util.function.DoubleSupplier roll = FREE_ROLL_FOR_TEST.isEmpty() ? null : FREE_ROLL_FOR_TEST.get(player.getUUID());
+        double r = roll != null ? roll.getAsDouble() : player.getRandom().nextDouble();
+        return given > 0 && r < given ? 1 : 0;
     }
 
     /**

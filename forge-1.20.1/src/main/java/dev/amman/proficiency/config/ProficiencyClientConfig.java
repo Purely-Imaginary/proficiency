@@ -55,7 +55,23 @@ public final class ProficiencyClientConfig {
     private static final ForgeConfigSpec.EnumValue<dev.amman.proficiency.client.UiStyle> UI_STYLE;
     private static final ForgeConfigSpec.BooleanValue UI_STYLE_MIGRATED;
     private static final ForgeConfigSpec.ConfigValue<String> UI_WAYWHEEL_PINS;
+    private static final ForgeConfigSpec.BooleanValue UI_BONUS_FLIGHT;
+    private static final ForgeConfigSpec.BooleanValue UI_POINT_COIN;
+    private static final ForgeConfigSpec.BooleanValue UI_READY_TOASTS;
+    private static final ForgeConfigSpec.BooleanValue UI_UNLOCK_SLAM;
+    private static final ForgeConfigSpec.BooleanValue UI_RESTED_POUR;
+    private static final ForgeConfigSpec.BooleanValue UI_MATERIAL_TOOLTIPS;
     private static final ForgeConfigSpec.BooleanValue UI_JUICY_FEEDBACK;
+    private static final ForgeConfigSpec.BooleanValue UI_RECORD_TOASTS;
+    private static final ForgeConfigSpec.BooleanValue UI_MILESTONE_CEREMONIES;
+    private static final ForgeConfigSpec.BooleanValue UI_ABILITY_GLINT;
+    private static final ForgeConfigSpec.BooleanValue UI_ADVANCEMENT_BURST;
+    private static final ForgeConfigSpec.BooleanValue UI_SYNERGY_SLAM;
+    private static final ForgeConfigSpec.BooleanValue UI_HAUL_CARD;
+    private static final ForgeConfigSpec.BooleanValue UI_COOP_STREAMS;
+    private static final ForgeConfigSpec.BooleanValue UI_TEMPO_CRIT_FLARE;
+    private static final ForgeConfigSpec.BooleanValue UI_HUD_STACK;
+    private static final ForgeConfigSpec.DoubleValue UI_HUD_STACK_LINGER;
     private static final ForgeConfigSpec.BooleanValue HEARTH_TRACKER;
     private static final ForgeConfigSpec.DoubleValue HEARTH_TRACKER_Y;
     private static final ForgeConfigSpec.BooleanValue HEARTH_SHOW_RANGE;
@@ -175,6 +191,53 @@ public final class ProficiencyClientConfig {
                 + "particles. Off: the plain click sound. Also quiet when the Distortion Effects video "
                 + "setting is 0%.")
                 .translation(LANG + "ui.juicyFeedback").define("juicyFeedback", true);
+        UI_RECORD_TOASTS = b.comment("A toast with a chime and a burst when you set a new personal best in a skill "
+                + "(XP per minute, Tempo chain, biggest grant). At most one per skill every 30 seconds. "
+                + "Off: no toast; the Records line on the skill's screen stays.")
+                .translation(LANG + "ui.recordToasts").define("recordToasts", true);
+        UI_MILESTONE_CEREMONIES = b.comment("Reaching level 10, 25, 50, 75 or 100 in a skill crowns the normal level-up: a "
+                + "banner naming the milestone and what it opened, a firework in the skill's colour over you "
+                + "and a rising fanfare. Each tier is bigger than the last; level 100 is the gold Mastered "
+                + "ceremony, once per skill. Off: the normal level-up only. The Distortion Effects video "
+                + "setting at 0% keeps the flashes and sounds but stops the banner's movement.")
+                .translation(LANG + "ui.milestoneCeremonies").define("milestoneCeremonies", true);
+        UI_ABILITY_GLINT = b.comment("When an ability comes off cooldown its icon pops, a glint sweeps across it and a soft "
+                + "chime plays: the Waywheel belt token under MODERN, the hotbar slot of the held item under CLASSIC. "
+                + "Nothing for abilities that were already ready when you joined. Needs ui.juicyFeedback.")
+                .translation(LANG + "ui.abilityGlint").define("abilityGlint", true);
+        UI_ADVANCEMENT_BURST = b.comment("Advancement toasts (and FTB Quests toasts) get the success treatment as they "
+                + "slide in: sparks, a shine across the toast and a ring; a challenge adds a second ring, more sparks "
+                + "and a glow round the frame. Needs ui.juicyFeedback.")
+                .translation(LANG + "ui.advancementBurst").define("advancementBurst", true);
+        UI_SYNERGY_SLAM = b.comment("When you wake a synergy, its skill icons fly in from the screen sides and slam "
+                + "together at the centre with a flash, sparks and a short shake; the synergy's chip forms, its name "
+                + "and effect appear on a plate, and the chip flies to the bottom-right corner where a +1 synergy "
+                + "counter ticks. About 1.8 seconds, several in a row queue, input is never blocked. It replaces "
+                + "the chat lines. Needs ui.juicyFeedback; the Distortion Effects video setting at 0% keeps "
+                + "only the flashes and the sounds.")
+                .translation(LANG + "ui.synergySlam").define("synergySlam", true);
+        UI_HAUL_CARD = b.comment("Today's Haul: in a bed a \"Today's Haul\" button opens a card of what you earned since your last "
+                + "haul, the bars filling as the XP flies in, and at login a small reminder of an unseen haul. "
+                + "/proficiency haul shows the card whatever this says.")
+                .translation(LANG + "ui.haulCard").define("haulCard", true);
+        UI_COOP_STREAMS = b.comment("Co-op XP streams: when a player in company range earns XP, a short trickle of their "
+                + "dots arcs from them into your skill bar while company pays you (a faint trail to their nameplate "
+                + "otherwise), small faces left of your skill bar show who you are in company with, and a soft "
+                + "plink plays when company adds to your own XP. Without ui.juicyFeedback or at Distortion Effects "
+                + "0% the dots do not fly; the faces and sounds stay.")
+                .translation(LANG + "ui.coopStreams").define("coopStreams", true);
+        UI_TEMPO_CRIT_FLARE = b.comment("A vanilla jump crit with a weapon holds its Tempo chain twice as long for the next "
+                + "pause, and the flames on the skill bar flare white to say so. Off: no white flare (the longer "
+                + "window stays, it is a server rule).")
+                .translation(LANG + "ui.tempoCritFlare").define("tempoCritFlare", true);
+        UI_HUD_STACK = b.comment("A stack of recent skills above the HUD skill line. The line itself keeps the skill in your "
+                + "hand; any other skill that earns XP gets a small row above it (icon, name and level, a thin bar its "
+                + "XP dots fly into, its Tempo flames small, its own level-up pop). At most 3 rows, in the order they "
+                + "first earned, so nothing jumps; a row fades ui.hudStackLinger seconds after its last gain. With an "
+                + "empty hand the line stays on Running while you run and jump. Off: one line, as before 1.54.0.")
+                .translation(LANG + "ui.hudStack").define("hudStack", true);
+        UI_HUD_STACK_LINGER = b.comment("Seconds a row of the recent-skills stack stays after its last XP gain.")
+                .translation(LANG + "ui.hudStackLinger").defineInRange("hudStackLinger", 4.0, 1.0, 30.0);
         UI_STYLE = b.comment("The look of the skills screens. CLASSIC: the panels as they were. MODERN: the "
                 + "Skillstone, a carved slab with nine category runes around a fire well, each lit by your "
                 + "progress, and a stone face per skill. Switch it here or from the slab's corner rune; no "
@@ -186,6 +249,29 @@ public final class ProficiencyClientConfig {
         UI_WAYWHEEL_PINS = b.comment("Skills pinned beside the hotbar under the MODERN style, as a comma list of skill "
                 + "ids (at most 3, for example mining,swords). Right-click a skill on the Waywheel to pin or unpin it.")
                 .translation(LANG + "ui.waywheelPins").define("waywheelPins", "");
+        UI_BONUS_FLIGHT = b.comment("Bonus loot flies to you: an extra drop from a double drop, Motherlode, Second Catch, "
+                + "Double Hook or a talent flies as its item icon from where it appeared into the hotbar slot it lands in, "
+                + "with a glint and a soft plink. HUD only. Also still while the Distortion Effects video setting is 0%.")
+                .translation(LANG + "ui.bonusFlight").define("bonusFlight", true);
+        UI_POINT_COIN = b.comment("A talent point earned on a level-up flies as a glowing coin from the skill bar to a small "
+                + "brazier right of the hotbar, which shows your unspent points and glows while any are left. HUD only.")
+                .translation(LANG + "ui.pointCoin").define("pointCoin", true);
+        UI_READY_TOASTS = b.comment("A toast with a soft chime when a skill gets a talent rank you can take right now (a level-up, "
+                + "or picking up the last missing material). At most one per skill every 5 minutes; never for ranks already "
+                + "ready when the world loads (one summary toast at most).")
+                .translation(LANG + "ui.readyToasts").define("readyToasts", true);
+        UI_UNLOCK_SLAM = b.comment("Under the MODERN style, filling a tree's root wakes the signature and the ability with a "
+                + "show: the root's socket rises off the tree, the materials you paid fly into it and morph it into the "
+                + "Face card it unlocks, the slab turns to the Face and the card slams into its slot with dust, a jolt "
+                + "and an ember glow. About 2 s; a click or a key lands it at once. Needs ui.juicyFeedback. Distortion "
+                + "Effects at 0% keep the glow and the sounds but nothing moves.")
+                .translation(LANG + "ui.unlockSlam").define("unlockSlam", true);
+        UI_RESTED_POUR = b.comment("When rested XP pays double, blue dots stream from the rested segment of the skill bar into "
+                + "the fill. HUD only.")
+                .translation(LANG + "ui.restedPour").define("restedPour", true);
+        UI_MATERIAL_TOOLTIPS = b.comment("An item that an unpaid talent node still wants as a material says so in its tooltip: "
+                + "the skill, the node and how many you carry. The nearest three show, Shift shows all.")
+                .translation(LANG + "ui.materialTooltips").define("materialTooltips", true);
         b.pop();
 
         b.comment("The Hearth on your screen: the tracker, the range ring and the siege panel.")
@@ -251,7 +337,22 @@ public final class ProficiencyClientConfig {
                 new Entry("procFx", "procFx.enabled", PROC_FX_ENABLED, 0, 0),
                 new Entry("ui", "ui.skillIcons", UI_SKILL_ICONS, 0, 0),
                 new Entry("ui", "ui.juicyFeedback", UI_JUICY_FEEDBACK, 0, 0),
+                new Entry("ui", "ui.recordToasts", UI_RECORD_TOASTS, 0, 0),
+                new Entry("ui", "ui.abilityGlint", UI_ABILITY_GLINT, 0, 0),
+                new Entry("ui", "ui.advancementBurst", UI_ADVANCEMENT_BURST, 0, 0),
+                new Entry("ui", "ui.synergySlam", UI_SYNERGY_SLAM, 0, 0),
+                new Entry("ui", "ui.haulCard", UI_HAUL_CARD, 0, 0),
+                new Entry("ui", "ui.coopStreams", UI_COOP_STREAMS, 0, 0),
+                new Entry("ui", "ui.tempoCritFlare", UI_TEMPO_CRIT_FLARE, 0, 0),
+                new Entry("ui", "ui.hudStack", UI_HUD_STACK, 0, 0),
+                new Entry("ui", "ui.hudStackLinger", UI_HUD_STACK_LINGER, 1.0, 30.0),
                 new Entry("ui", "ui.style", UI_STYLE, 0, 0),
+                new Entry("ui", "ui.bonusFlight", UI_BONUS_FLIGHT, 0, 0),
+                new Entry("ui", "ui.pointCoin", UI_POINT_COIN, 0, 0),
+                new Entry("ui", "ui.readyToasts", UI_READY_TOASTS, 0, 0),
+                new Entry("ui", "ui.unlockSlam", UI_UNLOCK_SLAM, 0, 0),
+                new Entry("ui", "ui.restedPour", UI_RESTED_POUR, 0, 0),
+                new Entry("ui", "ui.materialTooltips", UI_MATERIAL_TOOLTIPS, 0, 0),
                 new Entry("hearth", "hearth.tracker", HEARTH_TRACKER, 0, 0),
                 new Entry("hearth", "hearth.trackerY", HEARTH_TRACKER_Y, 0.1, 0.9),
                 new Entry("hearth", "hearth.showRange", HEARTH_SHOW_RANGE, 0, 0),
@@ -301,6 +402,10 @@ public final class ProficiencyClientConfig {
 
     public static boolean bannerReveal() {
         return flag(BANNERS_REVEAL, true);
+    }
+
+    public static boolean uiMaterialTooltips() {
+        return flag(UI_MATERIAL_TOOLTIPS, true);
     }
 
     public static boolean tooltipSkillInfo() {
@@ -365,6 +470,87 @@ public final class ProficiencyClientConfig {
 
     public static boolean procFxEnabled() {
         return flag(PROC_FX_ENABLED, true);
+    }
+
+    public static boolean uiRecordToasts() {
+        return flag(UI_RECORD_TOASTS, true);
+    }
+
+    public static boolean uiMilestoneCeremonies() {
+        return flag(UI_MILESTONE_CEREMONIES, true);
+    }
+
+    public static boolean uiBonusFlight() {
+        return flag(UI_BONUS_FLIGHT, true);
+    }
+
+    public static boolean uiPointCoin() {
+        return flag(UI_POINT_COIN, true);
+    }
+
+    public static boolean uiReadyToasts() {
+        return flag(UI_READY_TOASTS, true);
+    }
+
+    public static boolean uiRestedPour() {
+        return flag(UI_RESTED_POUR, true);
+    }
+
+    public static boolean uiAbilityGlint() {
+        return flag(UI_ABILITY_GLINT, true);
+    }
+
+    public static boolean uiAdvancementBurst() {
+        return flag(UI_ADVANCEMENT_BURST, true);
+    }
+
+    public static boolean uiUnlockSlam() {
+        return flag(UI_UNLOCK_SLAM, true);
+    }
+
+    public static boolean uiSynergySlam() {
+        return flag(UI_SYNERGY_SLAM, true);
+    }
+
+    public static boolean uiHaulCard() {
+        return flag(UI_HAUL_CARD, true);
+    }
+
+    public static boolean uiCoopStreams() {
+        return flag(UI_COOP_STREAMS, true);
+    }
+
+    public static boolean uiTempoCritFlare() {
+        return flag(UI_TEMPO_CRIT_FLARE, true);
+    }
+
+    /** A session override of ui.hudStack for the layout demo ({@code null}: the file's value). */
+    private static Boolean sessionHudStack;
+
+    public static boolean uiHudStack() {
+        return sessionHudStack != null ? sessionHudStack : flag(UI_HUD_STACK, true);
+    }
+
+    /** For the layout demo only: turns the stack on or off for this session without writing the file. */
+    public static void setSessionHudStack(Boolean on) {
+        sessionHudStack = on;
+    }
+
+    /** A session override of the linger for the layout demo (0: the file's value). */
+    private static long sessionLingerMs;
+
+    /** For the layout demo only: holds the rows up for {@code ms} (0 goes back to ui.hudStackLinger). */
+    public static void setUiHudStackLingerForDemo(long ms) {
+        sessionLingerMs = ms;
+    }
+
+    /** ui.hudStackLinger in milliseconds. */
+    public static long uiHudStackLingerMs() {
+        if (sessionLingerMs > 0) {
+            return sessionLingerMs;
+        }
+        double seconds = SPEC.isLoaded() ? UI_HUD_STACK_LINGER.get() : 4.0;
+        return Math.round(Math.max(1.0, Math.min(30.0, seconds)) * 1000);
     }
 
     public static boolean uiJuicyFeedback() {

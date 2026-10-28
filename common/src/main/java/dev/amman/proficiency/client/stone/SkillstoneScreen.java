@@ -8,6 +8,7 @@ import dev.amman.proficiency.client.ProficiencyClient;
 import dev.amman.proficiency.client.SkillIcons;
 import dev.amman.proficiency.client.SkillNumbers;
 import dev.amman.proficiency.client.SkillsScreen;
+import dev.amman.proficiency.client.SpendableClient;
 import dev.amman.proficiency.client.SkillstoneMath;
 import dev.amman.proficiency.client.UiStyle;
 import dev.amman.proficiency.config.ProficiencyClientConfig;
@@ -77,6 +78,7 @@ public final class SkillstoneScreen extends Screen {
     private final TreePage tree = new TreePage(this);
     private final HearthPage hearth = new HearthPage(this);
     private final FaceColumn column = new FaceColumn(this);
+    private final UnlockSlam slam = new UnlockSlam(this);
     private long riseAt = Long.MIN_VALUE / 2;
     private long edgeAt = Long.MIN_VALUE / 2;
     private long shakeAt = Long.MIN_VALUE / 2;
@@ -216,6 +218,10 @@ public final class SkillstoneScreen extends Screen {
         edgeAt = now + ClickFxMath.MIN_CHARGE_MS;
     }
 
+    PlayerSkills skillsNow() {
+        return playerSkills();
+    }
+
     private PlayerSkills playerSkills() {
         Player player = this.minecraft == null ? null : this.minecraft.player;
         return player == null ? null : ProficiencyAttachments.of(player);
@@ -295,6 +301,7 @@ public final class SkillstoneScreen extends Screen {
             dy += SkillstoneMath.shakeY(now - shakeAt, shakeAmp);
             dx += 0.5f * SkillstoneMath.riseShake(now - riseAt, 2f);
             dy -= Math.abs(SkillstoneMath.riseShake(now - riseAt, 2.5f));
+            dy += slam.jolt(now);
         }
         g.pose().pushPose();
         g.pose().translate(Math.round(dx), Math.round(dy), 0);
@@ -328,6 +335,7 @@ public final class SkillstoneScreen extends Screen {
             tree.quietWatch(skills, skill);
         }
         renderNote(g, now);
+        slam.renderUnder(g, now);
         g.pose().popPose();
         float red = SkillstoneMath.refuseFlash(now - refuseAt);
         if (red > 0) {
@@ -343,7 +351,11 @@ public final class SkillstoneScreen extends Screen {
                         Stone.argb(a, Stone.ember(0.9f - i * 0.08f)));
             }
         }
+        slam.render(g, skills, now, Math.round(dx), Math.round(dy));
         click.render(g, now, 1f);
+        if (slam.active()) {
+            tooltip.clear();
+        }
         if (!tooltip.isEmpty()) {
             Stone.tooltip(g, this.font, tooltip, mouseX, mouseY, this.width);
         }
@@ -460,11 +472,24 @@ public final class SkillstoneScreen extends Screen {
                 Stone.icon(g, runeIcon(i), rx - is / 2, ry - is / 2, is, Math.min(1f, 0.45f + shown));
             }
             click.end(g, key, rx - s, ry - s, 2 * s, 2 * s, now);
+            int readyHere = intro ? 0 : SpendableClient.summary().readyIn(CATS[i]);
+            if (readyHere > 0) {
+                // Ranks ready in this category's skills: an ember dot with the count on the rune's corner.
+                dev.amman.proficiency.client.SpendableClient.ember(g, this.font, rx + s - 4, ry - s - 1, readyHere, now);
+            }
             hits.add(new int[] {0, i, rx - s, ry - s + oy, 2 * s, 2 * s});
             if (hov) {
                 tooltip.add(Component.translatable(CATS[i].translationKey()));
                 tooltip.add(Component.literal(tr("proficiency.stone.rune", Math.round(average(skills, CATS[i])))));
+                if (readyHere > 0) {
+                    tooltip.add(Component.literal(SpendableClient.readyText(readyHere)).withStyle(net.minecraft.ChatFormatting.GOLD));
+                }
             }
+        }
+        if (!intro && hoverRune < 0 && (mx - cx) * (mx - cx) + (my - cy) * (my - cy) <= pit * pit) {
+            // The fire well: why the points wait, every skill (Shift: all of them, every reason).
+            tooltip.add(Component.literal(tr("proficiency.spend.dial_head")).withStyle(net.minecraft.ChatFormatting.GOLD));
+            tooltip.addAll(SpendableClient.whyStuck(null, null));
         }
         if (slate > 0) {
             renderSlate(g, skills, now, mx, my - oy, slate, oy);
@@ -535,13 +560,16 @@ public final class SkillstoneScreen extends Screen {
             click.end(g, key, lx0 + 10, y, isz, isz, now);
             int tx = lx0 + (isz == 16 ? 32 : 22);
             String lv = Integer.toString(lvl);
-            int room = lx1 - 10 - this.font.width(lv) - 6 - tx;
+            int room = lx1 - 10 - this.font.width(lv) - 6 - tx
+                    - SpendableClient.emberWidth(this.font, SpendableClient.summary().ready(s)) - (SpendableClient.summary().ready(s) > 0 ? 6 : 0);
             Stone.text(g, this.font, Stone.fit(this.font, Component.translatable(s.translationKey()).getString(), room),
                     tx, y + 1, lvl > 0 ? Stone.INK : Stone.LOCK);
             Stone.textRight(g, this.font, lv, lx1 - 10, y + 1, lvl > 0 ? Stone.GOLD : Stone.LOCK);
-            if (skills.pointsAvailable(s) > 0) {
-                int px = lx1 - 14 - this.font.width(lv);
-                g.fill(px - 3, y + 3, px, y + 6, Stone.argb(255, Stone.ember(0.8f)));
+            int readyRow = SpendableClient.summary().ready(s);
+            if (readyRow > 0) {
+                // Ranks ready now in this skill's tree: the ember dot and its count, left of the level.
+                int ew = SpendableClient.emberWidth(this.font, readyRow);
+                SpendableClient.ember(g, this.font, lx1 - 16 - this.font.width(lv) - ew, y + 2, readyRow, now);
             }
             if (rowH >= 22) {
                 Stone.groove(g, tx, lx1 - 10, y + 13, lvl / (float) SkillMath.MAX_LEVEL, 3, in);
@@ -569,7 +597,7 @@ public final class SkillstoneScreen extends Screen {
         Skill focus = hoverRow >= 0 ? list.get(hoverRow) : null;
         if (focus == null) {
             for (Skill s : list) {
-                if (skills.pointsAvailable(s) > 0) {
+                if (SpendableClient.summary().ready(s) > 0) {
                     focus = s;
                     break;
                 }
@@ -579,9 +607,12 @@ public final class SkillstoneScreen extends Screen {
             msg = note;
         } else if (focus == null) {
             msg = tr("proficiency.stone.pick");
-        } else if (skills.pointsAvailable(focus) > 0) {
-            msg = tr("proficiency.stone.points_wait", Component.translatable(focus.translationKey()).getString(),
-                    skills.pointsAvailable(focus));
+        } else if (SpendableClient.summary().ready(focus) > 0) {
+            msg = tr("proficiency.spend.points_wait", Component.translatable(focus.translationKey()).getString(),
+                    SpendableClient.summary().ready(focus));
+        } else if (SpendableClient.summary().of(focus).waiting()) {
+            msg = tr("proficiency.spend.points_stuck", Component.translatable(focus.translationKey()).getString(),
+                    SpendableClient.summary().of(focus).leftover());
         } else {
             msg = tr("proficiency.stone.at_level", Component.translatable(focus.translationKey()).getString(),
                     skills.level(focus));
@@ -698,26 +729,29 @@ public final class SkillstoneScreen extends Screen {
         Stone.textCentred(g, this.font, tr("proficiency.stone.level", level), ex + box / 2, y, Stone.INK);
         y += 14;
         float bar = level >= SkillMath.MAX_LEVEL ? 1f : SkillMath.progress(level, (float) skills.xp(skill));
-        Stone.groove(g, ex, ex + box, y, bar, 3, true);
+        Stone.groove(g, ex, ex + box, y, bar, 3, true, level >= SkillMath.MAX_LEVEL);
         y += 8;
         Stone.textCentred(g, this.font, level >= SkillMath.MAX_LEVEL ? tr("proficiency.stone.maxed")
                 : tr("proficiency.stone.to_next", Math.round(bar * 100), level + 1), ex + box / 2, y, Stone.DIM);
         y += small ? 12 : 22;
-        int points = skills.pointsAvailable(skill);
+        dev.amman.proficiency.perk.Spendable.Report spend = SpendableClient.report(skill);
+        int points = spend.readyRanks();
         if (y + 22 < iy1) {
             int bx = ex + box / 2 - 18;
             Stone.coals(g, bx, y, Math.min(3, points));
+            if (spend.materialNodes() > 0) {
+                itemBadge(g, spend, bx + 30, y + 8, now);
+            }
             hits.add(new int[] {5, 0, bx, y, 36, 16});
             if (mx >= bx && mx < bx + 36 && my >= y && my < y + 16) {
-                tooltip.add(Component.literal(tr("proficiency.stone.brazier")));
+                brazierTooltip(skills);
             }
-            Stone.textCentred(g, this.font, tr("proficiency.stone.to_spend", points), ex + box / 2, y + 18,
+            Stone.textCentred(g, this.font, SpendableClient.readyText(points), ex + box / 2, y + 18,
                     points > 0 ? Stone.INK : Stone.DIM);
         }
         // The four cards.
         int c0 = ex + box + (small ? 14 : 24);
         int cw = (ix1 - (small ? 8 : 16) - c0 - 10) / 2;
-        int line = small ? 10 : 12;
         int chh = small ? 50 : 66;
         int top = iy0 + (small ? 12 : 22);
         if (cardCache == null || cardSkill != skill || now - cardAt >= CARD_REFRESH_MS) {
@@ -726,51 +760,198 @@ public final class SkillstoneScreen extends Screen {
             cardAt = now;
         }
         String[][] cards = cardCache;
+        faceSmall = small;
         for (int i = 0; i < 4; i++) {
             int kx = c0 + (i % 2) * (cw + 10);
             int ky = top + (i / 2) * (chh + (small ? 6 : 10));
-            Stone.well(g, kx, ky, cw, chh);
-            Stone.text(g, this.font, cards[i][0], kx + 8, ky + (small ? 5 : 7), Stone.HEAD);
-            int yy = ky + (small ? 5 : 7) + line + (small ? 1 : 2);
-            int[] colours = {Stone.GOLD, Stone.INK, Stone.DIM};
-            for (int k = 1; k < cards[i].length && k < 4; k++) {
-                if (cards[i][k] == null || cards[i][k].isEmpty()) {
-                    continue;
-                }
-                int colour = colours[k - 1];
-                if (i == 0) {
-                    colour = k == 1 ? Stone.INK : Stone.DIM;
-                }
-                if (yy + 8 <= ky + chh - 2) {
-                    Stone.text(g, this.font, Stone.fit(this.font, cards[i][k], cw - 16), kx + 8, yy, colour);
-                }
-                yy += line;
+            slam.slot(i, kx, ky, cw, chh);
+            if (slam.hides(i, now)) {
+                // The card is in flight: its slot waits dark (UnlockSlam draws it).
+                continue;
             }
-            if (i == 2 && ActiveService.unlocked(skills, skill)) {
-                boolean ready = skills.cooldownRemaining(skill, gameTime()) <= 0;
-                int px = kx + cw - 14;
-                int py = ky + 9;
-                if (ready) {
-                    Stone.light(g, px + 2, py + 2, 10, 10, 0x28963C, 0.9f);
-                    g.fill(px, py, px + 5, py + 5, Stone.argb(255, Stone.GREEN));
-                } else {
-                    g.fill(px, py, px + 5, py + 5, Stone.argb(255, 0x5A3C30));
-                }
-            }
-            if (i == 3) {
-                int stars = level >= SkillMath.MAX_LEVEL ? MasteryStars.shown(skills, skill) : 0;
-                int max = Mastery.MAX_STARS;
-                String lit = MasteryStars.text(stars);
-                String dark = MasteryStars.text(max - stars);
-                int sx0 = kx + cw - 8 - this.font.width(lit + dark);
-                Stone.text(g, this.font, lit, sx0, ky + (small ? 5 : 7), 0xFFC83A);
-                Stone.text(g, this.font, dark, sx0 + this.font.width(lit), ky + (small ? 5 : 7), 0x6E625C);
-            }
+            drawCard(g, skills, cards, i, kx, ky, cw, chh, small);
             if (mx >= kx && mx < kx + cw && my >= ky && my < ky + chh) {
                 cardTooltip(i, skills);
             }
         }
-        renderSynergies(g, skills, now, mx, my, c0, top + 2 * (chh + (small ? 6 : 10)) + (small ? 0 : 4), small);
+        int below = top + 2 * (chh + (small ? 6 : 10)) + (small ? 0 : 4);
+        if (dev.amman.proficiency.client.ClientRecords.enabled()) {
+            below = renderRecords(g, c0, below - (small ? 2 : 4), (ix1 - (small ? 8 : 16) - 10) - c0, small, mx, my)
+                    + (small ? 4 : 6);
+        }
+        renderSynergies(g, skills, now, mx, my, c0, below, small);
+    }
+
+    /**
+     * The Records strip under the four cards: a header and up to four values in two columns (the skill's own best
+     * last). Returns the y under it. Nothing but a dim line when the player has set none yet.
+     */
+    private int renderRecords(GuiGraphics g, int x0, int y0, int w, boolean small, int mx, int my) {
+        List<String> lines = dev.amman.proficiency.client.ClientRecords.lines(skill);
+        int line = small ? 10 : 12;
+        int rows = Math.max(1, (lines.size() + 1) / 2);
+        int h = (small ? 5 : 7) + line + (small ? 1 : 2) + rows * line + 3;
+        if (y0 + h + 30 > iy1) {
+            // Not enough slab: the synergies keep the room; the records stay in the card's tooltip.
+            return y0 + 2;
+        }
+        Stone.well(g, x0, y0, w, h);
+        Stone.text(g, this.font, tr("proficiency.records.title"), x0 + 8, y0 + (small ? 5 : 7), Stone.HEAD);
+        int yy = y0 + (small ? 5 : 7) + line + (small ? 1 : 2);
+        if (lines.isEmpty()) {
+            Stone.text(g, this.font, Stone.fit(this.font, tr("proficiency.records.none"), w - 16), x0 + 8, yy,
+                    Stone.DIM);
+        }
+        int half = (w - 16) / 2;
+        for (int i = 0; i < lines.size(); i++) {
+            int cx = x0 + 8 + (i % 2) * (half + 4);
+            Stone.text(g, this.font, Stone.fit(this.font, lines.get(i), half - 2), cx, yy + (i / 2) * line,
+                    i == 0 ? Stone.GOLD : Stone.INK);
+        }
+        if (mx >= x0 && mx < x0 + w && my >= y0 && my < y0 + h) {
+            cardTooltip(4, null);
+        }
+        return y0 + h;
+    }
+
+    /** The two-column Face's card {@code i} at ({@code kx}, {@code ky}): well, header, lines, ready dot, stars. */
+    private void drawCard(GuiGraphics g, PlayerSkills skills, String[][] cards, int i, int kx, int ky, int cw, int chh,
+                          boolean small) {
+        int level = skills.level(skill);
+        int line = small ? 10 : 12;
+        Stone.well(g, kx, ky, cw, chh);
+        boolean locked = i < cardLocked.length && cardLocked[i];
+        cardHeader(g, cards[i][0], i, locked, kx, ky + (small ? 5 : 7), small);
+        int yy = ky + (small ? 5 : 7) + line + (small ? 1 : 2);
+        int[] colours = {Stone.GOLD, Stone.INK, Stone.DIM};
+        for (int k = 1; k < cards[i].length && k < 4; k++) {
+            if (cards[i][k] == null || cards[i][k].isEmpty()) {
+                continue;
+            }
+            int colour = colours[k - 1];
+            if (i == 0) {
+                colour = k == 1 ? Stone.INK : Stone.DIM;
+            }
+            if (locked) {
+                // Greyed: the name and what it does in the lock colour, the unlock condition in warm ink.
+                colour = k == 3 ? LOCK_WHY : Stone.LOCK;
+            }
+            if (yy + 8 <= ky + chh - 2) {
+                Stone.text(g, this.font, Stone.fit(this.font, cards[i][k], cw - 16), kx + 8, yy, colour);
+            }
+            yy += line;
+        }
+        if (i == 2 && ActiveService.unlocked(skills, skill)) {
+            boolean ready = skills.cooldownRemaining(skill, gameTime()) <= 0;
+            int px = kx + cw - 14;
+            int py = ky + 9;
+            if (ready) {
+                Stone.light(g, px + 2, py + 2, 10, 10, 0x28963C, 0.9f);
+                g.fill(px, py, px + 5, py + 5, Stone.argb(255, Stone.GREEN));
+            } else {
+                g.fill(px, py, px + 5, py + 5, Stone.argb(255, 0x5A3C30));
+            }
+        }
+        if (i == 3) {
+            int stars = level >= SkillMath.MAX_LEVEL ? MasteryStars.shown(skills, skill) : 0;
+            int max = Mastery.MAX_STARS;
+            String lit = MasteryStars.text(stars);
+            String dark = MasteryStars.text(max - stars);
+            int sx0 = kx + cw - 8 - this.font.width(lit + dark);
+            Stone.text(g, this.font, lit, sx0, ky + (small ? 5 : 7), 0xFFC83A);
+            Stone.text(g, this.font, dark, sx0 + this.font.width(lit), ky + (small ? 5 : 7), locked ? 0x4A403C : 0x6E625C);
+        }
+    }
+
+    /** The Face brazier's hover: what it is, then why the points wait (this skill; Shift: every skill). */
+    void brazierTooltip(PlayerSkills skills) {
+        tooltip.add(Component.literal(tr("proficiency.stone.brazier")));
+        tooltip.addAll(SpendableClient.whyStuck(skill, null));
+    }
+
+    /** The item badge on a Face brazier: the first short material, gold-ringed, as the tree's socket badge. */
+    void itemBadge(GuiGraphics g, dev.amman.proficiency.perk.Spendable.Report spend, int bx, int by, long now) {
+        if (spend.materials().isEmpty()) {
+            return;
+        }
+        Stone.fillRound(g, bx - 1, by - 1, 10, 10, 2, Stone.argb(235, 0x1A1413));
+        Stone.outlineRound(g, bx - 1, by - 1, 10, 10, 2, Stone.argb(255, 0xD2A249));
+        net.minecraft.world.item.ItemStack icon = NodeMaterials.icon(spend.materials().get(0).requirement(), now);
+        if (!icon.isEmpty()) {
+            g.pose().pushPose();
+            g.pose().translate(bx, by, 0);
+            g.pose().scale(0.5f, 0.5f, 1f);
+            g.renderItem(icon, 0, 0);
+            g.pose().popPose();
+        }
+    }
+
+    /** Which Face cards are locked (signature, ability, mastery), worked out with the card text. */
+    final boolean[] cardLocked = new boolean[4];
+
+    /** The unlock condition on a locked card: readable, but not the card's gold. */
+    static final int LOCK_WHY = 0xD8A27A;
+
+    /**
+     * A card's header row: the skill icon (lit, or the unlit rune tint when locked), the header and, when locked,
+     * the padlock after it. Shared with the one-column Face.
+     */
+    void cardHeader(GuiGraphics g, String header, int i, boolean locked, int kx, int ty, boolean small) {
+        int is = small ? 8 : 10;
+        int ix = kx + 7;
+        int iy = ty - (is - 8) / 2 - 1;
+        if (i == 0 || !locked) {
+            Stone.icon(g, SkillIcons.texture(skill), ix, iy, is, 1f);
+        } else {
+            Stone.greyIcon(g, SkillIcons.texture(skill), ix, iy, is, 0.45f);
+        }
+        int hx = ix + is + 4;
+        Stone.text(g, this.font, header, hx, ty, locked ? Stone.LOCK : Stone.HEAD);
+        if (locked) {
+            dev.amman.proficiency.client.SpendableClient.lock(g, hx + this.font.width(header) + 4, ty, Stone.argb(255, Stone.LOCK));
+        }
+    }
+
+    /** Whether the last two-column Face was the small one. */
+    private boolean faceSmall;
+
+    /** The unlock slam's flying card: Face card {@code i} drawn at the origin, {@code w} x {@code h}, as the Face has it. */
+    void paintCard(GuiGraphics g, PlayerSkills skills, int i, int w, int h, long now) {
+        if (skill == null) {
+            return;
+        }
+        if (oneColumn()) {
+            column.paint(g, skills, skill, i, w);
+            return;
+        }
+        if (cardCache == null || cardSkill != skill) {
+            cardCache = cards(skills, now);
+            cardSkill = skill;
+            cardAt = now;
+        }
+        drawCard(g, skills, cardCache, i, 0, 0, w, h, faceSmall);
+    }
+
+    /** The one-column Face reports where card {@code index} sits (the slam's target slot). */
+    void slamSlot(int index, int x, int y, int w, int h) {
+        slam.slot(index, x, y, w, h);
+    }
+
+    boolean slamHides(int index, long now) {
+        return slam.hides(index, now);
+    }
+
+    /** The unlock slam starts: called by the tree when a filled node woke the signature or the ability. */
+    void unlockSlam(Talent node, int x, int y, int half, boolean signature, boolean ability, boolean paid, long now) {
+        slam.start(node, x, y, half, 2 * half - 8, signature, ability, paid, now);
+    }
+
+    /** The unlock slam turns the slab to the Face under its flying socket, the card {@code index} in view. */
+    void slamTurn(int index, long now) {
+        if (page != Page.FACE) {
+            turnTo(Page.FACE, now);
+        }
+        column.reveal(index);
     }
 
     long gameTime() {
@@ -800,18 +981,21 @@ public final class SkillstoneScreen extends Screen {
         }
         double chance = skills.procChance(skill);
         String sigState;
+        cardLocked[0] = false;
+        cardLocked[1] = chance <= 0;
         if (chance > 0) {
             sigState = tr("proficiency.stone.chance", String.format(Locale.ROOT, "%.1f", chance * 100));
         } else if (level < dev.amman.proficiency.config.ProficiencyConfig.procUnlockLevel()) {
-            sigState = tr("proficiency.stone.opens_at", dev.amman.proficiency.config.ProficiencyConfig.procUnlockLevel());
+            sigState = tr("proficiency.spend.lock_level", dev.amman.proficiency.config.ProficiencyConfig.procUnlockLevel());
         } else {
             sigState = tr("proficiency.stone.root", SkillNumbers.rootName(skill).getString());
         }
         String shortKey = I18n.exists(skill.procShortKey()) ? skill.procShortKey() : skill.procDescKey();
         String[] signature = {tr("proficiency.stone.signature"), tr(skill.procKey()), tr(shortKey), sigState};
         String abState;
-        if (!ActiveService.unlocked(skills, skill)) {
-            abState = abilityLock(skills, skill, "proficiency.stone.opens_at");
+        cardLocked[2] = !ActiveService.unlocked(skills, skill);
+        if (cardLocked[2]) {
+            abState = abilityLock(skills, skill, "proficiency.spend.lock_level");
         } else {
             long cooling = skills.cooldownRemaining(skill, gameTime());
             if (cooling > 0) {
@@ -828,13 +1012,16 @@ public final class SkillstoneScreen extends Screen {
         MasteryEffects.Effect effect = MasteryEffects.of(skill);
         String[] mastery;
         if (effect == null || Mastery.maxStars() <= 0) {
+            cardLocked[3] = false;
             mastery = new String[] {tr("proficiency.stone.mastery"), "", tr("proficiency.stone.mastery_none"), ""};
         } else {
             int stars = level >= SkillMath.MAX_LEVEL ? MasteryEffects.stars(skills, skill) : 0;
+            // The rider works from the first star: below level 100, or at 100 with no star yet, it is locked.
+            cardLocked[3] = stars <= 0;
             String what = tr(effect.shortKey(), MasteryEffects.format(effect.at(Math.max(1, stars))));
             mastery = new String[] {tr("proficiency.stone.mastery"), tr(effect.nameKey()), what,
-                    level >= SkillMath.MAX_LEVEL ? tr("proficiency.stone.stars", stars, Mastery.maxStars())
-                            : tr("proficiency.stone.mastery_locked")};
+                    stars > 0 ? tr("proficiency.stone.stars", stars, Mastery.maxStars())
+                            : tr("proficiency.spend.lock_mastery")};
         }
         return new String[][] {passive, signature, ability, mastery};
     }
@@ -855,6 +1042,10 @@ public final class SkillstoneScreen extends Screen {
                         SkillNumbers.seconds(ActiveService.durationTicks(skills, skill)),
                         SkillNumbers.seconds(ActiveService.cooldownTicks(skills, skill))));
             }
+            case 4 -> {
+                tooltip.add(Component.translatable("proficiency.records.title"));
+                tooltip.add(Component.translatable("proficiency.records.tooltip"));
+            }
             default -> tooltip.addAll(MasteryStars.riderTooltip(skills, skill));
         }
     }
@@ -870,7 +1061,7 @@ public final class SkillstoneScreen extends Screen {
             boolean hov = mx >= x && mx < x + tw && my >= iy0 - 15 && my < iy0 + 3;
             Object key = "tab" + i;
             click.begin(g, key, x, iy0 - 15, tw, 18, now);
-            if (i == 1 && !on && skill != null && skills.pointsAvailable(skill) > 0) {
+            if (i == 1 && !on && skill != null && SpendableClient.summary().ready(skill) > 0) {
                 Stone.light(g, x + tw / 2, iy0 - 6, tw / 2 + 6, 14, Stone.WARM, 0.7f);
             }
             Stone.block(g, x, iy0 - 15, tw, 18, 3, 2, false, Stone.shade(Stone.STONE, on ? 1.3f : hov ? 1.15f : 0.95f));
@@ -1038,6 +1229,11 @@ public final class SkillstoneScreen extends Screen {
         if (skipIntro()) {
             return true;
         }
+        if (slam.active()) {
+            // The unlock slam never holds the slab: a click lands it at once.
+            slam.skip(clock());
+            return true;
+        }
         if (button != 0 || this.minecraft == null) {
             return super.mouseClicked(mouseX, mouseY, button);
         }
@@ -1191,6 +1387,11 @@ public final class SkillstoneScreen extends Screen {
         if (keyCode != 256 && skipIntro()) {
             return true;
         }
+        if (slam.active()) {
+            // Esc (or any key) lands the unlock slam at once; the next Esc closes.
+            slam.skip(clock());
+            return true;
+        }
         // Backspace: from a Face or a tree back to the dial.
         if (keyCode == 259 && page != Page.DIAL) {
             page = Page.DIAL;
@@ -1268,6 +1469,7 @@ public final class SkillstoneScreen extends Screen {
     /** For the layout demo: open the face of {@code s} without the turn. */
     public void face(Skill s) {
         skill = s;
+        slam.cancel();
         page = Page.FACE;
         introSkipped = true;
         if (this.minecraft != null) {
@@ -1278,6 +1480,7 @@ public final class SkillstoneScreen extends Screen {
     /** For the layout demo: open the tree of {@code s}, {@code node} picked (null: none). */
     public void treeFor(Skill s, String node) {
         skill = s;
+        slam.cancel();
         page = Page.TREE;
         introSkipped = true;
         if (this.minecraft != null) {
@@ -1347,6 +1550,17 @@ public final class SkillstoneScreen extends Screen {
         tree.demoLand(id, clock());
     }
 
+    /**
+     * For the layout demo: the unlock slam on this tree's root as if it had just filled and paid, the signature
+     * waking (and the ability too at its level).
+     */
+    public void demoUnlockSlam() {
+        Talent root = skill == null ? null : dev.amman.proficiency.perk.Talents.root(skill);
+        if (root != null && page == Page.TREE) {
+            tree.demoSlam(root.id(), clock());
+        }
+    }
+
     /** For the frame sheets: freeze the opening at {@code ms} (-1: run on the clock). */
     public static void demoTime(long ms) {
         demoT = ms;
@@ -1357,6 +1571,11 @@ public final class SkillstoneScreen extends Screen {
      * 1 skill row (index = skill ordinal), 2 corner socket, 3 tab, 4 back, 5 brazier, 6 synergy,
      * 7 talent socket (index in {@code Talents.of(skill)}), 8 Hearth plate (build, range, guide, keepers).
      */
+    /** The dial's fire well (the why-stuck hover), in GUI pixels; the layout demo hovers it. */
+    public int[] dialCentre() {
+        return new int[] {cx, cy};
+    }
+
     public int[] hitPoint(int kind, int index) {
         for (int[] h : hits) {
             if (h[0] == kind && h[1] == index) {

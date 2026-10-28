@@ -48,6 +48,18 @@ public final class ProficiencyFabricClient implements ClientModInitializer {
                 (payload, context) -> ClientWiring.onLevelUp(payload));
         ClientPlayNetworking.registerGlobalReceiver(dev.amman.proficiency.net.TempoPayload.TYPE,
                 (payload, context) -> ClientWiring.onTempo(payload));
+        ClientPlayNetworking.registerGlobalReceiver(dev.amman.proficiency.net.RecordsPayload.TYPE,
+                (payload, context) -> ClientWiring.onRecords(payload));
+        ClientPlayNetworking.registerGlobalReceiver(dev.amman.proficiency.net.TempoCritPayload.TYPE,
+                (payload, context) -> ClientWiring.onTempoCrit(payload));
+        ClientPlayNetworking.registerGlobalReceiver(dev.amman.proficiency.net.CoopPayload.TYPE,
+                (payload, context) -> dev.amman.proficiency.client.CoopStreams.accept(payload.batch()));
+        ClientPlayNetworking.registerGlobalReceiver(dev.amman.proficiency.net.HaulPayload.TYPE,
+                (payload, context) -> dev.amman.proficiency.client.HaulClient.accept(payload.summary()));
+        ClientPlayNetworking.registerGlobalReceiver(dev.amman.proficiency.net.MilestonePayload.TYPE,
+                (payload, context) -> ClientWiring.onMilestone(payload));
+        ClientPlayNetworking.registerGlobalReceiver(dev.amman.proficiency.net.BonusLootPayload.TYPE,
+                (payload, context) -> ClientWiring.onBonusLoot(payload));
         ClientPlayNetworking.registerGlobalReceiver(XpLogPayload.TYPE,
                 (payload, context) -> ClientWiring.onXpLog(payload));
         ClientPlayNetworking.registerGlobalReceiver(XpFeedPayload.TYPE,

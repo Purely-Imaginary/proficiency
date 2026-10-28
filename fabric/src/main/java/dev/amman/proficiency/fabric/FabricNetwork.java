@@ -30,6 +30,14 @@ public final class FabricNetwork {
         PayloadTypeRegistry.playS2C().register(LevelUpPayload.TYPE, LevelUpPayload.STREAM_CODEC);
         PayloadTypeRegistry.playS2C().register(dev.amman.proficiency.net.TempoPayload.TYPE,
                 dev.amman.proficiency.net.TempoPayload.STREAM_CODEC);
+        PayloadTypeRegistry.playS2C().register(dev.amman.proficiency.net.RecordsPayload.TYPE,
+                dev.amman.proficiency.net.RecordsPayload.STREAM_CODEC);
+        PayloadTypeRegistry.playS2C().register(dev.amman.proficiency.net.TempoCritPayload.TYPE,
+                dev.amman.proficiency.net.TempoCritPayload.STREAM_CODEC);
+        PayloadTypeRegistry.playS2C().register(dev.amman.proficiency.net.MilestonePayload.TYPE,
+                dev.amman.proficiency.net.MilestonePayload.STREAM_CODEC);
+        PayloadTypeRegistry.playS2C().register(dev.amman.proficiency.net.BonusLootPayload.TYPE,
+                dev.amman.proficiency.net.BonusLootPayload.STREAM_CODEC);
         PayloadTypeRegistry.playS2C().register(XpLogPayload.TYPE, XpLogPayload.STREAM_CODEC);
         PayloadTypeRegistry.playS2C().register(XpFeedPayload.TYPE, XpFeedPayload.STREAM_CODEC);
         PayloadTypeRegistry.playS2C().register(DiscoveryPayload.TYPE, DiscoveryPayload.STREAM_CODEC);
@@ -48,6 +56,16 @@ public final class FabricNetwork {
                 dev.amman.proficiency.net.ExpertisePayload.STREAM_CODEC);
         ServerPlayNetworking.registerGlobalReceiver(dev.amman.proficiency.net.ExpertisePayload.TYPE,
                 (payload, context) -> ProficiencyNetwork.onExpertise(payload, context.player()));
+        // Co-op XP streams (1.45.0): optional, asked for with canSend before each send.
+        PayloadTypeRegistry.playS2C().register(dev.amman.proficiency.net.CoopPayload.TYPE,
+                dev.amman.proficiency.net.CoopPayload.STREAM_CODEC);
+        // Today's Haul (1.44.0): canSend is asked before every send, so a client without it is never sent one.
+        PayloadTypeRegistry.playS2C().register(dev.amman.proficiency.net.HaulPayload.TYPE,
+                dev.amman.proficiency.net.HaulPayload.STREAM_CODEC);
+        PayloadTypeRegistry.playC2S().register(dev.amman.proficiency.net.HaulRequestPayload.TYPE,
+                dev.amman.proficiency.net.HaulRequestPayload.STREAM_CODEC);
+        ServerPlayNetworking.registerGlobalReceiver(dev.amman.proficiency.net.HaulRequestPayload.TYPE,
+                (payload, context) -> ProficiencyNetwork.onHaulRequest(payload, context.player()));
         FabricHearthNetwork.register();
     }
 }

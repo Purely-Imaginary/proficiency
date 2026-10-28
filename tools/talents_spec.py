@@ -416,26 +416,26 @@ TREES["spelunking"] = [
 TREES["masonry"] = [
     root("mortar", "Mortar"),
     N("thrifty", "Thrifty", 1, 1, 5, 1, {"BON": 0.05}, None, ["mortar"], "Placed blocks come back more often."),
-    N("rapid_build", "Rapid Build", 1, 3, 5, 1, {"PC": 0.10}, None, ["mortar"], "A triple refund comes more often."),
+    N("rapid_build", "Rapid Build", 1, 3, 5, 1, {"PC": 0.10}, None, ["mortar"], "A free block comes more often."),
     N("long_arm", "Long Arm", 2, 0, 3, 1, {}, "long_arm", ["thrifty"], "Half a block more reach per rank."),
-    N("stonecutter", "Stonecutter", 2, 2, 3, 1, {"PP": 0.15}, None, ["thrifty", "rapid_build"], "Triple refunds can be bigger."),
+    N("stonecutter", "Stonecutter", 2, 2, 3, 1, {}, "free_chance", ["thrifty", "rapid_build"], "+4% chance per rank that a placed block is free."),
     N("safety_harness", "Safety Harness", 2, 4, 3, 1, {}, "harness", ["rapid_build"], "Holding a block, you take 15% less fall damage per rank."),
     N("cornerstone", "Cornerstone", 3, 1, 3, 1, {"AD": 0.15, "TMP": 0.20}, None, ["long_arm", "stonecutter"], "The ability lasts longer; a streak pays more.", 2),
-    N("bulk_order", "Bulk Order", 3, 3, 3, 1, {}, "bulk_order", ["safety_harness"], "Every 10th identical full block in a row refunds 1 per rank.", 3),
-    N("master_mason", "Master Mason", 4, 2, 1, 3, {}, "free_place", ["cornerstone", "bulk_order"], "Some blocks you place cost nothing at all.", 4),
+    N("bulk_order", "Bulk Order", 3, 3, 3, 1, {}, "bulk_order", ["safety_harness"], "In a run of one full block, every 10th is free (every 8th at rank 2, every 6th at rank 3).", 3),
+    N("master_mason", "Master Mason", 4, 2, 1, 3, {}, "free_place", ["cornerstone", "bulk_order"], "+30% chance that a block is free, and the free chance can reach 75% instead of 55%.", 4),
     cap("grand_architect", "Grand Architect", "architect_reach", "Two more blocks of reach, always.", ["master_mason"]),
 ]
 
 TREES["decorating"] = [
     root("eye_for_detail", "Eye for Detail"),
     N("thrift_shop", "Thrift Shop", 1, 0, 5, 1, {"BON": 0.05}, None, ["eye_for_detail"], "Placed decorations come back more often."),
-    N("inspiration", "Inspiration", 1, 4, 5, 1, {"PC": 0.10}, None, ["eye_for_detail"], "A triple refund comes more often."),
+    N("inspiration", "Inspiration", 1, 4, 5, 1, {"PC": 0.10}, None, ["eye_for_detail"], "A free decoration comes more often."),
     N("hygge", "Hygge", 2, 0, 3, 1, {}, "hygge", ["thrift_shop"], "A cozy room needs 2 fewer decorations per rank."),
-    N("feng_shui", "Feng Shui", 2, 2, 3, 1, {"PP": 0.15}, None, ["thrift_shop", "inspiration"], "Triple refunds can be bigger."),
-    N("lamplighter", "Lamplighter", 2, 4, 3, 1, {}, "lamplighter", ["inspiration"], "Placing a light: 15% chance per rank it comes back."),
+    N("feng_shui", "Feng Shui", 2, 2, 3, 1, {}, "free_chance", ["thrift_shop", "inspiration"], "+4% chance per rank that a placed decoration is free."),
+    N("lamplighter", "Lamplighter", 2, 4, 3, 1, {}, "lamplighter", ["inspiration"], "Placing a light: +15% chance per rank that it is free."),
     N("host", "The Host", 3, 0, 3, 1, {}, "host", ["hygge"], "Your cozy room also warms players within 2 blocks per rank.", 2),
     N("curator", "Curator", 3, 4, 3, 1, {"AD": 0.15, "TMP": 0.20}, None, ["lamplighter"], "The ability lasts longer; a streak pays more.", 3),
-    N("master_decorator", "Master Decorator", 4, 2, 1, 3, {}, "free_place", ["host", "curator"], "Some blocks you place cost nothing at all.", 4),
+    N("master_decorator", "Master Decorator", 4, 2, 1, 3, {}, "free_place", ["host", "curator"], "+30% chance that a decoration is free, and the free chance can reach 75% instead of 55%.", 4),
     cap("tastemaker", "Tastemaker", "tastemaker", "A cozy room gives Regeneration II and Luck.", ["master_decorator", "feng_shui"]),
 ]
 

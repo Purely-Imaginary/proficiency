@@ -206,19 +206,24 @@ public final class Stone {
 
     /** A horizontal molten groove from {@code x0} to {@code x1}, filled to {@code t}. */
     public static void groove(GuiGraphics g, int x0, int x1, int y, float t, int w, boolean glow) {
+        groove(g, x0, x1, y, t, w, glow, false);
+    }
+
+    /** The same groove poured with gold instead of ember: a Mastered skill's Face bar (level 100, for good). */
+    public static void groove(GuiGraphics g, int x0, int x1, int y, float t, int w, boolean glow, boolean gold) {
         int top = y - w / 2;
         g.fill(x0 + 1, top + 1, x1 + 1, top + w + 1, argb(120, 0x968278));
         g.fill(x0, top, x1, top + w, argb(255, 0x161110));
         int fx = x0 + Math.round((x1 - x0) * Math.max(0f, Math.min(1f, t)));
         if (fx > x0) {
             if (glow) {
-                g.fill(x0, top - 2, fx, top + w + 2, argb(70, ember(0.5f)));
+                g.fill(x0, top - 2, fx, top + w + 2, argb(gold ? 140 : 70, gold ? 0xFFC020 : ember(0.5f)));
             }
             int iw = Math.max(1, w - 2);
             int it = y - iw / 2;
-            g.fill(x0, it, fx, it + iw, argb(255, ember(0.62f)));
+            g.fill(x0, it, fx, it + iw, argb(255, gold ? 0xFFD24A : ember(0.62f)));
             if (w >= 3) {
-                g.fill(x0, y, fx, y + 1, argb(255, ember(0.86f)));
+                g.fill(x0, y, fx, y + 1, argb(255, gold ? 0xFFEFA0 : ember(0.86f)));
             }
         }
     }

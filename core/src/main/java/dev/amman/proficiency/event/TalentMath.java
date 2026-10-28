@@ -97,13 +97,18 @@ public final class TalentMath {
 
         /** Records one placement and says whether it is a tenth. */
         public synchronized boolean place(String blockId) {
+            return place(blockId, EVERY);
+        }
+
+        /** Records one placement and says whether it is an {@code every}th (Bulk Order's rank sets it). */
+        public synchronized boolean place(String blockId, int every) {
             if (Objects.equals(blockId, last)) {
                 count++;
             } else {
                 last = blockId;
                 count = 1;
             }
-            return count % EVERY == 0;
+            return every > 0 && count % every == 0;
         }
 
         public synchronized int count() {

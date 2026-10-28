@@ -247,7 +247,7 @@ public final class Synergies {
         add("steam_drill", needs(MINING, "rich_veins", 2, ENGINEERING, "overclock", 3),
                 grants(MINING, PROC_POWER, 1.10, ENGINEERING, XP_RATE, 1.10), null);
         add("quarryman", needs(MINING, "prospector", 5, MASONRY, "stonecutter", 3),
-                grants(MINING, XP_RATE, 1.10, MASONRY, PROC_POWER, 1.10), null);
+                grants(MINING, XP_RATE, 1.10, MASONRY, PROC_CHANCE, 1.10), null);
         add("mineral_tincture", needs(MINING, "gem_cutter", 3, ALCHEMY, "brewers_eye", 3),
                 grants(MINING, PROC_POWER, 1.05, ALCHEMY, BONUS, 1.10), null);
         add("lightless_seam", needs(MINING, "dark_sight", 1, NIGHTWALKER, "dark_adapted", 5),
@@ -289,7 +289,7 @@ public final class Synergies {
         add("irrigation", needs(FARMING, "scythe", 1, ENGINEERING, "redstone_savant", 3),
                 grants(FARMING, ABILITY_DURATION, 1.10, ENGINEERING, PROC_CHANCE, 1.10), null);
         add("flower_beds", needs(FARMING, "druid", 1, DECORATING, "feng_shui", 3),
-                grants(DECORATING, PROC_POWER, 1.10, FARMING, XP_RATE, 1.05), null);
+                grants(DECORATING, PROC_CHANCE, 1.10, FARMING, XP_RATE, 1.05), null);
         add("shore_supper", needs(FISHING, "fresh_catch", 3, COOKING, "banquet", 3),
                 grants(FISHING, PROC_CHANCE, 1.05, COOKING, XP_RATE, 1.10), "shore_supper");
         add("riverborn", needs(FISHING, "patient", 5, SWIMMING, "dolphin", 5),
@@ -345,7 +345,7 @@ public final class Synergies {
         add("guild_prices", needs(SMITHING, "haggler", 5, SOCIAL, "good_word", 2),
                 grants(SMITHING, BONUS, 1.05, SOCIAL, PROC_CHANCE, 1.10), null);
         add("wrought_iron", needs(SMITHING, "legendary", 1, DECORATING, "curator", 3),
-                grants(DECORATING, PROC_POWER, 1.05, SMITHING, TEMPO, 1.15), null);
+                grants(DECORATING, PROC_CHANCE, 1.05, SMITHING, TEMPO, 1.15), null);
         add("potluck", needs(COOKING, "shared_meal", 2, SOCIAL, "old_friends", 3),
                 grants(COOKING, PROC_POWER, 1.10, SOCIAL, XP_RATE, 1.05), null);
         add("sunday_roast", needs(COOKING, "family_recipe", 1, HOMEBUILDER, "warm_welcome", 2, FARMING, "green_thumb", 1),
@@ -383,7 +383,7 @@ public final class Synergies {
         add("glowworm_grotto", needs(SPELUNKING, "glowstone_heart", 3, DECORATING, "curator", 2),
                 grants(DECORATING, TEMPO, 1.15, SPELUNKING, PROC_POWER, 1.05), null);
         add("shoring", needs(SPELUNKING, "cave_in", 1, MASONRY, "safety_harness", 2),
-                grants(SPELUNKING, ABILITY_DURATION, 1.10, MASONRY, PROC_POWER, 1.05), null);
+                grants(SPELUNKING, ABILITY_DURATION, 1.10, MASONRY, PROC_CHANCE, 1.05), null);
         add("root_cellar", needs(SPELUNKING, "cave_lore", 3, HOMEBUILDER, "night_watch", 1),
                 grants(HOMEBUILDER, ABILITY_DURATION, 1.10, SPELUNKING, XP_RATE, 1.05), null);
         add("hearthstone", needs(MASONRY, "rapid_build", 5, HOMEBUILDER, "ember_heart", 3),

@@ -1,12 +1,8 @@
 package dev.amman.proficiency.client;
 
-import dev.amman.proficiency.perk.TalentOutcome;
-import dev.amman.proficiency.perk.Requirements;
 import dev.amman.proficiency.ProficiencyAttachments;
 import dev.amman.proficiency.config.ProficiencyClientConfig;
 import dev.amman.proficiency.perk.Synergies;
-import dev.amman.proficiency.perk.Talent;
-import dev.amman.proficiency.perk.TalentService;
 import dev.amman.proficiency.perk.Talents;
 import dev.amman.proficiency.skill.PlayerSkills;
 import dev.amman.proficiency.skill.Skill;
@@ -455,36 +451,6 @@ public final class SkillsScreen extends Screen {
     }
 
     /**
-     * Whether any node in this tree would take a rank right now, materials included. Decided
-     * client-side from data the client already has, so it costs no packet; the server re-checks.
-     */
-    private boolean readyToBuy(Skill skill, PlayerSkills skills) {
-        if (this.minecraft == null || this.minecraft.player == null) {
-            return false;
-        }
-        for (Talent talent : Talents.of(skill)) {
-            if (skills.check(talent) != TalentOutcome.OK) {
-                continue;
-            }
-            boolean fills = skills.rank(talent) + 1 == talent.maxRank();
-            if (!fills || skills.hasPaid(talent)) {
-                return true;
-            }
-            boolean stocked = true;
-            for (var requirement : TalentService.payableMaterials(talent)) {
-                if (Requirements.countIn(requirement, this.minecraft.player.getInventory()) < requirement.count()) {
-                    stocked = false;
-                    break;
-                }
-            }
-            if (stocked) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
      * Whether every row of one column has room for its icon beside the name and a three-digit
      * level. Worked out once per layout, so a frame measures nothing for it.
      */
@@ -522,10 +488,9 @@ public final class SkillsScreen extends Screen {
             }
         }
 
-        if (skills != null && readyToBuy(skill, skills)) {
-            // A quiet marker rather than a popup: something here is affordable.
-            graphics.fill(row.x() - 4, row.y() - 1, row.x() - 2, row.y() + 8, accent);
-        }
+        // Ranks ready now (1.55.0, the Skillstone's ember marker): a dot and the count left of the level.
+        int ready = skills == null ? 0 : SpendableClient.summary().ready(skill);
+        int readyW = SpendableClient.emberWidth(this.font, ready);
 
         Component name = Component.translatable(skill.translationKey());
         String levelText = String.valueOf(level);
@@ -542,7 +507,8 @@ public final class SkillsScreen extends Screen {
         int starsW = starCount > 0 ? MasteryStars.width(starCount) + 3 : 0;
         // A name too long for its column is cut with an ellipsis; the row's tooltip names it whole.
         String nameText = name.getString();
-        String shown = TextFit.clip(this.font, nameText, row.width() - SkillIcons.advance(icon) - levelWidth - starsW - 4);
+        String shown = TextFit.clip(this.font, nameText, row.width() - SkillIcons.advance(icon) - levelWidth - starsW - 4
+                - (readyW > 0 ? readyW + 4 : 0));
         if (!shown.equals(nameText)) {
             TextFit.note("panel.row");
             nameWidth = this.font.width(shown);
@@ -556,6 +522,10 @@ public final class SkillsScreen extends Screen {
         if (starCount > 0) {
             MasteryStars.draw(graphics, this.font, row.x() + row.width() - levelWidth - starsW, row.y(),
                     starCount, 255);
+        }
+        if (ready > 0) {
+            SpendableClient.ember(graphics, this.font, row.x() + row.width() - levelWidth - starsW - readyW - 2,
+                    row.y() + 2, ready, now);
         }
         if (activity) {
             sparkline(graphics, row, skill, nameX + nameWidth, levelWidth + starsW, now);
@@ -778,9 +748,16 @@ public final class SkillsScreen extends Screen {
             lines.add(Component.translatable("proficiency.tooltip.synergies", awake)
                     .withStyle(ChatFormatting.LIGHT_PURPLE));
         }
-        // Yellow is kept for the one line that asks the player to do something.
+        // Yellow is kept for the one line that asks the player to do something: ranks ready now (1.55.0).
+        dev.amman.proficiency.perk.Spendable.Report spend = SpendableClient.report(skill);
+        if (spend.readyRanks() > 0) {
+            lines.add(Component.translatable("proficiency.tooltip.ready", spend.readyRanks()).withStyle(ChatFormatting.YELLOW));
+        }
         lines.add(Component.translatable("proficiency.tooltip.points", points)
-                .withStyle(points > 0 ? ChatFormatting.YELLOW : ChatFormatting.DARK_GRAY));
+                .withStyle(spend.readyRanks() > 0 ? ChatFormatting.GRAY : ChatFormatting.DARK_GRAY));
+        if (spend.waiting()) {
+            lines.addAll(SpendableClient.reasons(spend));
+        }
         return lines;
     }
 

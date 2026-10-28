@@ -297,7 +297,15 @@ public final class Talents {
         build(skill, DEFAULT_TIERS.get(skill));
     }
 
+    private static volatile int generation;
+
+    /** Changes whenever the trees are rebuilt (a pack's material lists); caches key on it. */
+    public static int generation() {
+        return generation;
+    }
+
     private static void build(Skill skill, List<List<Requirement>> tiers) {
+        generation++;
         List<Talent> nodes = TalentTable.nodes(skill, tiers.get(0), tiers.get(1), tiers.get(2), tiers.get(3));
         for (Talent talent : nodes) {
             BY_KEY.put(talent.key(), talent);

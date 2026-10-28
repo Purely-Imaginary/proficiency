@@ -1,6 +1,7 @@
 package dev.amman.proficiency.jade;
 
 import dev.amman.proficiency.Proficiency;
+import dev.amman.proficiency.client.SkillIcons;
 import dev.amman.proficiency.look.LookRules;
 import dev.amman.proficiency.look.XpLookData;
 import dev.amman.proficiency.skill.Skill;
@@ -38,8 +39,12 @@ enum MobLookProvider implements IEntityComponentProvider, IServerDataProvider<En
         if (skill == null) {
             return;
         }
-        BlockLookView.line(tooltip, skill, data, LookRules.has(data.getInt(XpLookData.FLAGS), LookRules.PLACED)
-                ? LookText.mobNothing(skill) : LookText.mob(skill, data.getFloat(XpLookData.XP),
-                        data.getFloat(XpLookData.KILL)), config);
+        boolean placed = LookRules.has(data.getInt(XpLookData.FLAGS), LookRules.PLACED);
+        if (!placed && SkillIcons.enabled()) {
+            BlockLookView.mobPays(tooltip, skill, data, data.getFloat(XpLookData.XP), data.getFloat(XpLookData.KILL), config);
+            return;
+        }
+        BlockLookView.line(tooltip, skill, data, placed ? LookText.mobNothing(skill) : LookText.mob(skill,
+                data.getFloat(XpLookData.XP), data.getFloat(XpLookData.KILL)), config);
     }
 }

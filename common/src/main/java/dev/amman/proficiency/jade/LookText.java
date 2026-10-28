@@ -1,5 +1,6 @@
 package dev.amman.proficiency.jade;
 
+import dev.amman.proficiency.client.SkillIcons;
 import dev.amman.proficiency.client.SkillPalette;
 import dev.amman.proficiency.hearth.HearthPool;
 import dev.amman.proficiency.hearth.charge.PoolColors;
@@ -36,25 +37,35 @@ public final class LookText {
         return Component.translatable(skill.translationKey());
     }
 
-    /** "Mining +1.2 XP", in the skill's colour. */
+    /**
+     * With the skill icon on, the icon carries the skill and the line has no name ("+1.2 XP"); with it off the
+     * name stays, so the line still says which skill. The nameless wording is the {@code .icon} keys.
+     */
+    private static boolean named() {
+        return !SkillIcons.enabled();
+    }
+
+    /** "[icon] +1.2 XP" in the skill's colour; "Mining +1.2 XP" with no icon. */
     public static Component pays(Skill skill, float xp) {
-        return Component.translatable("proficiency.jade.pays", skillName(skill), LookRules.formatXp(xp))
+        return (named() ? Component.translatable("proficiency.jade.pays", skillName(skill), LookRules.formatXp(xp))
+                : Component.translatable("proficiency.jade.pays.icon", LookRules.formatXp(xp)))
                 .withStyle(style -> style.withColor(colour(skill)));
     }
 
-    /** "Placed by a player: pays no XP", dim. */
+    /** "[icon] placed, no XP", dim; "Mining: placed, no XP" with no icon. */
     public static Component placed(Skill skill) {
-        return Component.translatable("proficiency.jade.placed", skillName(skill))
+        return (named() ? Component.translatable("proficiency.jade.placed", skillName(skill))
+                : Component.translatable("proficiency.jade.placed.icon"))
                 .withStyle(style -> style.withColor(DIM));
     }
 
-    /** "✦ First time +15 XP", gold: appended after the payment. */
+    /** "✦ +15 XP", gold: appended after the payment. */
     public static Component first(float xp) {
-        return Component.translatable("proficiency.jade.first", LookRules.formatXp(xp))
+        return Component.translatable("proficiency.jade.first.mark", LookRules.formatXp(xp))
                 .withStyle(style -> style.withColor(GOLD));
     }
 
-    /** "Swords: hit +1.0 · kill +4.5 XP", in the skill's colour. */
+    /** "Swords: hit +1.0 · kill +4.5 XP" in the skill's colour: the wording for ui.skillIcons off (with icons the view draws a skull). */
     public static Component mob(Skill skill, float hit, float kill) {
         String key = kill > 0 ? (hit > 0 ? "proficiency.jade.mob" : "proficiency.jade.mob.kill") : "proficiency.jade.mob.hit";
         MutableComponent line = kill > 0 && hit > 0
@@ -63,9 +74,10 @@ public final class LookText {
         return line.withStyle(style -> style.withColor(colour(skill)));
     }
 
-    /** "Spawned by an egg or a command: pays no XP", dim. */
+    /** "[icon] spawned, no XP", dim; "Swords: spawned, no XP" with no icon. */
     public static Component mobNothing(Skill skill) {
-        return Component.translatable("proficiency.jade.mob.none", skillName(skill))
+        return (named() ? Component.translatable("proficiency.jade.mob.none", skillName(skill))
+                : Component.translatable("proficiency.jade.mob.none.icon"))
                 .withStyle(style -> style.withColor(DIM));
     }
 

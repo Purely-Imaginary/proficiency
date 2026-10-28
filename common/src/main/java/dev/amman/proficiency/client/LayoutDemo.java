@@ -8,6 +8,7 @@ import dev.amman.proficiency.net.XpLogPayload;
 import dev.amman.proficiency.perk.Talent;
 import dev.amman.proficiency.perk.Talents;
 import dev.amman.proficiency.skill.Skill;
+import dev.amman.proficiency.skill.Tempo;
 import dev.amman.proficiency.skill.SkillService;
 import dev.amman.proficiency.skill.XpFactors;
 import net.minecraft.client.Minecraft;
@@ -41,7 +42,7 @@ final class LayoutDemo {
     /** Window width, height and GUI scale (0 = auto). */
     private static final int[][] SETUPS = {{1920, 1080, 4}, {1280, 720, 0}, {1280, 800, 0}, {1920, 1080, 2},
             {960, 720, 3}, {1280, 720, 4}, {1280, 720, -4},
-            {3840, 2160, 0}, {3840, 2160, 4}};
+            {3840, 2160, 0}, {3840, 2160, 4}, {1280, 720, 2}, {960, 540, 2}};
 
     private record Step(String name, Runnable run, long waitMs, BooleanSupplier until) {
     }
@@ -203,6 +204,86 @@ final class LayoutDemo {
     private static void scenes(Minecraft mc) {
         int mark = STEPS.size();
         String group = "";
+        prune(mark, group);
+        mark = STEPS.size();
+        group = "records";
+        // Personal records (1.37.0): the Face's Records section with and without values, the classic skill screen's
+        // Records line, and the "new best" toast across its animation.
+        add("records set", 100, () -> {
+            ClientRecords.set(Skill.MINING, new dev.amman.proficiency.skill.PlayerRecords.Entry(312f, 41, 96.5f, 0));
+            ClientRecords.set(Skill.BEASTSLAYING, new dev.amman.proficiency.skill.PlayerRecords.Entry(188f, 17, 54f, 9));
+            ClientRecords.set(Skill.FISHING, new dev.amman.proficiency.skill.PlayerRecords.Entry(64.5f, 12, 19f, 6));
+            ClientRecords.set(Skill.SWORDS, dev.amman.proficiency.skill.PlayerRecords.Entry.EMPTY);
+        });
+        add("records face", 700, () -> {
+            mc.setScreen(new dev.amman.proficiency.client.stone.SkillstoneScreen(Skill.MINING));
+            mouse(mc, 2, 2);
+        });
+        shot(mc, "records-face");
+        add("records face end", 400, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.SkillstoneScreen screen) {
+                for (int i = 0; i < 40; i++) {
+                    screen.mouseScrolled(10, 10, 0, -1);
+                }
+            }
+        });
+        shot(mc, "records-face-end");
+        add("records face hover", 400, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.SkillstoneScreen) {
+                mouse(mc, mc.getWindow().getGuiScaledWidth() / 2 + 60, mc.getWindow().getGuiScaledHeight() / 2 + 10);
+            }
+        });
+        shot(mc, "records-face-hover");
+        add("records face beast", 700, () -> {
+            mc.setScreen(new dev.amman.proficiency.client.stone.SkillstoneScreen(Skill.BEASTSLAYING));
+            mouse(mc, 2, 2);
+        });
+        shot(mc, "records-face-beastslaying");
+        add("records face none", 700, () -> {
+            mc.setScreen(new dev.amman.proficiency.client.stone.SkillstoneScreen(Skill.SWORDS));
+            mouse(mc, 2, 2);
+        });
+        shot(mc, "records-face-none");
+        add("records classic", 700, () -> {
+            mc.setScreen(new TalentTreeScreen(Skill.BEASTSLAYING, null));
+            mouse(mc, 2, 2);
+        });
+        shot(mc, "records-classic");
+        add("records toast fire", 60, () -> {
+            mc.setScreen(null);
+            RecordToasts.show(Skill.MINING, dev.amman.proficiency.skill.RecordMetric.RATE, 312f);
+        });
+        // A frame sheet for the GIF: 28 frames, one step each, as close together as the steps run.
+        for (int frame = 0; frame < 28; frame++) {
+            final String name = "records-toast-f" + String.format(java.util.Locale.ROOT, "%02d", frame);
+            add("records toast frame " + frame, 30, () -> {
+                Path dir = LayoutAudit.dir().resolve("shots");
+                try {
+                    Files.createDirectories(dir);
+                    NativeImage image = Screenshot.takeScreenshot(mc.getMainRenderTarget());
+                    image.writeToFile(dir.resolve(lang + "__" + setup + "__" + name + ".png"));
+                    image.close();
+                } catch (java.io.IOException e) {
+                    LayoutAudit.note("SHOT FAILED " + name + " " + e);
+                }
+            });
+        }
+        add("records toast wait", 4500, () -> {
+        });
+        add("records toast beast", 60, () -> RecordToasts.show(Skill.BEASTSLAYING,
+                dev.amman.proficiency.skill.RecordMetric.EXTRA, 9f));
+        add("records toast beast wait", 1200, () -> {
+        });
+        shot(mc, "records-toast-beastslaying");
+        add("records toast wait 2", 4500, () -> {
+        });
+        add("records toast long", 60, () -> RecordToasts.show(Skill.TRIDENTS,
+                dev.amman.proficiency.skill.RecordMetric.GRANT, 12345f));
+        add("records toast long wait", 1200, () -> {
+        });
+        shot(mc, "records-toast-grant");
+        add("records toast wait 3", 4500, () -> {
+        });
         prune(mark, group);
         mark = STEPS.size();
         group = "panel";
@@ -398,6 +479,12 @@ final class LayoutDemo {
             shot(mc, "stone-unlock-" + String.format(java.util.Locale.ROOT, "%04d", at));
         }
         add("stone tree thaw", 600, () -> dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(-1));
+        // Filling the root at level 60 woke the signature and the ability: the unlock slam turned the slab to the Face.
+        add("stone tree back", 400, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.SkillstoneScreen screen) {
+                screen.treeFor(Skill.MINING, null);
+            }
+        });
         shot(mc, "stone-tree-after");
         add("stone tree refuse", 90, () -> {
             java.util.List<dev.amman.proficiency.perk.Talent> nodes = dev.amman.proficiency.perk.Talents.of(Skill.MINING);
@@ -418,6 +505,65 @@ final class LayoutDemo {
             }
         });
         shot(mc, "stone-tree-scrolled");
+        prune(mark, group);
+        mark = STEPS.size();
+        group = "stonemat"; // PROFICIENCY_LAYOUT_ONLY=stonemat runs just this scene
+        // A node with three materials (one short, one on hand, one a tag): the slate block, the badge, the plate.
+        add("stone materials give", 300, () -> command(mc, "give @s iron_ingot 1"));
+        add("stone materials give stone", 300, () -> command(mc, "give @s stone 4"));
+        add("stone materials give logs", 300, () -> command(mc, "give @s oak_log 2"));
+        add("stone materials", 700, () -> {
+            java.util.List<dev.amman.proficiency.perk.Talent> nodes = dev.amman.proficiency.perk.Talents.of(Skill.MINING);
+            dev.amman.proficiency.client.stone.NodeMaterials.demo(nodes.get(1).id());
+            dev.amman.proficiency.client.stone.SkillstoneScreen screen = new dev.amman.proficiency.client.stone.SkillstoneScreen(Skill.MINING);
+            mc.setScreen(screen);
+            screen.treeFor(Skill.MINING, nodes.get(1).id());
+            mouse(mc, 2, 2);
+        });
+        shot(mc, "stone-materials");
+        add("stone materials hover", 500, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.SkillstoneScreen screen) {
+                int[] p = screen.hitPoint(7, 1);
+                if (p != null) {
+                    mouse(mc, p[0], p[1]);
+                }
+            }
+        });
+        shot(mc, "stone-materials-hover");
+        add("stone materials end", 100, () -> dev.amman.proficiency.client.stone.NodeMaterials.demo(null));
+        // The real root (Cobblestone and Coal): hover, the plate saying what is missing, then what a click pays, then the pay.
+        add("stone pay open", 600, () -> {
+            dev.amman.proficiency.client.stone.SkillstoneScreen screen = new dev.amman.proficiency.client.stone.SkillstoneScreen(Skill.MINING);
+            mc.setScreen(screen);
+            screen.treeFor(Skill.MINING, dev.amman.proficiency.perk.Talents.of(Skill.MINING).get(0).id());
+            mouse(mc, 2, 2);
+        });
+        for (int k = 0; k < 4; k++) { // four ranks of five: the next click fills the node, so it is the one that pays
+            add("stone pay rank " + k, 500, () -> stoneClick(mc, 7, 0));
+        }
+        add("stone pay hover", 400, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.SkillstoneScreen screen) {
+                int[] p = screen.hitPoint(7, 0);
+                if (p != null) {
+                    mouse(mc, p[0], p[1]);
+                }
+            }
+        });
+        shot(mc, "stone-pay-missing");
+        add("stone pay give cobble", 300, () -> command(mc, "give @s cobblestone 128"));
+        add("stone pay give coal", 700, () -> command(mc, "give @s coal 64"));
+        shot(mc, "stone-pay-ready");
+        add("stone pay click", 60, () -> stoneClick(mc, 7, 0));
+        shot(mc, "stone-pay-f1");
+        add("stone pay wait 1", 250, () -> { });
+        shot(mc, "stone-pay-f2");
+        add("stone pay wait 2", 350, () -> { });
+        shot(mc, "stone-pay-f3");
+        add("stone pay wait 3", 900, () -> { });
+        shot(mc, "stone-pay-paid");
+        prune(mark, group);
+        mark = STEPS.size();
+        group = "stone";
         add("stone capstone", 100, () -> {
             dev.amman.proficiency.client.stone.SkillstoneScreen screen = new dev.amman.proficiency.client.stone.SkillstoneScreen(Skill.SWORDS);
             mc.setScreen(screen);
@@ -638,6 +784,28 @@ final class LayoutDemo {
             }
         });
         shot(mc, "tree-synergy");
+
+        prune(mark, group);
+        mark = STEPS.size();
+        group = "refunds";
+        // The free-block wording (refund fix): the reworded Masonry and Decorating nodes, one tooltip each.
+        String[][] refundNodes = {{"masonry", "stonecutter"}, {"masonry", "bulk_order"}, {"masonry", "master_mason"},
+                {"decorating", "feng_shui"}, {"decorating", "lamplighter"}, {"decorating", "master_decorator"}};
+        for (String[] node : refundNodes) {
+            Skill skill = Skill.byId(node[0]);
+            add("refunds " + node[1], 700, () -> {
+                injectLog(skill);
+                mc.setScreen(new TalentTreeScreen(skill, null));
+            });
+            add("refunds hover " + node[1], 500, () -> {
+                if (mc.screen instanceof TalentTreeScreen screen) {
+                    Talent talent = Talents.get(skill, node[1]);
+                    int[] p = screen.nodePoint(talent.row(), talent.col());
+                    mouse(mc, p[0], p[1]);
+                }
+            });
+            shot(mc, "refunds-" + node[0] + "-" + node[1]);
+        }
 
         prune(mark, group);
         mark = STEPS.size();
@@ -1172,6 +1340,10 @@ final class LayoutDemo {
         });
         prune(mark, group);
         mark = STEPS.size();
+        group = "hudflights";
+        hudflightsScenes(mc);
+        prune(mark, group);
+        mark = STEPS.size();
         group = "hearth";
         hearthScenes(mc);
         prune(mark, group);
@@ -1179,11 +1351,275 @@ final class LayoutDemo {
         group = "guide";
         guideScenes(mc);
         prune(mark, group);
+        mark = STEPS.size();
+        group = "synergyslam";
+        slamScenes(mc);
+        prune(mark, group);
+        mark = STEPS.size();
+        group = "milestones";
+        milestoneScenes(mc);
+        prune(mark, group);
+        mark = STEPS.size();
+        group = "unlockslam";
+        unlockSlamScenes(mc);
+        prune(mark, group);
+        mark = STEPS.size();
+        group = "mattips";
+        matTipScenes(mc);
+        prune(mark, group);
+        mark = STEPS.size();
+        group = "combattempo";
+        combatTempoScenes(mc);
+        prune(mark, group);
+        mark = STEPS.size();
+        group = "hudstack";
+        hudStackScenes(mc);
+        prune(mark, group);
+        mark = STEPS.size();
+        group = "hslayout";
+        hudStackLayoutScenes(mc);
+        prune(mark, group);
+        mark = STEPS.size();
+        group = "spend";
+        spendScenes(mc);
+        prune(mark, group);
         add("close", 300, () -> mc.setScreen(null));
         add("clips", 10, () -> {
             LayoutAudit.note("CLIPS " + lang + " " + setup + " " + TextFit.clips());
             TextFit.resetClips();
         });
+    }
+
+    // ---- The synergy discovery slam: frame sheets ----------------------------------------------------------------
+
+    private static Path capDir;
+    private static int capIndex;
+
+    /** Starts a frame sheet: every rendered frame is saved, and the slam's clock steps 66 ms per frame. */
+    private static void startCapture(Minecraft mc, String name) {
+        add("capture start " + name, 250, () -> {
+            capDir = LayoutAudit.dir().resolve("frames").resolve(name);
+            try {
+                Files.createDirectories(capDir);
+            } catch (java.io.IOException e) {
+                LayoutAudit.note("FRAMES FAILED " + name + " " + e);
+            }
+            capIndex = 0;
+            SynergySlam.demoNow = net.minecraft.Util.getMillis();
+            SynergySlam.demoStep = 66;
+            SynergySlam.frameSink = LayoutDemo::capFrame;
+        });
+    }
+
+    private static void stopCapture(String name) {
+        add("capture stop " + name, 200, () -> {
+            SynergySlam.frameSink = null;
+            SynergySlam.demoStep = 0;
+            LayoutAudit.note("FRAMES " + name + " " + capIndex);
+            SynergySlam.reset();
+        });
+    }
+
+    private static void capFrame(Minecraft mc) {
+        try {
+            NativeImage image = Screenshot.takeScreenshot(mc.getMainRenderTarget());
+            image.writeToFile(capDir.resolve(String.format("%04d.png", ++capIndex)));
+            image.close();
+        } catch (java.io.IOException e) {
+            LayoutAudit.note("FRAME FAILED " + e);
+        }
+    }
+
+    /** Wakes synergies with commands and records the slam: MODERN, CLASSIC, three icons, a burst, over a screen, no motion. */
+    private static void slamScenes(Minecraft mc) {
+        add("slam quiet", 300, () -> {
+            mc.setScreen(null);
+            command(mc, "gamerule sendCommandFeedback false");
+            mc.gui.getChat().clearMessages(false);
+            dev.amman.proficiency.config.ProficiencyClientConfig.setUiStyle(UiStyle.MODERN);
+            mc.options.screenEffectScale().set(1.0);
+            mc.options.showSubtitles().set(false);
+        });
+        add("slam reset", 700, () -> command(mc, "proficiency reset " + mc.player.getGameProfile().getName()));
+        add("slam mining", 500, () -> command(mc, "proficiency filltree " + mc.player.getGameProfile().getName() + " mining"));
+        add("slam face open", 700, () -> mc.setScreen(new dev.amman.proficiency.client.stone.SkillstoneScreen(Skill.MINING)));
+        shot(mc, "slam-face-before");
+        add("slam face close", 300, () -> mc.setScreen(null));
+        startCapture(mc, "modern-pair");
+        add("slam trigger smithing", 3000, () -> command(mc, "proficiency filltree "
+                + mc.player.getGameProfile().getName() + " smithing"));
+        stopCapture("modern-pair");
+        add("slam face open", 700, () -> mc.setScreen(new dev.amman.proficiency.client.stone.SkillstoneScreen(Skill.MINING)));
+        shot(mc, "slam-face-after");
+        add("slam face close", 300, () -> mc.setScreen(null));
+        // CLASSIC banner style.
+        add("slam classic", 300, () -> {
+            dev.amman.proficiency.config.ProficiencyClientConfig.setUiStyle(UiStyle.CLASSIC);
+            command(mc, "proficiency reset " + mc.player.getGameProfile().getName());
+        });
+        add("slam classic mining", 700, () -> command(mc, "proficiency filltree "
+                + mc.player.getGameProfile().getName() + " mining"));
+        startCapture(mc, "classic-pair");
+        add("slam classic trigger", 3000, () -> command(mc, "proficiency filltree "
+                + mc.player.getGameProfile().getName() + " smithing"));
+        stopCapture("classic-pair");
+        // Three icons: Tidecaller needs Tridents, Swimming and Fishing.
+        add("slam three", 300, () -> {
+            dev.amman.proficiency.config.ProficiencyClientConfig.setUiStyle(UiStyle.MODERN);
+            command(mc, "proficiency reset " + mc.player.getGameProfile().getName());
+        });
+        add("slam three a", 500, () -> command(mc, "proficiency filltree " + mc.player.getGameProfile().getName() + " tridents"));
+        add("slam three b", 2800, () -> command(mc, "proficiency filltree " + mc.player.getGameProfile().getName() + " swimming"));
+        startCapture(mc, "modern-three");
+        add("slam three trigger", 3000, () -> command(mc, "proficiency filltree "
+                + mc.player.getGameProfile().getName() + " fishing"));
+        stopCapture("modern-three");
+        // A burst: several skills filled one after the other, so discoveries queue.
+        add("slam burst reset", 700, () -> command(mc, "proficiency reset " + mc.player.getGameProfile().getName()));
+        startCapture(mc, "modern-queue");
+        for (String skill : new String[] {"mining", "smithing", "blocking", "endurance", "woodcutting", "axes"}) {
+            add("slam burst " + skill, 120, () -> command(mc, "proficiency filltree "
+                    + mc.player.getGameProfile().getName() + " " + skill));
+        }
+        add("slam burst wait", 6500, () -> {
+        });
+        stopCapture("modern-queue");
+        // Over an open talent tree (where a synergy really wakes), then with Distortion Effects at 0%.
+        add("slam tree reset", 700, () -> command(mc, "proficiency reset " + mc.player.getGameProfile().getName()));
+        add("slam tree mining", 500, () -> command(mc, "proficiency filltree " + mc.player.getGameProfile().getName() + " mining"));
+        add("slam tree open", 900, () -> mc.setScreen(new TalentTreeScreen(Skill.SMITHING, null)));
+        startCapture(mc, "over-tree");
+        add("slam tree trigger", 3000, () -> command(mc, "proficiency filltree "
+                + mc.player.getGameProfile().getName() + " smithing"));
+        stopCapture("over-tree");
+        add("slam tree close", 300, () -> mc.setScreen(null));
+        add("slam calm reset", 700, () -> {
+            mc.options.screenEffectScale().set(0.0);
+            command(mc, "proficiency reset " + mc.player.getGameProfile().getName());
+        });
+        add("slam calm mining", 500, () -> command(mc, "proficiency filltree " + mc.player.getGameProfile().getName() + " mining"));
+        startCapture(mc, "no-distortion");
+        add("slam calm trigger", 3000, () -> command(mc, "proficiency filltree "
+                + mc.player.getGameProfile().getName() + " smithing"));
+        stopCapture("no-distortion");
+        add("slam restore", 200, () -> {
+            mc.options.screenEffectScale().set(1.0);
+            dev.amman.proficiency.config.ProficiencyClientConfig.setUiStyle(UiStyle.MODERN);
+        });
+    }
+
+    /** {@link #shot(Minecraft, String)} that waits {@code waitMs} after the frame, for frame sheets across a flight. */
+    private static void shotEvery(Minecraft mc, String scene, long waitMs) {
+        add("shot " + scene, waitMs, () -> {
+            Path dir = LayoutAudit.dir().resolve("shots");
+            try {
+                Files.createDirectories(dir);
+                NativeImage image = Screenshot.takeScreenshot(mc.getMainRenderTarget());
+                image.writeToFile(dir.resolve(lang + "__" + setup + "__" + scene + ".png"));
+                image.close();
+            } catch (java.io.IOException e) {
+                LayoutAudit.note("SHOT FAILED " + scene + " " + e);
+            }
+        });
+    }
+
+    /**
+     * The three HUD flights of 1.38.0 (bonus loot to the hotbar, the talent point coin to its brazier, the rested
+     * pool pouring into the fill): frames across each flight, the brazier at its counts, then a live pass that digs
+     * stone for real with the server's own bonus loot packets and rested pool.
+     */
+    private static void hudflightsScenes(Minecraft mc) {
+        add("hf setup", 700, () -> {
+            mc.setScreen(null);
+            dev.amman.proficiency.config.ProficiencyClientConfig.setUiStyle(UiStyle.MODERN);
+            dev.amman.proficiency.config.ProficiencyClientConfig.setUiWaywheelPins("mining,swords,running");
+            command(mc, "gamerule sendCommandFeedback false");
+            command(mc, "gamemode survival @s");
+            command(mc, "tp @s ~ ~ ~ 0 6");
+            mc.player.getInventory().selected = 1;
+            mc.gui.getChat().clearMessages(false);
+        });
+        for (String item : new String[] {"diamond 2", "cobblestone 3", "cooked_cod 1"}) {
+            add("hf give " + item, 250, () -> command(mc, "give @s " + item));
+        }
+        add("hf clear chat", 400, () -> mc.gui.getChat().clearMessages(false));
+        // 1 Bonus loot: a diamond pair and cobblestone ahead, a cod from behind (not in the hotbar... it is: the
+        // cod and the far one test the bag and the off-screen start), one flung from far to the right.
+        add("hf bonus", 20, () -> {
+            net.minecraft.world.phys.Vec3 eye = mc.player.getEyePosition();
+            HudFlights.acceptBonus(new dev.amman.proficiency.net.BonusLootPayload(List.of(
+                    new dev.amman.proficiency.net.BonusLootPayload.Entry("minecraft:diamond", 2,
+                            (float) eye.x - 1.5f, (float) eye.y - 1.0f, (float) eye.z + 4f),
+                    new dev.amman.proficiency.net.BonusLootPayload.Entry("minecraft:cobblestone", 3,
+                            (float) eye.x + 2f, (float) eye.y - 1.4f, (float) eye.z + 3f),
+                    new dev.amman.proficiency.net.BonusLootPayload.Entry("minecraft:cooked_cod", 1,
+                            (float) eye.x, (float) eye.y - 0.5f, (float) eye.z - 3f),
+                    new dev.amman.proficiency.net.BonusLootPayload.Entry("minecraft:emerald", 1,
+                            (float) eye.x + 30f, (float) eye.y + 2f, (float) eye.z + 8f))));
+        });
+        for (int i = 1; i <= 9; i++) {
+            shotEvery(mc, "hf-bonus-f" + i, 30);
+        }
+        add("hf bonus settle", 600, () -> {
+        });
+        // 2 The brazier at its counts, then the coin in flight and landing.
+        add("hf brazier 2", 700, () -> HudFlights.demoPoints(2));
+        shot(mc, "hf-brazier-2");
+        add("hf coin", 10, () -> {
+            HudFlights.demoPoints(3);
+            HudFlights.onLevelUp(Skill.MINING, 60, 61, mc.getWindow().getGuiScaledWidth(),
+                    mc.getWindow().getGuiScaledHeight());
+        });
+        for (int i = 1; i <= 12; i++) {
+            shotEvery(mc, "hf-coin-f" + i, 40);
+        }
+        add("hf brazier 150", 500, () -> HudFlights.demoPoints(150));
+        shot(mc, "hf-brazier-99plus");
+        add("hf brazier 0", 600, () -> HudFlights.demoPoints(0));
+        shot(mc, "hf-brazier-0");
+        add("hf f1", 100, () -> {
+            HudFlights.demoPoints(5);
+            mc.options.hideGui = true;
+        });
+        add("hf f1 wait", 500, () -> {
+        });
+        shot(mc, "hf-brazier-f1");
+        add("hf f1 off", 400, () -> {
+            mc.options.hideGui = false;
+            HudFlights.demoPoints(-1);
+        });
+        // 3 The rested pool: a pool on Mining, a gain to bring the line up, then the pour.
+        add("hf rested", 500, () -> command(mc, "proficiency rested @s mining 900"));
+        add("hf gain", 300, () -> command(mc, "proficiency addxp @s mining 8"));
+        add("hf pour", 10, () -> HudFlights.demoPour(8, System.currentTimeMillis()));
+        for (int i = 1; i <= 8; i++) {
+            shotEvery(mc, "hf-pour-f" + i, 40);
+        }
+        // 4 Live: dig stone for real with the attack key held; the server's bonus loot, its rested spend and any
+        // level-up drive the effects. The log carries a HUDFLIGHT line for each.
+        add("hf live setup", 800, () -> {
+            command(mc, "proficiency rested @s mining 900");
+            command(mc, "tp @s ~ ~ ~ 0 0");
+            command(mc, "gamerule doTileDrops true");
+        });
+        add("hf live pool", 400, () -> {
+            var skills = dev.amman.proficiency.ProficiencyAttachments.of(mc.player);
+            LayoutAudit.note("HUDFLIGHT pool mining rested=" + skills.rested(Skill.MINING) + " reach="
+                    + skills.restedReach(Skill.MINING) + " cap=" + skills.restedCap(Skill.MINING));
+        });
+        for (int round = 0; round < 40; round++) {
+            final int r = round;
+            add("hf live block " + r, 380, () -> {
+                command(mc, "setblock ~ ~1 ~4 stone");
+                if (r == 0) {
+                    mc.options.keyAttack.setDown(true);
+                }
+            });
+            if (round % 2 == 1) {
+                shotEvery(mc, "hf-live-" + round, 5);
+            }
+        }
+        add("hf live end", 300, () -> mc.options.keyAttack.setDown(false));
     }
 
     /**
@@ -1821,6 +2257,891 @@ final class LayoutDemo {
                 screen.mouseClicked(p[0], p[1], 0);
             }
         }
+    }
+
+    /**
+     * The milestone ceremonies (PROFICIENCY_LAYOUT_ONLY=milestones): level 10, 50 and 100 as frame sheets at fixed ages
+     * of the ceremony, the player at night looking up so the fireworks are in view; then the gold Face bar of a level 100
+     * skill. The real path (a level-up packet) is the GameTest and the throwaway-world run; this one plays the same class.
+     */
+    /** PROFICIENCY_LAYOUT_ONLY=milestones,msface runs just the gold Face bar scene. */
+    private static boolean faceOnly() {
+        return ONLY != null && ONLY.contains("msface");
+    }
+
+    private static void milestoneScenes(Minecraft mc) {
+        add("ms setup", 500, () -> {
+            mc.setScreen(null);
+            command(mc, "time set midnight");
+            command(mc, "tp @s ~ ~ ~ 0 -24");
+        });
+        // 10, 50 and 100 are the dense sequences below; 25 and 75 stay as short sheets.
+        Object[][] sheets = {
+                {25, Skill.WOODCUTTING, new long[] {500, 1300, 2600}},
+                {75, Skill.ARCHERY, new long[] {500, 1200, 2000, 3300}}};
+        for (Object[] sheet : faceOnly() ? new Object[0][] : sheets) {
+            int tier = (Integer) sheet[0];
+            Skill skill = (Skill) sheet[1];
+            long[] ages = (long[]) sheet[2];
+            add("ms start " + tier, 0, () -> MilestoneCeremony.start(skill, tier, 25, 50),
+                    () -> MilestoneCeremony.ageMs() >= ages[0]);
+            for (int i = 0; i < ages.length; i++) {
+                shot(mc, "ms" + tier + "-" + String.format(java.util.Locale.ROOT, "%04d", ages[i]));
+                if (i + 1 < ages.length) {
+                    long next = ages[i + 1];
+                    add("ms wait " + tier + " " + next, 0, () -> {
+                    }, () -> MilestoneCeremony.ageMs() >= next || !MilestoneCeremony.active());
+                }
+            }
+            add("ms end " + tier, 0, () -> {
+            }, () -> !MilestoneCeremony.active());
+        }
+        // Dense sequences for the GIFs: a shot every 250 ms of the ceremony's own clock.
+        Object[][] seqs = {{10, Skill.SWORDS}, {50, Skill.MINING}, {100, Skill.ARCHERY}};
+        for (Object[] seq : faceOnly() ? new Object[0][] : seqs) {
+            int tier = (Integer) seq[0];
+            Skill skill = (Skill) seq[1];
+            long end = dev.amman.proficiency.client.MilestoneFx.durationMs(tier);
+            add("seq start " + tier, 0, () -> MilestoneCeremony.start(skill, tier, 25, 50),
+                    () -> MilestoneCeremony.ageMs() >= 100);
+            int n = 0;
+            for (long at = 100; at < end - 500; at += 250) {
+                shot(mc, "seq" + tier + "-" + String.format(java.util.Locale.ROOT, "%04d", n++));
+                long next = at + 250;
+                add("seq wait " + tier + " " + next, 0, () -> {
+                }, () -> MilestoneCeremony.ageMs() >= next || !MilestoneCeremony.active());
+            }
+            add("seq end " + tier, 0, () -> {
+            }, () -> !MilestoneCeremony.active());
+        }
+        add("ms face", 700, () -> {
+            command(mc, "proficiency set @s mining 100");
+        });
+        add("ms face open", 900, () -> {
+            mc.setScreen(new dev.amman.proficiency.client.stone.SkillstoneScreen(Skill.MINING));
+            mouse(mc, 2, 2);
+        });
+        shot(mc, "ms-face-gold");
+        add("ms face back", 400, () -> {
+            mc.setScreen(null);
+            command(mc, "proficiency set @s mining 60");
+        });
+    }
+
+    /**
+     * The unlock slam (PROFICIENCY_LAYOUT_ONLY=unlockslam), in every chosen window setup: Mining at level 60 from an
+     * empty tree, the root filled for real (the last rank pays Cobblestone and Coal and wakes the signature and the
+     * ability), a dense frame sheet every 40 ms of the slam's frozen clock; then the demo hook on
+     * PROFICIENCY_SLAM_SKILL (default woodcutting, its level as the world has it) as a short sheet; then a click
+     * skipping a running slam.
+     */
+    private static void unlockSlamScenes(Minecraft mc) {
+        for (int setupIndex = 0; setupIndex < SETUPS.length; setupIndex++) {
+            if (SETUP_FILTER != null && !SETUP_FILTER.isEmpty()
+                    && !java.util.Arrays.asList(SETUP_FILTER.split(",")).contains(Integer.toString(setupIndex))) {
+                continue;
+            }
+            int[] size = SETUPS[setupIndex];
+            String tag = size[0] + "x" + size[1] + "-gui" + (size[2] == 0 ? "auto" : size[2]);
+            add("slam window " + tag, 1200, () -> {
+                setup = tag;
+                mc.setScreen(null);
+                GLFW.glfwSetWindowSize(mc.getWindow().getWindow(), size[0], size[1]);
+            });
+            add("slam scale " + tag, 800, () -> {
+                mc.options.guiScale().set(Math.abs(size[2]));
+                mc.resizeDisplay();
+            });
+            add("slam levels", 300, () -> command(mc, "xp add @s 30 levels"));
+            add("slam set", 300, () -> command(mc, "proficiency set @s mining 60"));
+            add("slam respec", 400, () -> command(mc, "proficiency respec mining"));
+            add("slam give cobble", 300, () -> command(mc, "give @s cobblestone 128"));
+            add("slam give coal", 300, () -> command(mc, "give @s coal 64"));
+            add("slam tree", 800, () -> {
+                dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(-1);
+                dev.amman.proficiency.client.stone.SkillstoneScreen screen =
+                        new dev.amman.proficiency.client.stone.SkillstoneScreen(Skill.MINING);
+                mc.setScreen(screen);
+                screen.treeFor(Skill.MINING, null);
+                mouse(mc, 2, 2);
+            });
+            for (int k = 0; k < 4; k++) {
+                add("slam root " + k, 500, () -> stoneClick(mc, 7, 0));
+            }
+            add("slam settle", 900, () -> mouse(mc, 2, 2));
+            add("slam freeze", 100, () -> dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(0));
+            add("slam last rank", 900, () -> stoneClick(mc, 7, 0));
+            int n = 0;
+            for (long at = 0; at <= 2120; at += 40) {
+                final long ms = at;
+                add("slam " + at, 120, () -> dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(ms));
+                shot(mc, "slam-" + String.format(java.util.Locale.ROOT, "%03d", n++));
+            }
+            add("slam thaw", 400, () -> dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(-1));
+            shot(mc, "slam-after");
+            // The demo hook on a chosen skill: the root's socket rises with its materials, as if just paid.
+            String id = System.getenv("PROFICIENCY_SLAM_SKILL");
+            Skill pick = id == null || Skill.byId(id) == null ? Skill.WOODCUTTING : Skill.byId(id);
+            add("slam hook open", 800, () -> {
+                dev.amman.proficiency.client.stone.SkillstoneScreen screen =
+                        new dev.amman.proficiency.client.stone.SkillstoneScreen(pick);
+                mc.setScreen(screen);
+                screen.treeFor(pick, null);
+                mouse(mc, 2, 2);
+            });
+            add("slam hook freeze", 300, () -> {
+                dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(0);
+                if (mc.screen instanceof dev.amman.proficiency.client.stone.SkillstoneScreen screen) {
+                    screen.demoUnlockSlam();
+                }
+            });
+            for (long at : new long[] {300, 700, 1000, 1300, 1400, 1700}) {
+                add("slam hook " + at, 120, () -> dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(at));
+                shot(mc, "slam-hook-" + pick.id() + "-" + String.format(java.util.Locale.ROOT, "%04d", at));
+            }
+            // A click mid-flight lands it at once.
+            add("slam skip start", 300, () -> {
+                dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(0);
+                if (mc.screen instanceof dev.amman.proficiency.client.stone.SkillstoneScreen screen) {
+                    screen.treeFor(pick, null);
+                    screen.demoUnlockSlam();
+                }
+            });
+            add("slam skip mid", 200, () -> dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(700));
+            add("slam skip click", 300, () -> {
+                if (mc.screen != null) {
+                    mc.screen.mouseClicked(4, 4, 0);
+                }
+            });
+            shot(mc, "slam-skipped");
+            add("slam done", 300, () -> {
+                dev.amman.proficiency.client.stone.SkillstoneScreen.demoClock(-1);
+                mc.setScreen(null);
+            });
+        }
+    }
+
+    /**
+     * Spendable now (PROFICIENCY_LAYOUT_ONLY=spend, 1.55.0): the Face cards greyed below their levels, the HUD brazier
+     * hidden with one unusable point, a coin that fades, the item badge, the why-stuck hovers, a ready toast fired by
+     * picking up the last missing material, the dial's ember markers, the dimmed and glowing tree sockets, and the
+     * classic screens.
+     */
+    private static void spendScenes(Minecraft mc) {
+        add("sp setup", 1200, () -> {
+            mc.setScreen(null);
+            dev.amman.proficiency.config.ProficiencyClientConfig.setUiStyle(UiStyle.MODERN);
+            command(mc, "gamerule sendCommandFeedback false");
+            command(mc, "gamemode survival @s");
+            command(mc, "clear @s");
+            command(mc, "proficiency reset @s");
+            command(mc, "tp @s ~ ~ ~ 0 6");
+            mc.player.getInventory().selected = 1;
+            mc.gui.getChat().clearMessages(false);
+            HudFlights.demoPoints(-1);
+            HudFlights.demoMaterials(-1);
+            SpendableClient.demoToasts(true);
+        });
+        // A: Mining 9 with four root ranks: 1 point left, the last rank costs 2. Nothing ready: no brazier.
+        add("sp mining 9", 500, () -> command(mc, "proficiency set @s mining 9"));
+        for (int k = 0; k < 4; k++) {
+            add("sp root " + k, 300, () -> command(mc, "proficiency unlock mining pickwork"));
+        }
+        add("sp settle a", 2600, () -> {
+            SpendableClient.refresh();
+            mc.gui.getChat().clearMessages(false);
+        });
+        shot(mc, "sp-hud-hidden");
+        add("sp dud", 10, () -> HudFlights.onLevelUp(Skill.MINING, 8, 9, mc.getWindow().getGuiScaledWidth(),
+                mc.getWindow().getGuiScaledHeight()));
+        for (int i = 1; i <= 8; i++) {
+            shotEvery(mc, "sp-dud-f" + i, 70);
+        }
+        add("sp face low", 900, () -> {
+            mc.setScreen(new dev.amman.proficiency.client.stone.SkillstoneScreen(Skill.MINING));
+            mouse(mc, 2, 2);
+        });
+        shot(mc, "sp-face-locked");
+        add("sp face why", 500, () -> stoneHover(mc, 5, 0));
+        shot(mc, "sp-face-why-cost");
+        // B: Mining 10: 2 points for the filling rank, the items short: the brazier shows the item badge only.
+        add("sp mining 10", 600, () -> {
+            mc.setScreen(null);
+            command(mc, "proficiency set @s mining 10");
+            command(mc, "give @s cobblestone 40");
+        });
+        add("sp settle b", 2600, () -> SpendableClient.refresh());
+        shot(mc, "sp-hud-items");
+        add("sp face items", 900, () -> {
+            mc.setScreen(new dev.amman.proficiency.client.stone.SkillstoneScreen(Skill.MINING));
+            mouse(mc, 2, 2);
+        });
+        add("sp face items why", 500, () -> stoneHover(mc, 5, 0));
+        shot(mc, "sp-face-why-items");
+        // C: everything but the last cobblestone, then the last one: the ready toast and the brazier lights.
+        add("sp almost", 2600, () -> {
+            mc.setScreen(null);
+            command(mc, "give @s coal 64");
+            command(mc, "give @s cobblestone 87");
+        });
+        add("sp rearm", 300, () -> {
+            // The Mining toast of scene A started its 5-minute gap: the demo clears it, so this one shows.
+            SpendableClient.demoToasts(true);
+            mc.gui.getChat().clearMessages(false);
+        });
+        shot(mc, "sp-hud-almost");
+        add("sp last", 10, () -> command(mc, "give @s cobblestone 1"));
+        for (int i = 1; i <= 16; i++) {
+            shotEvery(mc, "sp-toast-f" + String.format(java.util.Locale.ROOT, "%02d", i), 140);
+        }
+        add("sp toast end", 4200, () -> SpendableClient.demoToasts(false));
+        shot(mc, "sp-hud-ready");
+        // D: the dial: several skills with ranks ready, the markers, the fire well's why-stuck hover (and Shift).
+        add("sp others", 1600, () -> {
+            command(mc, "proficiency set @s swords 12");
+            command(mc, "proficiency set @s woodcutting 30");
+            command(mc, "proficiency set @s fishing 7");
+            command(mc, "proficiency set @s running 15");
+            command(mc, "proficiency set @s axes 1");
+            SpendableClient.refresh();
+        });
+        add("sp dial", 1200, () -> {
+            mc.setScreen(new dev.amman.proficiency.client.stone.SkillstoneScreen());
+            mouse(mc, 2, 2);
+        });
+        for (int i = 1; i <= 8; i++) {
+            shotEvery(mc, "sp-dial-f" + i, 150);
+        }
+        add("sp dial why", 500, () -> {
+            if (mc.screen instanceof dev.amman.proficiency.client.stone.SkillstoneScreen screen) {
+                int[] c = screen.dialCentre();
+                mouse(mc, c[0], c[1]);
+            }
+        });
+        shot(mc, "sp-dial-why");
+        add("sp dial why shift", 500, () -> TooltipDetail.force(true));
+        shot(mc, "sp-dial-why-shift");
+        add("sp dial unshift", 100, () -> TooltipDetail.force(null));
+        // E: Faces: signature waiting for the root (Woodcutting 30), and Mastery with no star (Swords 100, tree full).
+        add("sp face root", 900, () -> {
+            mc.setScreen(new dev.amman.proficiency.client.stone.SkillstoneScreen(Skill.WOODCUTTING));
+            mouse(mc, 2, 2);
+        });
+        shot(mc, "sp-face-root");
+        add("sp swords 100", 900, () -> {
+            mc.setScreen(null);
+            command(mc, "proficiency set @s swords 100");
+            command(mc, "proficiency filltree @s swords");
+        });
+        add("sp face mastery", 900, () -> {
+            mc.setScreen(new dev.amman.proficiency.client.stone.SkillstoneScreen(Skill.SWORDS));
+            mouse(mc, 2, 2);
+        });
+        shot(mc, "sp-face-mastery");
+        // F: the stone tree: root full, Efficiency and Prospector full at Mining 31 (1 point: "1/2 pts", "Lv 60"),
+        // then Mining 32 (2 points: the open sockets glow).
+        add("sp root fill", 600, () -> {
+            mc.setScreen(null);
+            command(mc, "proficiency unlock mining pickwork");
+            command(mc, "proficiency set @s mining 31");
+        });
+        for (int k = 0; k < 5; k++) {
+            add("sp eff " + k, 250, () -> {
+                command(mc, "proficiency unlock mining efficiency");
+                command(mc, "proficiency unlock mining prospector");
+            });
+        }
+        add("sp tree", 1200, () -> {
+            SpendableClient.refresh();
+            dev.amman.proficiency.client.stone.SkillstoneScreen screen =
+                    new dev.amman.proficiency.client.stone.SkillstoneScreen(Skill.MINING);
+            mc.setScreen(screen);
+            screen.treeFor(Skill.MINING, null);
+            mouse(mc, 2, 2);
+        });
+        shot(mc, "sp-tree-dim");
+        add("sp mining 32", 1600, () -> command(mc, "proficiency set @s mining 32"));
+        for (int i = 1; i <= 4; i++) {
+            shotEvery(mc, "sp-tree-ready-f" + i, 200);
+        }
+        // G: the classic screens: the list's markers, the tree's dim and glowing nodes, a locked signature and rider.
+        add("sp classic", 900, () -> {
+            dev.amman.proficiency.config.ProficiencyClientConfig.setUiStyle(UiStyle.CLASSIC);
+            mc.setScreen(new SkillsScreen());
+            mouse(mc, 2, 2);
+        });
+        shot(mc, "sp-classic-list");
+        add("sp classic tree", 900, () -> mc.setScreen(new TalentTreeScreen(Skill.MINING, null)));
+        shot(mc, "sp-classic-tree-ready");
+        add("sp classic tree dim", 1600, () -> command(mc, "proficiency set @s mining 31"));
+        shot(mc, "sp-classic-tree-dim");
+        add("sp classic sig", 900, () -> mc.setScreen(new TalentTreeScreen(Skill.WOODCUTTING, null)));
+        shot(mc, "sp-classic-sig-locked");
+        add("sp classic rider", 900, () -> mc.setScreen(new TalentTreeScreen(Skill.SWORDS, null)));
+        shot(mc, "sp-classic-rider-locked");
+        add("sp done", 400, () -> {
+            dev.amman.proficiency.config.ProficiencyClientConfig.setUiStyle(UiStyle.MODERN);
+            mc.setScreen(null);
+        });
+    }
+
+    /**
+     * The "Needed" block on item tooltips (PROFICIENCY_LAYOUT_ONLY=mattips): a lodestone (needed only later: no lines by
+     * default), then leather (an unlockable root plus later nodes) by default and with Shift.
+     */
+    private static void matTipScenes(Minecraft mc) {
+        add("mt setup", 900, () -> {
+            mc.setScreen(null);
+            command(mc, "clear @s");
+            command(mc, "proficiency set @s homebuilder 70");
+            command(mc, "proficiency set @s riding 65");
+            command(mc, "proficiency set @s unarmed 20");
+            command(mc, "proficiency set @s axes 70");
+            command(mc, "give @s minecraft:lodestone 1");
+            command(mc, "give @s minecraft:leather 5");
+        });
+        add("mt open", 900, () -> mc.setScreen(new InventoryScreen(mc.player)));
+        add("mt hover one", 600, () -> {
+            int left = (mc.getWindow().getGuiScaledWidth() - 176) / 2;
+            int top = (mc.getWindow().getGuiScaledHeight() - 166) / 2;
+            mouse(mc, left + 8 + 8, top + 142 + 8);
+            SkillTooltip.forceShift(false);
+        });
+        shot(mc, "mt-later-only");
+        add("mt shift one", 600, () -> SkillTooltip.forceShift(true));
+        shot(mc, "mt-later-only-shift");
+        add("mt unshift one", 100, () -> SkillTooltip.forceShift(false));
+        add("mt hover now", 600, () -> {
+            int left = (mc.getWindow().getGuiScaledWidth() - 176) / 2;
+            int top = (mc.getWindow().getGuiScaledHeight() - 166) / 2;
+            mouse(mc, left + 8 + 18 + 8, top + 142 + 8);
+        });
+        shot(mc, "mt-now-later");
+        add("mt shift", 600, () -> SkillTooltip.forceShift(true));
+        shot(mc, "mt-now-later-shift");
+        add("mt unshift", 100, () -> SkillTooltip.forceShift(null));
+    }
+
+    /**
+     * Combat Tempo in a real fight (PROFICIENCY_LAYOUT_ONLY=combattempo, 1.49.0): the integrated server's player swings
+     * a diamond sword at a still husk through the real attack path (crit event, damage, the Swords grant, the Tempo
+     * packet), pauses 5 s, swings again, earns a Courage grant that rides the sword chain, then lands a vanilla jump
+     * crit (the white flare) and waits 10 s. The hover lines are logged as the panel would show them.
+     */
+    private static UiStyle ctStyle;
+    private static String ctPins;
+
+    private static void combatTempoScenes(Minecraft mc) {
+        add("ct belt", 300, () -> {
+            // The belt beside the hotbar shows each pinned skill's fire: Courage's is the one it rides.
+            ctStyle = dev.amman.proficiency.config.ProficiencyClientConfig.uiStyle();
+            ctPins = dev.amman.proficiency.config.ProficiencyClientConfig.uiWaywheelPins();
+            dev.amman.proficiency.config.ProficiencyClientConfig.setUiStyle(UiStyle.MODERN);
+            dev.amman.proficiency.config.ProficiencyClientConfig.setUiWaywheelPins("swords,courage,endurance");
+        });
+        add("ct setup", 600, () -> {
+            mc.setScreen(null);
+            mc.gui.getChat().clearMessages(false);
+            command(mc, "gamerule sendCommandFeedback false");
+            command(mc, "difficulty easy");
+            command(mc, "gamemode survival @s");
+            command(mc, "time set noon");
+            command(mc, "item replace entity @s weapon.mainhand with diamond_sword");
+            command(mc, "tp @s ~ ~ ~ 0 12");
+            // Bars part full, so the fire has room to show on the fill.
+            command(mc, "proficiency set @s swords 40");
+            command(mc, "proficiency set @s courage 30");
+        });
+        add("ct fill", 600, () -> {
+            command(mc, "proficiency addxp @s swords 400");
+            command(mc, "proficiency addxp @s courage 120");
+            mc.gui.getChat().clearMessages(false);
+        });
+        add("ct husk", 900, () -> combatServer(mc, (sp, level) -> {
+            for (net.minecraft.world.entity.Entity old : level.getEntitiesOfClass(net.minecraft.world.entity.LivingEntity.class,
+                    sp.getBoundingBox().inflate(16), e -> e.getTags().contains("proficiency_ct"))) {
+                old.discard();
+            }
+            // Created directly, never finalized: no spawn-origin tag, so it pays like a wild mob.
+            net.minecraft.world.entity.monster.Husk husk = net.minecraft.world.entity.EntityType.HUSK.create(level);
+            if (husk == null) {
+                return;
+            }
+            husk.moveTo(sp.getX(), sp.getY(), sp.getZ() + 2.2, 180f, 0f);
+            husk.setNoAi(true);
+            husk.setPersistenceRequired();
+            husk.addTag("proficiency_ct");
+            // Undead ignore Regeneration: a deep health pool, topped up before every swing, keeps it standing.
+            var maxHealth = husk.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH);
+            if (maxHealth != null) {
+                maxHealth.setBaseValue(1000.0);
+            }
+            husk.setHealth(husk.getMaxHealth());
+            level.addFreshEntity(husk);
+        }));
+        for (int i = 1; i <= 5; i++) {
+            add("ct hit " + i, 1000, () -> combatHit(mc, false));
+        }
+        shot(mc, "ct1-swords-chain");
+        add("ct pause a", 2250, () -> {
+        });
+        shot(mc, "ct2-pause-2.5s");
+        add("ct pause b", 2250, () -> {
+        });
+        shot(mc, "ct3-pause-5s");
+        add("ct hit after pause", 350, () -> combatHit(mc, false));
+        shot(mc, "ct4-after-5s-pause");
+        add("ct courage", 400, () -> combatServer(mc, (sp, level) ->
+                SkillService.grant(sp, Skill.COURAGE, 2.0, "entity.minecraft.husk")));
+        shot(mc, "ct5-courage-rides");
+        add("ct courage panel", 700, () -> {
+            dev.amman.proficiency.config.ProficiencyClientConfig.setUiStyle(UiStyle.CLASSIC);
+            mc.setScreen(new SkillsScreen());
+        });
+        add("ct courage hover", 500, () -> {
+            if (mc.screen instanceof SkillsScreen screen) {
+                int[] p = screen.rowPoint(Skill.COURAGE);
+                mouse(mc, p[0], p[1]);
+            }
+        });
+        shot(mc, "ct5b-courage-hover");
+        add("ct courage panel close", 300, () -> {
+            mc.setScreen(null);
+            dev.amman.proficiency.config.ProficiencyClientConfig.setUiStyle(UiStyle.MODERN);
+        });
+        add("ct hover lines", 50, () -> {
+            for (Skill s : new Skill[] {Skill.SWORDS, Skill.COURAGE, Skill.ENDURANCE, Skill.MINING}) {
+                StringBuilder text = new StringBuilder();
+                for (net.minecraft.network.chat.Component line : TempoBadge.tooltip(s)) {
+                    text.append(line.getString());
+                }
+                LayoutAudit.note("TEMPO HOVER " + s.id() + ": " + text);
+            }
+        });
+        add("ct before crit", 900, () -> combatHit(mc, false));
+        add("ct crit", 40, () -> combatHit(mc, true));
+        for (int i = 0; i < 6; i++) {
+            shot(mc, "ct6-crit-" + i);
+        }
+        add("ct crit held", 8500, () -> {
+        });
+        shot(mc, "ct7-crit-held-10s");
+        add("ct hover after crit", 50, () -> {
+            StringBuilder text = new StringBuilder();
+            for (net.minecraft.network.chat.Component line : TempoBadge.tooltip(Skill.SWORDS)) {
+                text.append(line.getString());
+            }
+            LayoutAudit.note("TEMPO HOVER after crit swords: " + text);
+        });
+        add("ct belt back", 100, () -> {
+            if (ctStyle != null) {
+                dev.amman.proficiency.config.ProficiencyClientConfig.setUiStyle(ctStyle);
+                dev.amman.proficiency.config.ProficiencyClientConfig.setUiWaywheelPins(ctPins == null ? "" : ctPins);
+            }
+        });
+        add("ct clean", 300, () -> combatServer(mc, (sp, level) -> {
+            for (net.minecraft.world.entity.Entity old : level.getEntitiesOfClass(net.minecraft.world.entity.LivingEntity.class,
+                    sp.getBoundingBox().inflate(16), e -> e.getTags().contains("proficiency_ct"))) {
+                old.discard();
+            }
+        }));
+    }
+
+    /**
+     * The recent-skills stack (PROFICIENCY_LAYOUT_ONLY=hudstack, 1.54.0) in real play: the client's own keys run,
+     * sprint and jump on the flat world (the server pays Running and Jumping as for a player), a sword hits a still
+     * husk through the client's attack path, and the Running row crosses a gold level. The harness films it
+     * (HS CAPTURE START/STOP in demo.log); "HS MARK" lines time each part, "HS STATE" lines log the line and rows.
+     */
+    private static UiStyle hsStyle;
+    private static String hsPins;
+    private static long hsT0;
+
+    private static java.util.concurrent.ExecutorService hsWriter;
+    private static final java.util.concurrent.atomic.AtomicInteger HS_QUEUED = new java.util.concurrent.atomic.AtomicInteger();
+    private static int hsFrame;
+    private static Path hsDir;
+
+    /**
+     * Films the HUD for the GIF: every drawn frame (on the real clock, so the animation keeps its true speed and
+     * frames are dropped rather than slowed) is cut to the bottom-centre 960x480 window pixels and written as a PNG
+     * on a writer thread; the file name carries the frame's time. {@code false} stops.
+     */
+    private static void hsFilm(boolean on) {
+        if (on) {
+            hsDir = LayoutAudit.dir().resolve("film");
+            try {
+                Files.createDirectories(hsDir);
+            } catch (java.io.IOException e) {
+                LayoutAudit.note("HS FILM FAILED " + e);
+                return;
+            }
+            hsFrame = 0;
+            hsWriter = java.util.concurrent.Executors.newFixedThreadPool(3);
+            LayoutAudit.note("HS CAPTURE START " + System.currentTimeMillis());
+            HudStackRows.filmSink = LayoutDemo::hsShoot;
+        } else {
+            HudStackRows.filmSink = null;
+            if (hsWriter != null) {
+                hsWriter.shutdown();
+                try {
+                    hsWriter.awaitTermination(30, java.util.concurrent.TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+            LayoutAudit.note("HS CAPTURE STOP " + System.currentTimeMillis() + " frames " + hsFrame);
+        }
+    }
+
+    private static void hsShoot(Minecraft mc) {
+        if (HS_QUEUED.get() >= 6) {
+            return;
+        }
+        NativeImage full = Screenshot.takeScreenshot(mc.getMainRenderTarget());
+        int w = Math.min(960, full.getWidth());
+        int h = Math.min(480, full.getHeight());
+        int x0 = Math.max(0, Math.min(full.getWidth() - w, full.getWidth() / 2 - 420));
+        int y0 = full.getHeight() - h;
+        NativeImage cut = new NativeImage(w, h, false);
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                cut.setPixelRGBA(x, y, full.getPixelRGBA(x0 + x, y0 + y));
+            }
+        }
+        full.close();
+        Path file = hsDir.resolve(String.format("%05d-%d.png", ++hsFrame, System.currentTimeMillis()));
+        HS_QUEUED.incrementAndGet();
+        hsWriter.execute(() -> {
+            try {
+                cut.writeToFile(file);
+            } catch (java.io.IOException e) {
+                LayoutAudit.note("HS FRAME FAILED " + e);
+            } finally {
+                cut.close();
+                HS_QUEUED.decrementAndGet();
+            }
+        });
+    }
+
+    private static void hsMark(Minecraft mc, String name) {
+        add("hs mark " + name, 10, () -> LayoutAudit.note("HS MARK " + name + " " + System.currentTimeMillis()));
+    }
+
+    private static void hsState(String name) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player != null) {
+            boolean sprint = mc.player.isSprinting();
+            boolean ground = mc.player.onGround();
+            combatServer(mc, (sp, level) -> LayoutAudit.note("HS MOVE " + name + " client sprint=" + sprint + " ground="
+                    + ground + " server sprint=" + sp.isSprinting() + " ground=" + sp.onGround() + " z="
+                    + Math.round(sp.getZ() * 10) / 10.0 + " running=" + dev.amman.proficiency.ProficiencyAttachments.of(sp)
+                    .barProgress(Skill.RUNNING)));
+        }
+        LayoutAudit.note("HS STATE " + name + " t=" + System.currentTimeMillis() + " main="
+                + (HudStackRows.mainSkill() == null ? "-" : HudStackRows.mainSkill().id()) + " rows=["
+                + HudStackRows.describe() + "]");
+    }
+
+    private static void hsKeys(Minecraft mc, boolean forward, boolean sprint, boolean jump) {
+        mc.options.keyUp.setDown(forward);
+        mc.options.keySprint.setDown(sprint);
+        mc.options.keyJump.setDown(jump);
+    }
+
+    /**
+     * {@code ms} of running with the keys held: a jump every 900 ms, a sword hit every 1000 ms when {@code hit}.
+     * A step is 100 ms; the husk is moved beside the runner 150 ms before each hit.
+     */
+    private static void hsRun(Minecraft mc, String name, long ms, boolean jump, boolean hit) {
+        add("hs run start " + name, 10, () -> hsT0 = System.currentTimeMillis());
+        for (long t = 0; t < ms; t += 100) {
+            final long at = t;
+            add("hs run " + name + " " + t, 100, () -> {
+                long e = System.currentTimeMillis() - hsT0;
+                // Right after a hit the keys let go for one step and press again: a sprint hit stops the sprint on
+                // the server, and vanilla only tells the server about a new sprint when the client's own flag changes.
+                boolean release = hit && at % 1000 == 600;
+                hsKeys(mc, !release, !release, !release && jump && e % 900 < 160);
+                if (hit && at % 1000 == 300) {
+                    hsHuskBeside(mc);
+                }
+                if (hit && at % 1000 == 500) {
+                    hsSwing(mc);
+                }
+                if (at % 500 == 0) {
+                    hsState(name);
+                }
+            });
+        }
+        add("hs run stop " + name, 300, () -> hsKeys(mc, false, false, false));
+    }
+
+    /** Moves the test husk just ahead of the runner and to the side, health full. */
+    private static void hsHuskBeside(Minecraft mc) {
+        combatServer(mc, (sp, level) -> {
+            for (net.minecraft.world.entity.LivingEntity husk : level.getEntitiesOfClass(
+                    net.minecraft.world.entity.LivingEntity.class, sp.getBoundingBox().inflate(512),
+                    e -> e.getTags().contains("proficiency_hs"))) {
+                husk.teleportTo(sp.getX() + 1.1, sp.getY(), sp.getZ() + 2.6);
+                husk.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO);
+                husk.setHealth(husk.getMaxHealth());
+            }
+        });
+    }
+
+    /** A real swing from the client: the attack packet, the server's damage and the Swords grant. */
+    private static void hsSwing(Minecraft mc) {
+        if (mc.player == null || mc.level == null || mc.gameMode == null) {
+            return;
+        }
+        List<net.minecraft.world.entity.monster.Husk> husks = mc.level.getEntitiesOfClass(
+                net.minecraft.world.entity.monster.Husk.class, mc.player.getBoundingBox().inflate(5));
+        if (husks.isEmpty()) {
+            LayoutAudit.note("HS no husk in reach");
+            return;
+        }
+        mc.gameMode.attack(mc.player, husks.get(0));
+        mc.player.swing(net.minecraft.world.InteractionHand.MAIN_HAND);
+    }
+
+    private static void hudStackScenes(Minecraft mc) {
+        add("hs setup", 700, () -> {
+            mc.setScreen(null);
+            mc.options.pauseOnLostFocus = false;
+            hsStyle = dev.amman.proficiency.config.ProficiencyClientConfig.uiStyle();
+            hsPins = dev.amman.proficiency.config.ProficiencyClientConfig.uiWaywheelPins();
+            dev.amman.proficiency.config.ProficiencyClientConfig.setUiStyle(UiStyle.MODERN);
+            dev.amman.proficiency.config.ProficiencyClientConfig.setUiWaywheelPins("swords,running,jumping");
+            dev.amman.proficiency.config.ProficiencyClientConfig.setSessionHudStack(true);
+            command(mc, "gamerule sendCommandFeedback false");
+            command(mc, "gamerule doDaylightCycle false");
+            command(mc, "difficulty easy");
+            command(mc, "gamemode survival @s");
+            command(mc, "time set noon");
+            command(mc, "effect give @s saturation infinite 0 true");
+            command(mc, "gamerule doMobSpawning false");
+            command(mc, "kill @e[type=minecraft:slime]");
+            command(mc, "item replace entity @s hotbar.0 with diamond_sword");
+            command(mc, "tp @s ~ ~ ~ 0 20");
+            command(mc, "proficiency set @s swords 41");
+            command(mc, "proficiency set @s running 29");
+            command(mc, "proficiency set @s jumping 14");
+            command(mc, "proficiency set @s courage 30");
+            mc.player.getInventory().selected = 0;
+        });
+        add("hs fill", 700, () -> {
+            command(mc, "proficiency addxp @s swords " + Math.round(dev.amman.proficiency.skill.SkillMath.xpToNext(41) * 0.35));
+            command(mc, "proficiency addxp @s running " + Math.round(dev.amman.proficiency.skill.SkillMath.xpToNext(29) * 0.3));
+            command(mc, "proficiency addxp @s jumping " + Math.round(dev.amman.proficiency.skill.SkillMath.xpToNext(14) * 0.4));
+            mc.gui.getChat().clearMessages(false);
+        });
+        add("hs husk", 900, () -> combatServer(mc, (sp, level) -> {
+            for (net.minecraft.world.entity.Entity old : level.getEntitiesOfClass(net.minecraft.world.entity.LivingEntity.class,
+                    sp.getBoundingBox().inflate(64), e -> e.getTags().contains("proficiency_hs"))) {
+                old.discard();
+            }
+            net.minecraft.world.entity.monster.Husk husk = net.minecraft.world.entity.EntityType.HUSK.create(level);
+            if (husk == null) {
+                return;
+            }
+            husk.moveTo(sp.getX() + 1.1, sp.getY(), sp.getZ() + 2.6, 180f, 0f);
+            husk.setNoAi(true);
+            husk.setPersistenceRequired();
+            husk.addTag("proficiency_hs");
+            var maxHealth = husk.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH);
+            if (maxHealth != null) {
+                maxHealth.setBaseValue(1000.0);
+            }
+            husk.setHealth(husk.getMaxHealth());
+            level.addFreshEntity(husk);
+        }));
+        add("hs capture", 1500, () -> hsFilm(true));
+
+        // (a) Sword out, sprinting, jumping and hitting: Swords on the line, Running and Jumping in rows.
+        hsMark(mc, "a-sword-run-jump-hit");
+        hsRun(mc, "a", 9000, true, true);
+        shot(mc, "hs-a-end");
+        add("hs a settle", 1500, () -> hsState("a settled"));
+
+        // (b) Empty hand, running and jumping: the line must stay on one skill.
+        add("hs b hand", 600, () -> {
+            command(mc, "item replace entity @s hotbar.0 with air");
+            command(mc, "tp @s ~ ~ ~ 0 20");
+        });
+        hsMark(mc, "b-empty-run-jump");
+        hsRun(mc, "b", 10000, true, false);
+        shot(mc, "hs-b-end");
+
+        // (c) A level-up on a stack row: Running two dozen metres short of a gold level, sword out, sprint on.
+        add("hs c setup", 900, () -> {
+            command(mc, "item replace entity @s hotbar.0 with diamond_sword");
+            command(mc, "tp @s ~ ~ ~ 0 20");
+        });
+        // Running sits at 29 from the setup: one gain lifts its bar to the last few metres before 30.
+        add("hs c fill", 900, () -> combatServer(mc, (sp, level) -> {
+            // Small real grants (they carry the streak and Tempo multipliers) until the bar is nearly full.
+            var skills = dev.amman.proficiency.ProficiencyAttachments.of(sp);
+            int was = skills.level(Skill.RUNNING);
+            float step = dev.amman.proficiency.skill.SkillMath.xpToNext(was) * 0.002f;
+            for (int i = 0; i < 900 && skills.level(Skill.RUNNING) == was && skills.barProgress(Skill.RUNNING) < 0.998f; i++) {
+                SkillService.grant(sp, Skill.RUNNING, step, "proficiency.xplog.source.command");
+            }
+        }));
+        hsMark(mc, "c-row-levelup");
+        hsRun(mc, "c", 7000, true, true);
+
+        // (d) A fourth skill replaces the row idle longest; then everything lingers out and the rows slide down.
+        hsMark(mc, "d-fourth-and-linger");
+        add("hs d courage", 400, () -> combatServer(mc, (sp, level) ->
+                SkillService.grant(sp, Skill.COURAGE, 2.0, "entity.minecraft.husk")));
+        add("hs d mining", 900, () -> combatServer(mc, (sp, level) ->
+                SkillService.grant(sp, Skill.MINING, 3.0, "block.minecraft.stone")));
+        add("hs d state", 10, () -> hsState("d after fourth"));
+        add("hs d wait", 6500, () -> hsState("d lingering"));
+        add("hs d end", 10, () -> hsState("d end"));
+
+        // (e) The toggle off: exactly the old single line.
+        add("hs e off", 300, () -> {
+            dev.amman.proficiency.config.ProficiencyClientConfig.setSessionHudStack(false);
+            command(mc, "item replace entity @s hotbar.0 with air");
+        });
+        hsMark(mc, "e-stack-off");
+        hsRun(mc, "e", 6000, true, false);
+        add("hs capture stop", 500, () -> hsFilm(false));
+        add("hs back", 300, () -> {
+            dev.amman.proficiency.config.ProficiencyClientConfig.setSessionHudStack(null);
+            if (hsStyle != null) {
+                dev.amman.proficiency.config.ProficiencyClientConfig.setUiStyle(hsStyle);
+                dev.amman.proficiency.config.ProficiencyClientConfig.setUiWaywheelPins(hsPins == null ? "" : hsPins);
+            }
+        });
+        add("hs clean", 300, () -> combatServer(mc, (sp, level) -> {
+            for (net.minecraft.world.entity.Entity old : level.getEntitiesOfClass(net.minecraft.world.entity.LivingEntity.class,
+                    sp.getBoundingBox().inflate(64), e -> e.getTags().contains("proficiency_hs"))) {
+                old.discard();
+            }
+        }));
+    }
+
+    /**
+     * The stack's layout at one window setup (PROFICIENCY_LAYOUT_ONLY=hslayout): three rows over a burning main line,
+     * the item name, the action bar, the Waywheel belt, the brazier, then a full chat. "HS AUDIT" checks the stack's
+     * column against every one of them in GUI pixels.
+     */
+    private static void hudStackLayoutScenes(Minecraft mc) {
+        add("hsl setup", 600, () -> {
+            mc.setScreen(null);
+            dev.amman.proficiency.config.ProficiencyClientConfig.setUiStyle(UiStyle.MODERN);
+            dev.amman.proficiency.config.ProficiencyClientConfig.setUiWaywheelPins("swords,running,jumping");
+            dev.amman.proficiency.config.ProficiencyClientConfig.setSessionHudStack(true);
+            dev.amman.proficiency.config.ProficiencyClientConfig.setUiHudStackLingerForDemo(60_000L);
+            command(mc, "gamerule sendCommandFeedback false");
+            command(mc, "item replace entity @s hotbar.0 with diamond_sword");
+            mc.player.getInventory().selected = 0;
+            mc.gui.getChat().clearMessages(false);
+        });
+        add("hsl gains", 700, () -> combatServer(mc, (sp, level) -> {
+            SkillService.grant(sp, Skill.RUNNING, 1.0, "proficiency.xplog.source.sprinting");
+            SkillService.grant(sp, Skill.JUMPING, 0.4, "proficiency.xplog.source.jumping");
+            SkillService.grant(sp, Skill.BEASTSLAYING, 1.0, "entity.minecraft.husk");
+            SkillService.grant(sp, Skill.SWORDS, 2.0, "entity.minecraft.husk");
+        }));
+        add("hsl swords", 500, () -> combatServer(mc, (sp, level) ->
+                SkillService.grant(sp, Skill.SWORDS, 2.0, "entity.minecraft.husk")));
+        add("hsl name", 200, () -> {
+            mc.player.getInventory().selected = 1;
+        });
+        add("hsl name back", 200, () -> {
+            mc.player.getInventory().selected = 0;
+            mc.gui.setOverlayMessage(Component.literal("Action bar: a long message from another mod"), false);
+        });
+        shot(mc, "hsl-stack");
+        add("hsl audit", 10, () -> hsAudit(mc, "stack"));
+        add("hsl chat", 300, () -> {
+            for (int i = 1; i <= 12; i++) {
+                mc.gui.getChat().addMessage(Component.literal("<Rowan> chat line " + i + " so the box reaches up the screen"));
+            }
+        });
+        shot(mc, "hsl-chat");
+        add("hsl audit chat", 10, () -> hsAudit(mc, "chat"));
+        add("hsl back", 300, () -> {
+            mc.gui.getChat().clearMessages(false);
+            dev.amman.proficiency.config.ProficiencyClientConfig.setUiHudStackLingerForDemo(0L);
+        });
+    }
+
+    /** Logs the stack's column and whether it meets anything it must clear. */
+    private static void hsAudit(Minecraft mc, String scene) {
+        int w = mc.getWindow().getGuiScaledWidth();
+        int h = mc.getWindow().getGuiScaledHeight();
+        int[] r = HudStackRows.lastRect;
+        if (r.length < 4) {
+            LayoutAudit.note("HS AUDIT " + setup + " " + scene + " hidden (no column drawn)");
+            return;
+        }
+        List<String> hits = new ArrayList<>();
+        int lineTop = SkillHud.lineY(h) - TempoBadge.currentLift();
+        if (r[3] > lineTop) {
+            hits.add("main label (top " + lineTop + ")");
+        }
+        // Vanilla: hotbar from h-22, item name at h-59, action bar at h-72..h-63, the Forge line may raise them.
+        if (r[3] > h - 72) {
+            hits.add("action bar / item name / hotbar zone");
+        }
+        if (r[0] < 0 || r[1] < 0 || r[2] > w) {
+            hits.add("off screen");
+        }
+        int[] chat = ChatBox.of(mc, h);
+        if (chat != null && r[0] < chat[0] && chat[1] < r[3] && chat[2] > r[1]) {
+            hits.add("chat (right " + chat[0] + ", top " + chat[1] + ")");
+        }
+        LayoutAudit.note("HS AUDIT " + setup + " " + scene + " gui " + w + "x" + h + " column " + r[0] + "," + r[1]
+                + ".." + r[2] + "," + r[3] + " rows=[" + HudStackRows.describe() + "] "
+                + (hits.isEmpty() ? "clear" : "OVERLAP " + String.join("; ", hits)));
+    }
+
+    /** Runs {@code action} on the integrated server's thread with this client's server player. */
+    private static void combatServer(Minecraft mc,
+            java.util.function.BiConsumer<net.minecraft.server.level.ServerPlayer, net.minecraft.server.level.ServerLevel> action) {
+        net.minecraft.server.MinecraftServer server = mc.getSingleplayerServer();
+        if (server == null || mc.player == null) {
+            LayoutAudit.note("CT no integrated server");
+            return;
+        }
+        java.util.UUID id = mc.player.getUUID();
+        server.execute(() -> {
+            net.minecraft.server.level.ServerPlayer sp = server.getPlayerList().getPlayer(id);
+            if (sp != null) {
+                action.accept(sp, sp.serverLevel());
+            }
+        });
+    }
+
+    /** One real swing at the husk; {@code crit} makes it a vanilla jump crit (falling, off the ground). */
+    private static void combatHit(Minecraft mc, boolean crit) {
+        combatServer(mc, (sp, level) -> {
+            var targets = level.getEntitiesOfClass(net.minecraft.world.entity.LivingEntity.class,
+                    sp.getBoundingBox().inflate(6), e -> e.getTags().contains("proficiency_ct"));
+            if (targets.isEmpty()) {
+                LayoutAudit.note("CT no husk");
+                return;
+            }
+            sp.setSprinting(false);
+            targets.get(0).setHealth(targets.get(0).getMaxHealth());
+            if (crit) {
+                sp.fallDistance = 1.5f;
+                sp.setOnGround(false);
+            }
+            sp.attack(targets.get(0));
+            sp.swing(net.minecraft.world.InteractionHand.MAIN_HAND, true);
+            if (crit) {
+                sp.setOnGround(true);
+                sp.fallDistance = 0f;
+            }
+            LayoutAudit.note("CT hit crit=" + crit + " swords x" + Tempo.preview(sp, Skill.SWORDS) + " courage x"
+                    + Tempo.preview(sp, Skill.COURAGE));
+        });
     }
 
     private static void shot(Minecraft mc, String scene) {

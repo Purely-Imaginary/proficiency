@@ -101,6 +101,8 @@ def sharedHearthJava = [
         'dev/amman/proficiency/client/stone/Stone.java',
         'dev/amman/proficiency/client/stone/SkillstoneScreen.java',
         'dev/amman/proficiency/client/stone/TreePage.java',
+        'dev/amman/proficiency/client/stone/NodeMaterials.java',
+        'dev/amman/proficiency/client/stone/UnlockSlam.java',
         'dev/amman/proficiency/client/stone/FaceColumn.java',
         'dev/amman/proficiency/client/stone/HearthPage.java',
         'dev/amman/proficiency/client/stone/StoneSheet.java',
@@ -114,6 +116,17 @@ def sharedHearthJava = [
         'dev/amman/proficiency/client/stone/WaywheelScreen.java',
         'dev/amman/proficiency/client/stone/WaywheelBelt.java',
         'dev/amman/proficiency/client/stone/WaywheelToken.java',
+        // Today's Haul (1.44.0): the card and the login toast.
+        'dev/amman/proficiency/client/stone/HaulScreen.java',
+        'dev/amman/proficiency/client/stone/HaulToast.java',
+        'dev/amman/proficiency/client/stone/HaulBedButton.java',
+        // The 'spendable now' client view (1.55.0).
+        'dev/amman/proficiency/client/SpendableClient.java',
+        'dev/amman/proficiency/client/CoopStreams.java',
+        // The recent-skills stack (1.52.0).
+        'dev/amman/proficiency/client/HudStackRows.java',
+        'dev/amman/proficiency/client/ChatBox.java',
+        'dev/amman/proficiency/coop/CoopService.java',
         'dev/amman/proficiency/hearth/client/HearthGhost.java',
         'dev/amman/proficiency/hearth/client/HearthVisualize.java',
         'dev/amman/proficiency/hearth/client/HearthPreview.java',
@@ -121,9 +134,14 @@ def sharedHearthJava = [
         // The optional Jade plugin (1.16.0): the server's answers and the lines, the same on both versions.
         // The plugin class, the block provider and the request packet are this line's own (Jade 11).
         'dev/amman/proficiency/look/XpLookData.java',
+        'dev/amman/proficiency/look/PlayerLookData.java',
+        'dev/amman/proficiency/jade/PlayerLookProvider.java',
+        'dev/amman/proficiency/jade/PlayerLookView.java',
+        'dev/amman/proficiency/jade/TopSkillsElement.java',
         'dev/amman/proficiency/look/HearthLookData.java',
         'dev/amman/proficiency/jade/LookText.java',
         'dev/amman/proficiency/jade/SkillIconElement.java',
+        'dev/amman/proficiency/jade/SkullIconElement.java',
         'dev/amman/proficiency/jade/BlockLookView.java',
         'dev/amman/proficiency/jade/MobLookProvider.java',
         'dev/amman/proficiency/jade/HearthLookProvider.java',

@@ -4,10 +4,17 @@
   "package": "dev.amman.proficiency.mixin.client",
   "compatibilityLevel": "JAVA_21",
   "client": [
+    "ChatComponentAccessor",
+    "AdvancementToastAccessor",
+    "ChatSynergyMixin",
     "GameRendererMixin",
+    "GuiSlamShakeMixin",
+    "HotbarSlotFxMixin",
     "LivingEntityRendererMixin",
     "LightTextureAccess",
-    "LightTextureMixin"
+    "LightTextureMixin",
+    "ScreenSlamMixin",
+    "ToastInstanceMixin"
   ],
   "injectors": {
     "defaultRequire": 0

@@ -127,8 +127,12 @@ public final class MasteryRiders {
 
             case RUNNING -> {
                 Vec3 look = player.getLookAngle();
-                yield dash(player, new Vec3(look.x, 0, look.z), v, MasteryMath.GROUND_DRAG, 0.0,
+                boolean went = dash(player, new Vec3(look.x, 0, look.z), v, MasteryMath.GROUND_DRAG, 0.0,
                         ParticleTypes.CLOUD, SoundEvents.ENDER_DRAGON_FLAP);
+                if (went) {
+                    galeTrail(player);
+                }
+                yield went;
             }
             case SNEAKING -> smokeStep(player, v, stars);
             case JUMPING -> rebound(player, v);
@@ -190,13 +194,29 @@ public final class MasteryRiders {
         for (LivingEntity victim : caught) {
             strike(player, victim, damage, ECHO_DELAY, () -> {
                 ServerLevel level = player.serverLevel();
-                double y = victim.getY() + victim.getBbHeight() * 0.6;
-                burst(level, ParticleTypes.SWEEP_ATTACK, victim.getX() - 0.35, y, victim.getZ(), 1, 0.0, 0.0);
-                burst(level, ParticleTypes.SWEEP_ATTACK, victim.getX() + 0.35, y + 0.15, victim.getZ(), 1, 0.0, 0.0);
-                burst(level, ParticleTypes.ENCHANTED_HIT, victim.getX(), y, victim.getZ(), 6, 0.3, 0.2);
+                Vec3 hit = victim.position().add(0, victim.getBbHeight() * 0.6, 0);
+                // The second hit flash: a crossed pair of crescents, a white pop and a spray of stars.
+                level.sendParticles(ParticleTypes.SWEEP_ATTACK, hit.x - 0.2, hit.y + 0.1, hit.z, 0, -0.6, 0, 0, 1.0);
+                level.sendParticles(ParticleTypes.SWEEP_ATTACK, hit.x + 0.2, hit.y - 0.1, hit.z, 0, -0.6, 0, 0, 1.0);
+                RiderFx.burst(level, RiderFx.SPARK_WHITE, hit, 6, 0.12, 0.0);
+                RiderFx.burst(level, ParticleTypes.ENCHANTED_HIT, hit, 14, 0.25, 0.45);
+                RiderFx.burst(level, ParticleTypes.CRIT, hit, 6, 0.2, 0.3);
             });
         }
-        sound(player.serverLevel(), first.position(), SoundEvents.PLAYER_ATTACK_SWEEP, 0.8f, 1.5f);
+        // The phantom blade itself: a pale arc swept across the way you face, left to right over 3 ticks,
+        // landing with the hits, and a sharp high swish.
+        Vec3 dir = RiderFx.facing(player, first.position().subtract(player.position()));
+        double reach = Math.max(1.6, Math.min(3.0, Math.sqrt(player.distanceToSqr(first))));
+        Vec3 pivot = player.position().add(0, Math.min(1.3, first.getBbHeight() * 0.6 + (first.getY() - player.getY())), 0);
+        for (int w = 0; w < 3; w++) {
+            double from = w / 3.0;
+            RiderFx.later(player, ECHO_DELAY - 2 + w, () -> RiderFx.sweepArc(player.serverLevel(), pivot, dir, reach,
+                    Math.toRadians(120), from, from + 1 / 3.0, 2));
+        }
+        RiderFx.later(player, ECHO_DELAY - 2, () -> sound(player.serverLevel(), player.position(),
+                SoundEvents.PLAYER_ATTACK_SWEEP, 1.0f, 1.9f));
+        RiderFx.later(player, ECHO_DELAY, () -> sound(player.serverLevel(), first.position(),
+                SoundEvents.PLAYER_ATTACK_CRIT, 0.8f, 1.4f));
         return true;
     }
 
@@ -212,9 +232,30 @@ public final class MasteryRiders {
                 victim.knockback(0.7, player.getX() - victim.getX(), player.getZ() - victim.getZ());
             });
         }
-        ring(level, ParticleTypes.SWEEP_ATTACK, player.position().add(0, 0.9, 0), Math.min(radius, 4.5), 8);
-        ring(level, ParticleTypes.CRIT, player.position().add(0, 0.6, 0), radius, 14);
-        sound(level, player.position(), SoundEvents.PLAYER_ATTACK_SWEEP, 1.0f, 0.7f);
+        // A spin you can see from inside it: three waves of crescents turning round you, a ring of dust
+        // kicked out along the ground at the spin's edge, and a crit spark on each foe it catches.
+        Vec3 hub = player.position();
+        double r = Math.min(radius, 3.0);
+        for (int w = 0; w < 3; w++) {
+            double turn = Math.toRadians(40 * w);
+            int wave = w;
+            RiderFx.later(player, 1 + 2 * w, () -> {
+                ServerLevel l = player.serverLevel();
+                for (int k = 0; k < 4; k++) {
+                    double a = turn + Math.PI / 2 * k;
+                    l.sendParticles(ParticleTypes.SWEEP_ATTACK, hub.x + Math.cos(a) * r, hub.y + 1.0 - 0.15 * wave,
+                            hub.z + Math.sin(a) * r, 0, -0.6, 0, 0, 1.0);
+                }
+                if (wave < 2) {
+                    sound(l, hub, SoundEvents.PLAYER_ATTACK_SWEEP, 0.9f, 0.7f + 0.2f * wave);
+                }
+            });
+        }
+        RiderFx.ring(level, RiderFx.DUST_GREY, hub.add(0, 0.15, 0), radius, 24, 0.0);
+        RiderFx.ring(level, ParticleTypes.CLOUD, hub.add(0, 0.2, 0), 0.8, 12, 0.3);
+        for (LivingEntity victim : victims) {
+            RiderFx.burst(level, ParticleTypes.CRIT, victim.position().add(0, victim.getBbHeight() * 0.6, 0), 8, 0.25, 0.3);
+        }
         return true;
     }
 
@@ -229,9 +270,34 @@ public final class MasteryRiders {
             victim.setDeltaMovement(victim.getDeltaMovement().x, MasteryMath.TREMOR_LIFT, victim.getDeltaMovement().z);
             victim.hurtMarked = true;
         }
-        ring(level, ParticleTypes.CLOUD, player.position().add(0, 0.2, 0), radius, 20);
-        ring(level, ParticleTypes.POOF, player.position().add(0, 0.1, 0), radius * 0.6, 10);
-        sound(level, player.position(), SoundEvents.GENERIC_EXPLODE.value(), 0.5f, 1.5f);
+        // The ground heaves: a slam at your feet, then three rings of the ground's own crumbs rolling out to
+        // the edge, and a puff under each foe as it leaves the ground.
+        Vec3 hub = player.position();
+        BlockState ground = level.getBlockState(player.blockPosition().below());
+        if (ground.isAir()) {
+            ground = Blocks.DIRT.defaultBlockState();
+        }
+        net.minecraft.core.particles.BlockParticleOption crumbs =
+                new net.minecraft.core.particles.BlockParticleOption(ParticleTypes.BLOCK, ground);
+        RiderFx.ring(level, ParticleTypes.POOF, hub.add(0, 0.1, 0), 0.6, 10, 0.15);
+        for (int w = 0; w < 3; w++) {
+            double r = radius * (w + 1) / 3.0;
+            int points = 12 + 6 * w;
+            RiderFx.later(player, 1 + 2 * w, () -> {
+                ServerLevel l = player.serverLevel();
+                for (int k = 0; k < points; k++) {
+                    double a = Math.PI * 2 * k / points;
+                    l.sendParticles(crumbs, hub.x + Math.cos(a) * r, hub.y + 0.15, hub.z + Math.sin(a) * r, 3,
+                            0.2, 0.05, 0.2, 0.2);
+                }
+                RiderFx.ring(l, RiderFx.DUST_GROUND, hub.add(0, 0.1, 0), r, points, 0.0);
+                sound(l, hub, SoundEvents.STONE_BREAK, 0.8f, 0.6f - 0.1f * (float) r / (float) radius);
+            });
+        }
+        for (LivingEntity victim : victims) {
+            RiderFx.burst(level, ParticleTypes.POOF, victim.position().add(0, 0.1, 0), 6, 0.25, 0.03);
+        }
+        sound(level, player.position(), SoundEvents.GENERIC_EXPLODE.value(), 0.6f, 0.8f);
         return true;
     }
 
@@ -241,7 +307,7 @@ public final class MasteryRiders {
         if (from == null) {
             return false;
         }
-        chain(player, from, hops, MasteryMath.HIT_DAMAGE, ParticleTypes.ELECTRIC_SPARK);
+        chain(player, from, hops, MasteryMath.HIT_DAMAGE, false);
         sound(player.serverLevel(), from.position(), SoundEvents.TRIDENT_THUNDER.value(), 0.5f, 1.6f);
         return true;
     }
@@ -308,8 +374,12 @@ public final class MasteryRiders {
         if (from == null) {
             return false;
         }
-        chain(player, from, hops, MasteryMath.RICOCHET_DAMAGE, ParticleTypes.CRIT);
-        sound(player.serverLevel(), from.position(), SoundEvents.ARROW_HIT, 0.8f, 1.4f);
+        chain(player, from, hops, MasteryMath.RICOCHET_DAMAGE, true);
+        ServerLevel level = player.serverLevel();
+        Vec3 glance = from.position().add(0, from.getBbHeight() * 0.5, 0);
+        RiderFx.burst(level, ParticleTypes.ELECTRIC_SPARK, glance, 10, 0.2, 0.25);
+        RiderFx.burst(level, RiderFx.SPARK_GOLD, glance, 5, 0.15, 0.0);
+        sound(level, from.position(), SoundEvents.ARROW_HIT, 0.8f, 1.4f);
         return true;
     }
 
@@ -696,9 +766,25 @@ public final class MasteryRiders {
             item.setDeltaMovement(to.x * 0.1 + (level.random.nextDouble() - 0.5) * 0.1, 0.3 + to.y * 0.05,
                     to.z * 0.1 + (level.random.nextDouble() - 0.5) * 0.1);
             level.addFreshEntity(item);
+            BonusLoot.note(player, item.getItem(), from);
         }
-        burst(level, ParticleTypes.SPLASH, from.x, from.y + 0.2, from.z, 12 + 4 * fish, 0.4, 0.1);
+        // A spout where the line went in, a wake ring on the water, and spray that follows the fish to you.
+        Vec3 spout = from.add(0, 0.3, 0);
+        burst(level, ParticleTypes.SPLASH, spout.x, spout.y, spout.z, 12 + 4 * fish, 0.4, 0.1);
+        RiderFx.ring(level, ParticleTypes.FISHING, from.add(0, 0.1, 0), 0.9, 16, 0.06);
+        for (int k = 0; k < 8; k++) {
+            RiderFx.moving(level, ParticleTypes.BUBBLE_POP, spout.add((level.random.nextDouble() - 0.5) * 0.6, 0,
+                    (level.random.nextDouble() - 0.5) * 0.6), new Vec3(0, 0.25 + 0.05 * k, 0));
+        }
+        for (int s = 1; s <= 2; s++) {
+            double t = s / 4.0;
+            RiderFx.later(player, 2 * s, () -> {
+                Vec3 mid = from.lerp(player.position().add(0, 0.5, 0), t).add(0, 1.0 * 4 * t * (1 - t), 0);
+                RiderFx.burst(player.serverLevel(), ParticleTypes.SPLASH, mid, 6, 0.2, 0.05);
+            });
+        }
         sound(level, from, SoundEvents.FISHING_BOBBER_SPLASH, 1.0f, 1.2f);
+        sound(level, from, SoundEvents.GENERIC_SPLASH, 0.5f, 1.4f);
         return true;
     }
 
@@ -722,6 +808,7 @@ public final class MasteryRiders {
                 touched = true;
             } else if (animal instanceof Chicken chicken && eggs < 8) {
                 chicken.spawnAtLocation(Items.EGG);
+                BonusLoot.note(player, new ItemStack(Items.EGG), chicken.getX(), chicken.getY() + 0.5, chicken.getZ());
                 eggs++;
                 touched = true;
             }
@@ -755,6 +842,26 @@ public final class MasteryRiders {
         return true;
     }
 
+    /** Second Wind: wind streaks stream past you for a moment after the burst. */
+    private static void galeTrail(ServerPlayer player) {
+        Vec3 dir = RiderFx.facing(player, Vec3.ZERO);
+        Vec3 side = new Vec3(-dir.z, 0, dir.x);
+        for (int s = 1; s <= 6; s++) {
+            RiderFx.later(player, s, () -> {
+                ServerLevel l = player.serverLevel();
+                Vec3 p = player.position();
+                Vec3 back = dir.scale(-0.45);
+                for (int k = 0; k < 4; k++) {
+                    double off = (k % 2 == 0 ? 0.7 : -0.7);
+                    double h = k < 2 ? 0.4 : 1.3;
+                    Vec3 at = p.add(side.scale(off)).add(0, h, 0).add(dir.scale(0.6));
+                    RiderFx.moving(l, ParticleTypes.CLOUD, at, back);
+                    RiderFx.at(l, RiderFx.PHANTOM, at.add(dir.scale(-0.4)));
+                }
+            });
+        }
+    }
+
     /** Shadowed: hunters lose the trail, a puff of smoke covers the step, you are gone for a moment. */
     private static boolean smokeStep(ServerPlayer player, double radius, int stars) {
         ServerLevel level = player.serverLevel();
@@ -779,8 +886,21 @@ public final class MasteryRiders {
         player.fallDistance = 0.0f;
         player.addEffect(new MobEffectInstance(MobEffects.SLOW_FALLING, 100, 0, false, true));
         ServerLevel level = player.serverLevel();
-        burst(level, ParticleTypes.CLOUD, player.getX(), player.getY() + 0.1, player.getZ(), 14, 0.35, 0.08);
+        // The spring: a ring of air blown out along the ground, slime spatter, then a white trail under
+        // your feet as you rise.
+        Vec3 feet = player.position();
+        RiderFx.ring(level, ParticleTypes.CLOUD, feet.add(0, 0.1, 0), 0.5, 16, 0.25);
+        RiderFx.ring(level, RiderFx.DUST_GREY, feet.add(0, 0.05, 0), 1.2, 16, 0.0);
+        burst(level, ParticleTypes.ITEM_SLIME, feet.x, feet.y + 0.2, feet.z, 10, 0.3, 0.1);
+        for (int s = 1; s <= 4; s++) {
+            RiderFx.later(player, 2 * s, () -> {
+                Vec3 under = player.position();
+                RiderFx.burst(player.serverLevel(), ParticleTypes.CLOUD, under, 2, 0.15, 0.01);
+                RiderFx.burst(player.serverLevel(), RiderFx.PHANTOM, under, 2, 0.1, 0.0);
+            });
+        }
         sound(level, player.position(), SoundEvents.SLIME_BLOCK_PLACE, 0.8f, 1.6f);
+        sound(level, player.position(), SoundEvents.SLIME_JUMP, 0.6f, 1.2f);
         return true;
     }
 
@@ -852,12 +972,21 @@ public final class MasteryRiders {
         if (targets.isEmpty()) {
             return false;
         }
-        Vec3 eye = player.getEyePosition();
+        Vec3 chest = player.position().add(0, 1.1, 0);
         for (int i = 0; i < Math.min(count, targets.size()); i++) {
             LivingEntity victim = targets.get(i);
-            line(level, ParticleTypes.WITCH, eye, victim.position().add(0, victim.getBbHeight() * 0.5, 0), 8);
-            strike(player, victim, MasteryMath.MISSILE_DAMAGE, 2 + 2 * i, () -> burst(level, ParticleTypes.ENCHANT,
-                    victim.getX(), victim.getY() + victim.getBbHeight() * 0.6, victim.getZ(), 10, 0.3, 0.4));
+            Vec3 to = victim.position().add(0, victim.getBbHeight() * 0.5, 0);
+            Vec3 way = to.subtract(chest);
+            // Start the trail a little way out, so no particle sits in front of the camera, and bow each
+            // missile a different height so several read as separate streaks.
+            Vec3 start = chest.add(way.normalize().scale(Math.min(1.2, way.length() * 0.4)));
+            Vec3 side = new Vec3(-way.z, 0, way.x).normalize().scale((i % 2 == 0 ? 1 : -1) * (0.6 + 0.3 * (i / 2)));
+            RiderFx.bow(level, RiderFx.ARCANE, start, to, side.add(0, 0.3, 0), 3.0);
+            strike(player, victim, MasteryMath.MISSILE_DAMAGE, 2 + 2 * i, () -> {
+                RiderFx.burst(level, RiderFx.ARCANE, to, 6, 0.15, 0.0);
+                RiderFx.burst(level, ParticleTypes.ENCHANT, to.add(0, 0.2, 0), 8, 0.2, 0.15);
+                RiderFx.burst(level, ParticleTypes.WITCH, to, 3, 0.15, 0.0);
+            });
         }
         sound(level, player.position(), SoundEvents.ENCHANTMENT_TABLE_USE, 0.8f, 1.5f);
         return true;
@@ -880,14 +1009,23 @@ public final class MasteryRiders {
             if (item.distanceToSqr(player) < 1.5) {
                 continue;
             }
-            line(level, ParticleTypes.ELECTRIC_SPARK, item.position(), to, 5);
+            // The beam: a cyan line and sparks from where the item lay; the first 8 get the full beam.
+            Vec3 lay = item.position().add(0, 0.2, 0);
+            if (pulled < 8) {
+                RiderFx.arc(level, RiderFx.BEAM, lay, to, 0.0, 3.0);
+                RiderFx.arc(level, ParticleTypes.ELECTRIC_SPARK, lay, to, 0.0, 1.0);
+                RiderFx.at(level, ParticleTypes.END_ROD, lay);
+            } else {
+                line(level, ParticleTypes.ELECTRIC_SPARK, lay, to, 4);
+            }
             item.setPos(to.x, to.y, to.z);
             item.setDeltaMovement(0, 0.1, 0);
             item.setNoPickUpDelay();
             pulled++;
         }
         if (pulled > 0) {
-            ring(level, ParticleTypes.ELECTRIC_SPARK, player.position().add(0, 0.5, 0), 1.2, 8);
+            RiderFx.ring(level, ParticleTypes.ELECTRIC_SPARK, player.position().add(0, 0.3, 0), 1.0, 12, 0.0);
+            RiderFx.ring(level, RiderFx.BEAM, player.position().add(0, 0.1, 0), 0.7, 10, 0.0);
             sound(level, player.position(), SoundEvents.BEACON_ACTIVATE, 0.6f, 1.8f);
         }
         return pulled > 0;
@@ -1011,6 +1149,19 @@ public final class MasteryRiders {
             MasteryTasks.mark(level, f.pos(), f.spawner() ? Blocks.RED_CONCRETE : Blocks.GOLD_BLOCK, 0.5,
                     f.spawner() ? RED : GOLD, MasteryMath.MARK_TICKS);
             burst(level, ParticleTypes.END_ROD, f.pos().getX() + 0.5, f.pos().getY() + 1.0, f.pos().getZ() + 0.5, 2, 0.1, 0.02);
+            if (i < 6) {
+                // A short pointer of motes from your chest toward each find, in the marker's colour.
+                Vec3 chest = player.position().add(0, 1.0, 0);
+                Vec3 way = Vec3.atCenterOf(f.pos()).subtract(chest).normalize();
+                RiderFx.arc(level, f.spawner() ? RiderFx.POINTER_RED : RiderFx.POINTER_GOLD, chest.add(way.scale(1.6)),
+                        chest.add(way.scale(3.6)), 0.0, 3.0);
+            }
+        }
+        // A sonar ping: three gold rings spreading out from you, a beat apart.
+        Vec3 hub = player.position().add(0, 0.6, 0);
+        for (int w = 0; w < 3; w++) {
+            double r = 1.5 + 2.0 * w;
+            RiderFx.later(player, 1 + 3 * w, () -> RiderFx.ring(player.serverLevel(), RiderFx.SONAR_GOLD, hub, r, 20, 0.0));
         }
         sound(level, player.position(), SoundEvents.AMETHYST_BLOCK_RESONATE, 0.9f, 0.8f);
         return true;
@@ -1052,12 +1203,21 @@ public final class MasteryRiders {
             if (done >= count) {
                 break;
             }
-            level.setBlock(at, restored(level.getBlockState(at)).defaultBlockState(), 3);
-            burst(level, ParticleTypes.WAX_OFF, at.getX() + 0.5, at.getY() + 0.5, at.getZ() + 0.5, 6, 0.4, 0.0);
+            BlockState worn0 = level.getBlockState(at);
+            level.setBlock(at, restored(worn0).defaultBlockState(), 3);
+            // Each repointed block in turn, nearest first: the old crust crumbles off, fresh mortar dust
+            // and a scrape of sparks, and a tick of stone set at a rising pitch.
+            int order = done;
+            Vec3 mid = Vec3.atCenterOf(at);
+            RiderFx.later(player, 1 + 2 * order, () -> {
+                ServerLevel l = player.serverLevel();
+                l.sendParticles(new net.minecraft.core.particles.BlockParticleOption(ParticleTypes.BLOCK, worn0),
+                        mid.x, mid.y, mid.z, 12, 0.35, 0.35, 0.35, 0.1);
+                RiderFx.burst(l, RiderFx.MORTAR, mid, 6, 0.4, 0.0);
+                RiderFx.burst(l, ParticleTypes.WAX_OFF, mid, 6, 0.45, 0.0);
+                sound(l, mid, SoundEvents.STONE_PLACE, 0.7f, 1.0f + 0.06f * Math.min(order, 10));
+            });
             done++;
-        }
-        if (done > 0) {
-            sound(level, player.position(), SoundEvents.STONE_PLACE, 1.0f, 1.3f);
         }
         return done > 0;
     }
@@ -1161,6 +1321,7 @@ public final class MasteryRiders {
         Vec3 to = player.position().add(0, 0.5, 0).subtract(start);
         item.setDeltaMovement(to.x * 0.1, 0.25 + to.y * 0.05, to.z * 0.1);
         level.addFreshEntity(item);
+        BonusLoot.note(player, item.getItem(), start);
         burst(level, ParticleTypes.HAPPY_VILLAGER, start.x, start.y, start.z, 6, 0.3, 0.0);
         sound(level, start, SoundEvents.VILLAGER_YES, 0.8f, 1.2f);
         return true;
@@ -1249,7 +1410,7 @@ public final class MasteryRiders {
     }
 
     /** A chain through up to {@code hops} further foes, each the nearest unvisited one to the last. */
-    private static void chain(ServerPlayer player, LivingEntity from, int hops, float damage, ParticleOptions trail) {
+    private static void chain(ServerPlayer player, LivingEntity from, int hops, float damage, boolean ricochet) {
         ServerLevel level = player.serverLevel();
         Set<Entity> seen = new HashSet<>();
         seen.add(from);
@@ -1269,9 +1430,24 @@ public final class MasteryRiders {
             Vec3 a = last.position().add(0, last.getBbHeight() * 0.5, 0);
             Vec3 b = next.position().add(0, next.getBbHeight() * 0.5, 0);
             LivingEntity victim = next;
+            int hop = i;
             strike(player, victim, damage, ECHO_DELAY + 3 * i, () -> {
-                line(level, trail, a, b, 8);
-                burst(level, trail, b.x, b.y, b.z, 8, 0.25, 0.2);
+                if (ricochet) {
+                    // A bright glancing streak (a gold spark line on a low bounce) and a small impact burst.
+                    RiderFx.arc(level, RiderFx.SPARK_GOLD, a, b, 0.5, 5.0);
+                    RiderFx.arc(level, ParticleTypes.ELECTRIC_SPARK, a, b, 0.5, 1.5);
+                    RiderFx.arc(level, ParticleTypes.END_ROD, a, b, 0.5, 0.8);
+                    RiderFx.burst(level, ParticleTypes.CRIT, b, 12, 0.2, 0.35);
+                    RiderFx.burst(level, RiderFx.SPARK_WHITE, b, 4, 0.1, 0.0);
+                    sound(level, b, SoundEvents.ARROW_HIT, 0.7f, 1.5f + 0.1f * hop);
+                } else {
+                    // A jagged sea-blue bolt and a burst of spray where it lands.
+                    RiderFx.zigzag(level, RiderFx.TIDE, ParticleTypes.ELECTRIC_SPARK, a, b, 0.6, level.random);
+                    RiderFx.zigzag(level, RiderFx.TIDE_PALE, ParticleTypes.GLOW, a, b, 0.4, level.random);
+                    RiderFx.burst(level, ParticleTypes.ELECTRIC_SPARK, b, 12, 0.25, 0.3);
+                    RiderFx.burst(level, ParticleTypes.SPLASH, b, 14, 0.3, 0.2);
+                    sound(level, b, SoundEvents.TRIDENT_HIT, 0.7f, 1.3f + 0.1f * hop);
+                }
             });
             last = next;
         }
@@ -1371,8 +1547,9 @@ public final class MasteryRiders {
         }
         LAST_FLOURISH.put(player.getUUID(), now);
         ServerLevel level = player.serverLevel();
-        level.sendParticles(ParticleTypes.WAX_ON, player.getX(), player.getY() + 1.0, player.getZ(),
-                3 + stars, 0.35, 0.5, 0.35, 0.0);
+        // Gold sparks in a loose ring round your feet: at chest height they sat in front of the camera
+        // and drew as huge orange crosses in first person.
+        RiderFx.ring(level, ParticleTypes.WAX_ON, player.position().add(0, 0.25, 0), 0.9, 3 + stars, 0.0);
         level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.AMETHYST_BLOCK_CHIME,
                 SoundSource.PLAYERS, 0.35f, 1.2f + 0.1f * stars);
         player.displayClientMessage(Component.literal("★".repeat(stars) + " ")

@@ -225,4 +225,149 @@ public final class LookGameTests {
         HearthDesignBuilds.clear(helper, ORE);
         helper.succeed();
     }
+
+    // ---- Another player in Jade (1.36.0): title, best skills, what you gain together ----------------
+
+    private static ServerPlayer duo(GameTestHelper helper, double x, double z) {
+        ServerPlayer player = MockPlayers.make(helper);
+        player.setGameMode(GameType.SURVIVAL);
+        player.setPos(helper.absoluteVec(new Vec3(x, 2, z)));
+        return player;
+    }
+
+    private static CompoundTag playerTag(ServerPlayer looker, ServerPlayer other) {
+        CompoundTag tag = new CompoundTag();
+        dev.amman.proficiency.look.PlayerLookData.write(looker, other, tag);
+        return tag;
+    }
+
+    @GameTest(template = T)
+    public static void anotherPlayerShowsTheirTitleAndTheirThreeBestSkills(GameTestHelper helper) {
+        ServerPlayer looker = duo(helper, 2, 2);
+        ServerPlayer other = duo(helper, 2, 5);
+        var skills = ProficiencyAttachments.of(other);
+        skills.setLevel(Skill.MINING, 40);
+        skills.setLevel(Skill.SWORDS, 72);
+        skills.setLevel(Skill.FARMING, 55);
+        skills.setLevel(Skill.COOKING, 3);
+        for (int i = 0; i < 10; i++) {
+            skills.markVisited("first:mining:kind" + i);
+        }
+        boolean picked = skills.setCodexTitle("mining:10");
+        CompoundTag tag = playerTag(looker, other);
+        leave(looker);
+        leave(other);
+        helper.assertTrue(picked, "the title was earned");
+        helper.assertTrue("mining:10".equals(tag.getString(dev.amman.proficiency.look.PlayerLookData.TITLE)), "title: " + tag);
+        int[] top = tag.getIntArray(dev.amman.proficiency.look.PlayerLookData.TOP);
+        helper.assertTrue(top.length == 6 && top[0] == Skill.SWORDS.ordinal() && top[1] == 72
+                && top[2] == Skill.FARMING.ordinal() && top[3] == 55 && top[4] == Skill.MINING.ordinal() && top[5] == 40,
+                "top three: " + java.util.Arrays.toString(top));
+        helper.succeed();
+    }
+
+    @GameTest(template = T)
+    public static void companyAndMentoringApplyNearAndNotFar(GameTestHelper helper) {
+        ServerPlayer looker = duo(helper, 2, 2);
+        ServerPlayer other = duo(helper, 2, 5);
+        ProficiencyAttachments.of(other).setLevel(Skill.SWORDS, 60);
+        double radius = ProficiencyConfig.companyRadius();
+        CompoundTag near = playerTag(looker, other);
+        other.setPos(looker.getX(), looker.getY(), looker.getZ() + radius + 10);
+        CompoundTag far = playerTag(looker, other);
+        leave(looker);
+        leave(other);
+        int nearFlags = near.getInt(dev.amman.proficiency.look.PlayerLookData.FLAGS);
+        int farFlags = far.getInt(dev.amman.proficiency.look.PlayerLookData.FLAGS);
+        helper.assertTrue((nearFlags & dev.amman.proficiency.look.PlayerLookRules.IN_COMPANY) != 0, "near: company " + near);
+        helper.assertTrue((nearFlags & dev.amman.proficiency.look.PlayerLookRules.MENTOR) != 0, "near: mentor " + near);
+        helper.assertTrue(Math.abs(near.getFloat(dev.amman.proficiency.look.PlayerLookData.EXTRA)
+                - ProficiencyConfig.mentorBonus()) < 1e-4, "a mentor pays the mentor bonus: " + near);
+        helper.assertTrue(near.getIntArray(dev.amman.proficiency.look.PlayerLookData.MENTORS).length == 1
+                && near.getIntArray(dev.amman.proficiency.look.PlayerLookData.MENTORS)[0] == Skill.SWORDS.ordinal(),
+                "mentor skill: " + near);
+        helper.assertTrue((nearFlags & dev.amman.proficiency.look.PlayerLookRules.CAN_TEACH_ME) != 0, "near: teaching " + near);
+        helper.assertTrue((farFlags & (dev.amman.proficiency.look.PlayerLookRules.IN_COMPANY
+                | dev.amman.proficiency.look.PlayerLookRules.CAN_TEACH_ME)) == 0, "far: no company, no teaching " + far);
+        helper.assertTrue(far.getFloat(dev.amman.proficiency.look.PlayerLookData.EXTRA) == 0f, "far: no extra " + far);
+        helper.assertTrue(Math.abs(far.getFloat(dev.amman.proficiency.look.PlayerLookData.RADIUS) - radius) < 1e-3,
+                "far: the radius it needs " + far);
+        helper.succeed();
+    }
+
+    @GameTest(template = T)
+    public static void aSharedHomeHearthShowsAndADifferentOneDoesNot(GameTestHelper helper) {
+        ServerPlayer looker = duo(helper, 2, 2);
+        ServerPlayer other = duo(helper, 2, 5);
+        String dim = helper.getLevel().dimension().location().toString();
+        long now = helper.getLevel().getGameTime();
+        long a = helper.absolutePos(new BlockPos(1, 2, 1)).asLong();
+        long b = helper.absolutePos(new BlockPos(7, 2, 7)).asLong();
+        dev.amman.proficiency.hearth.HearthAttachments.of(looker).seenBy(a, dim, now);
+        dev.amman.proficiency.hearth.HearthAttachments.of(other).seenBy(a, dim, now);
+        CompoundTag same = playerTag(looker, other);
+        dev.amman.proficiency.hearth.HearthAttachments.of(other).seenBy(b, dim, now);
+        CompoundTag different = playerTag(looker, other);
+        leave(looker);
+        leave(other);
+        helper.assertTrue((same.getInt(dev.amman.proficiency.look.PlayerLookData.FLAGS)
+                & dev.amman.proficiency.look.PlayerLookRules.SAME_HEARTH) != 0, "same home: " + same);
+        helper.assertTrue((different.getInt(dev.amman.proficiency.look.PlayerLookData.FLAGS)
+                & dev.amman.proficiency.look.PlayerLookRules.SAME_HEARTH) == 0, "other home: " + different);
+        helper.succeed();
+    }
+
+    @GameTest(template = T)
+    public static void theServerSwitchHidesAnotherPlayerAndLookingChangesNothing(GameTestHelper helper) {
+        ServerPlayer looker = duo(helper, 2, 2);
+        ServerPlayer other = duo(helper, 2, 5);
+        ProficiencyAttachments.of(other).setLevel(Skill.MINING, 30);
+        int before = ProficiencyAttachments.of(other).level(Skill.MINING);
+        CompoundTag on = playerTag(looker, other);
+        ProficiencyConfig.JADE_PLAYERS.set(false);
+        CompoundTag off;
+        try {
+            off = playerTag(looker, other);
+        } finally {
+            ProficiencyConfig.JADE_PLAYERS.set(true);
+        }
+        CompoundTag self = playerTag(looker, looker);
+        int after = ProficiencyAttachments.of(other).level(Skill.MINING);
+        leave(looker);
+        leave(other);
+        helper.assertTrue(on.contains(dev.amman.proficiency.look.PlayerLookData.PRESENT), "on: " + on);
+        helper.assertTrue(off.isEmpty(), "off writes nothing: " + off);
+        helper.assertTrue(self.isEmpty(), "yourself: " + self);
+        helper.assertTrue(before == after, "looking changed a level");
+        helper.succeed();
+    }
+
+    @GameTest(template = T)
+    public static void theLookServerNeverDropsARequestWithoutAnAnswer(GameTestHelper helper) {
+        ServerPlayer player = survivor(helper, Items.STONE_PICKAXE);
+        helper.setBlock(ORE, Blocks.IRON_ORE);
+        long pos = helper.absolutePos(ORE).asLong();
+        int data = 0;
+        int retry = 0;
+        for (int i = 0; i < 50; i++) {
+            var reply = dev.amman.proficiency.look.LookServer.reply(player,
+                    new dev.amman.proficiency.net.LookRequestPayload(pos));
+            helper.assertTrue(reply != null && reply.pos() == pos, "request " + i + " got no answer");
+            if (reply.data().getBoolean(dev.amman.proficiency.look.LookPacing.RETRY)) {
+                retry++;
+            } else {
+                helper.assertTrue(reply.data().contains(XpLookData.SKILL), "an answer carries the skill: " + reply.data());
+                data++;
+            }
+        }
+        helper.assertTrue(data >= 1 && retry >= 1 && data + retry == 50, "data " + data + " retry " + retry);
+        helper.runAfterDelay(4, () -> {
+            var reply = dev.amman.proficiency.look.LookServer.reply(player,
+                    new dev.amman.proficiency.net.LookRequestPayload(pos));
+            leave(player);
+            helper.assertFalse(reply.data().getBoolean(dev.amman.proficiency.look.LookPacing.RETRY), "served again after a pause");
+            helper.assertTrue(reply.data().contains(XpLookData.SKILL), "data again: " + reply.data());
+            helper.succeed();
+        });
+    }
 }
